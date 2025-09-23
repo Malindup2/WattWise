@@ -5,11 +5,13 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import LaunchScreen from './src/screens/LaunchScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
+import OTPVerificationScreen from './src/screens/OTPVerificationScreen';
 import { Colors } from './src/constants/Colors';
 
 export default function App() {
   const [showLaunchScreen, setShowLaunchScreen] = useState(true);
-  const [currentScreen, setCurrentScreen] = useState('login'); // 'login', 'signup', 'home'
+  const [currentScreen, setCurrentScreen] = useState('login'); // 'login', 'signup', 'otp', 'home'
+  const [userPhoneNumber, setUserPhoneNumber] = useState('');
 
   const handleLaunchFinish = () => {
     setShowLaunchScreen(false);
@@ -24,6 +26,11 @@ export default function App() {
     setCurrentScreen('login');
   };
 
+  const navigateToOTP = (phoneNumber: string) => {
+    setUserPhoneNumber(phoneNumber);
+    setCurrentScreen('otp');
+  };
+
   const handleLogin = () => {
     // Add your login logic here
     console.log('Login successful');
@@ -34,8 +41,21 @@ export default function App() {
   const handleSignUp = () => {
     // Add your signup logic here
     console.log('Sign up successful');
-    // You might want to navigate to login or directly to home
-    // setCurrentScreen('login'); // or 'home'
+    // Navigate to OTP verification
+    // For demo, using a placeholder phone number
+    navigateToOTP('+91 9876543210');
+  };
+
+  const handleVerifyOTP = () => {
+    // Add OTP verification logic here
+    console.log('OTP verified successfully');
+    // Navigate to main app or home screen
+    // setCurrentScreen('home');
+  };
+
+  const handleResendOTP = () => {
+    // Add resend OTP logic here
+    console.log('OTP resent');
   };
 
   const handleForgotPassword = () => {
@@ -55,6 +75,16 @@ export default function App() {
       <SignUpScreen 
         onSignUp={handleSignUp}
         onLogin={navigateToLogin}
+      />
+    );
+  }
+
+  if (currentScreen === 'otp') {
+    return (
+      <OTPVerificationScreen 
+        onVerifyOTP={handleVerifyOTP}
+        onResendOTP={handleResendOTP}
+        phoneNumber={userPhoneNumber}
       />
     );
   }
