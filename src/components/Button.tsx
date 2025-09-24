@@ -9,35 +9,20 @@ interface ButtonProps {
   disabled?: boolean;
 }
 
-export const Button: React.FC<ButtonProps> = ({ 
-  title, 
-  onPress, 
+export const Button: React.FC<ButtonProps> = ({
+  title,
+  onPress,
   variant = 'primary',
   size = 'md',
-  disabled = false
+  disabled = false,
 }) => {
-  const buttonStyle = [
-    styles.base,
-    styles[variant],
-    styles[size],
-    disabled && styles.disabled
-  ];
+  const buttonStyle = [styles.base, styles[variant], styles[size], disabled && styles.disabled];
 
-  const textStyle = [
-    styles.text,
-    styles[`${variant}Text`],
-    disabled && styles.disabledText
-  ];
+  const textStyle = [styles.text, styles[`${variant}Text`], disabled && styles.disabledText];
 
   return (
-    <TouchableOpacity 
-      style={buttonStyle}
-      onPress={onPress}
-      disabled={disabled}
-    >
-      <Text style={textStyle}>
-        {title}
-      </Text>
+    <TouchableOpacity style={buttonStyle} onPress={onPress} disabled={disabled}>
+      <Text style={textStyle}>{title}</Text>
     </TouchableOpacity>
   );
 };

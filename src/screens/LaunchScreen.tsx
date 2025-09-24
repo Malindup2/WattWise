@@ -1,11 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Animated,
-  StatusBar,
-} from 'react-native';
+import { View, Text, StyleSheet, Animated, StatusBar } from 'react-native';
 import { Colors } from '../constants/Colors';
 
 interface LaunchScreenProps {
@@ -56,7 +50,7 @@ const LaunchScreen: React.FC<LaunchScreenProps> = ({ onFinish }) => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
-      
+
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
         <View style={styles.textContainer}>
           <Animated.View
@@ -72,7 +66,7 @@ const LaunchScreen: React.FC<LaunchScreenProps> = ({ onFinish }) => {
                     }),
                   },
                 ],
-              }
+              },
             ]}
           >
             <Text style={styles.title}>WattWise</Text>
@@ -91,7 +85,7 @@ const LaunchScreen: React.FC<LaunchScreenProps> = ({ onFinish }) => {
                     }),
                   },
                 ],
-              }
+              },
             ]}
           >
             <Text style={styles.subtitle}>Smarter Energy for Smarter Living</Text>

@@ -10,98 +10,174 @@ import {
   StatusBar,
   Alert,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons'; // or react-native-vector-icons
+import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
+import { AuthService } from '../services/firebase';
+import { AlertModal } from '../components/AlertModal';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { useNavigation } from '@react-navigation/native';
 
 const { width, height } = Dimensions.get('window');
 
-interface LoginScreenProps {
-  onLogin?: () => void;
-  onSignUp?: () => void;
-  onForgotPassword?: () => void;
-}
+type RootStackParamList = {
+  Login: undefined;
+  SignUp: undefined;
+  Home: undefined;
+};
 
-const LoginScreen: React.FC<LoginScreenProps> = ({ 
-  onLogin, 
-  onSignUp, 
-  onForgotPassword 
-}) => {
-  const [phoneNumber, setPhoneNumber] = useState('');
+type NavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
+
+const LoginScreen: React.FC = () => {
+  const navigation = useNavigation<NavigationProp>();
+
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [countryCode, setCountryCode] = useState('+91');
-  const [isPhoneFocused, setIsPhoneFocused] = useState(false);
+  const [isEmailFocused, setIsEmailFocused] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = () => {
-    if (!phoneNumber.trim()) {
-      Alert.alert('Error', 'Please enter your phone number');
+  // Alert modal state
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertType, setAlertType] = useState<'success' | 'error' | 'warning' | 'info'>('success');
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+
+  const handleLogin = async () => {
+    if (!email.trim()) {
+      setAlertType('warning');
+      setAlertTitle('Username Required');
+      setAlertMessage('Please enter your username');
+      setAlertVisible(true);
       return;
     }
     if (!password.trim()) {
-      Alert.alert('Error', 'Please enter your password');
+      setAlertType('warning');
+      setAlertTitle('Password Required');
+      setAlertMessage('Please enter your password');
+      setAlertVisible(true);
       return;
     }
-    
-    // Add your login logic here
-    if (onLogin) {
-      onLogin();
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const user = await AuthService.signIn(email, password);
+      console.log('Login successful', user);
+
+      const userDisplayName = user.email ? user.email.split('@')[0] : 'User';
+      const capitalizedName = userDisplayName.charAt(0).toUpperCase() + userDisplayName.slice(1);
+
+      setAlertType('success');
+      setAlertTitle('Welcome Back!');
+      setAlertMessage(
+        `Great to see you again, ${capitalizedName}! You've successfully logged in to WattWise.`
+      );
+      setAlertVisible(true);
+
+      // Auto close and navigate
+      setTimeout(() => {
+        setAlertVisible(false);
+        navigation.replace('Home');
+      }, 3000);
+    } catch (error: any) {
+      console.error('Login error:', error);
+
+      let errorMessage = 'Invalid username or password. Please try again.';
+      let errorTitle = 'Login Failed';
+
+      if (error.code === 'auth/too-many-requests') {
+        errorTitle = 'Too Many Attempts';
+        errorMessage =
+          'Access has been temporarily disabled due to multiple failed login attempts. Please try again later.';
+      } else if (error.code === 'auth/network-request-failed') {
+        errorTitle = 'Network Error';
+        errorMessage =
+          'Unable to connect to the server. Please check your internet connection and try again.';
+      }
+
+      setError(errorMessage);
+      setAlertType('error');
+      setAlertTitle(errorTitle);
+      setAlertMessage(errorMessage);
+      setAlertVisible(true);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleSocialLogin = (platform: string) => {
-    Alert.alert('Social Login', `${platform} login functionality will be implemented`);
+    Alert.alert('Social Login', `${platform} login will be implemented`);
   };
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
-      
-      <ScrollView 
+
+      <AlertModal
+        visible={alertVisible}
+        type={alertType}
+        title={alertTitle}
+        message={alertMessage}
+        onClose={() => setAlertVisible(false)}
+        autoClose={true}
+        autoCloseTime={alertType === 'success' ? 3000 : 2500}
+      />
+
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        {/* Hero Image */}
         <View style={styles.imageContainer}>
-          <Image 
-            source={require('../../assets/login.png')} // Make sure path is correct
+          <Image
+            source={require('../../assets/banner.png')}
             style={styles.heroImage}
             resizeMode="contain"
           />
         </View>
 
-        {/* Login Form */}
         <View style={styles.formContainer}>
           <Text style={styles.title}>Log In</Text>
 
-          {/* Phone Number Input */}
+          {/* Email */}
           <View style={styles.inputContainer}>
-            <View style={[styles.phoneInputWrapper, isPhoneFocused && styles.inputWrapperFocused]}>
-              <View style={styles.countryCodeContainer}>
-                <Ionicons name="call-outline" size={20} color={Colors.textSecondary} />
-                <Text style={styles.countryCode}>{countryCode}</Text>
-                <Ionicons name="chevron-down" size={16} color={Colors.textSecondary} />
-              </View>
+            <View style={[styles.inputWrapper, isEmailFocused && styles.inputWrapperFocused]}>
+              <Ionicons
+                name="mail-outline"
+                size={20}
+                color={Colors.textSecondary}
+                style={styles.inputIcon}
+              />
               <TextInput
-                style={styles.phoneInput}
-                placeholder="Phone Number"
+                style={styles.textInput}
+                placeholder="Email"
                 placeholderTextColor={Colors.textLight}
-                value={phoneNumber}
-                onChangeText={setPhoneNumber}
-                onFocus={() => setIsPhoneFocused(true)}
-                onBlur={() => setIsPhoneFocused(false)}
-                keyboardType="phone-pad"
-                maxLength={10}
+                value={email}
+                onChangeText={setEmail}
+                onFocus={() => setIsEmailFocused(true)}
+                onBlur={() => setIsEmailFocused(false)}
+                autoCapitalize="none"
+                keyboardType="email-address"
               />
             </View>
           </View>
 
-          {/* Password Input */}
+          {/* Password */}
           <View style={styles.inputContainer}>
-            <View style={[styles.passwordInputWrapper, isPasswordFocused && styles.inputWrapperFocused]}>
-              <Ionicons name="lock-closed-outline" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
+            <View
+              style={[styles.passwordInputWrapper, isPasswordFocused && styles.inputWrapperFocused]}
+            >
+              <Ionicons
+                name="lock-closed-outline"
+                size={20}
+                color={Colors.textSecondary}
+                style={styles.inputIcon}
+              />
               <TextInput
                 style={styles.passwordInput}
                 placeholder="Password"
@@ -118,7 +194,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                 style={styles.eyeIcon}
               >
                 <Ionicons
-                  name={showPassword ? "eye-outline" : "eye-off-outline"}
+                  name={showPassword ? 'eye-outline' : 'eye-off-outline'}
                   size={20}
                   color={Colors.textSecondary}
                 />
@@ -126,24 +202,26 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
             </View>
           </View>
 
-          {/* Forgot Password */}
-          <TouchableOpacity 
-            style={styles.forgotPasswordContainer}
-            onPress={onForgotPassword}
-          >
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-          </TouchableOpacity>
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
 
-          {/* Login Button */}
           <TouchableOpacity
             style={styles.loginButton}
             onPress={handleLogin}
             activeOpacity={0.8}
+            disabled={loading}
           >
-            <Text style={styles.loginButtonText}>Log In</Text>
+            {loading ? (
+              <ActivityIndicator color={Colors.white} size="small" />
+            ) : (
+              <Text style={styles.loginButtonText}>Log In</Text>
+            )}
           </TouchableOpacity>
 
-          {/* Social Login */}
+          {/* Social */}
           <View style={styles.socialContainer}>
             <TouchableOpacity
               style={styles.socialButton}
@@ -163,10 +241,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
             </TouchableOpacity>
           </View>
 
-          {/* Sign Up Link */}
+          {/* Sign Up link */}
           <View style={styles.signupContainer}>
             <Text style={styles.signupText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={onSignUp}>
+            <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
               <Text style={styles.signupLink}>Sign Up</Text>
             </TouchableOpacity>
           </View>
@@ -176,42 +254,21 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
   );
 };
 
+// ✅ Keep your styles same
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
+  container: { flex: 1, backgroundColor: '#f8f9fa' },
+  scrollContent: { flexGrow: 1, justifyContent: 'center', minHeight: height },
+  imageContainer: { 
+    alignItems: 'center', 
+    paddingTop: height * 0.08, 
+    paddingBottom: height * 0.04,
+    paddingHorizontal: 24 
   },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  imageContainer: {
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingBottom: 40,
-    paddingHorizontal: 20,
-  },
-  heroImage: {
-    width: width * 0.85,
-    height: height * 0.25,
-    maxWidth: 320,
-    maxHeight: 200,
-  },
-  formContainer: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 20,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    marginBottom: 32,
-    textAlign: 'left',
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  phoneInputWrapper: {
+  heroImage: { width: width * 0.8, height: height * 0.22, maxWidth: 300, maxHeight: 180 },
+  formContainer: { flex: 1, paddingHorizontal: 24, paddingTop: 10, paddingBottom: 40 },
+  title: { fontSize: 28, fontWeight: '700', color: Colors.textPrimary, marginBottom: 40, textAlign: 'center' },
+  inputContainer: { marginBottom: 24 },
+  inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
@@ -220,27 +277,14 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     paddingHorizontal: 16,
     height: 56,
+    elevation: 1,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
-  countryCodeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingRight: 12,
-    borderRightWidth: 1,
-    borderRightColor: Colors.border,
-    marginRight: 12,
-  },
-  countryCode: {
-    fontSize: 16,
-    color: Colors.textPrimary,
-    marginHorizontal: 8,
-    fontWeight: '500',
-  },
-  phoneInput: {
-    flex: 1,
-    fontSize: 16,
-    color: Colors.textPrimary,
-    paddingVertical: 0,
-  },
+  inputWrapperFocused: { borderColor: Colors.primary, borderWidth: 2 },
+  textInput: { flex: 1, fontSize: 16, color: Colors.textPrimary },
   passwordInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -251,52 +295,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     height: 56,
   },
-  inputIcon: {
-    marginRight: 12,
-  },
-  passwordInput: {
-    flex: 1,
-    fontSize: 16,
-    color: Colors.textPrimary,
-    paddingVertical: 0,
-  },
-  eyeIcon: {
-    padding: 4,
-  },
-  forgotPasswordContainer: {
-    alignItems: 'flex-end',
-    marginBottom: 32,
-  },
-  forgotPasswordText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    fontWeight: '400',
-  },
+  inputIcon: { marginRight: 12 },
+  passwordInput: { flex: 1, fontSize: 16, color: Colors.textPrimary },
+  eyeIcon: { padding: 4 },
   loginButton: {
     backgroundColor: Colors.primary,
     borderRadius: 28,
     height: 56,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 24,
+    marginTop: 8,
     elevation: 2,
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
   },
-  loginButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.textOnPrimary,
-  },
-  socialContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 32,
-    gap: 20,
-  },
+  loginButtonText: { fontSize: 18, fontWeight: '600', color: Colors.white },
+  socialContainer: { flexDirection: 'row', justifyContent: 'center', marginBottom: 24, gap: 20 },
   socialButton: {
     width: 48,
     height: 48,
@@ -312,30 +329,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
   },
-  socialIcon: {
-    width: 24,
-    height: 24,
+  socialIcon: { width: 24, height: 24 },
+  signupContainer: { flexDirection: 'row', justifyContent: 'center', marginBottom: 20, paddingTop: 8 },
+  signupText: { fontSize: 16, color: Colors.textSecondary },
+  signupLink: { fontSize: 16, color: Colors.primary, fontWeight: '600' },
+  errorContainer: {
+    backgroundColor: '#FDECEA',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#FFC9C5',
   },
-  signupContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingBottom: 40,
-  },
-  signupText: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-    fontWeight: '400',
-  },
-  signupLink: {
-    fontSize: 16,
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  inputWrapperFocused: {
-    borderColor: Colors.primary,
-    borderWidth: 2,
-  },
+  errorText: { color: '#D32F2F', fontSize: 14, fontWeight: '500' },
 });
 
 export default LoginScreen;
