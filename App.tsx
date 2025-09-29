@@ -4,9 +4,16 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import LaunchScreen from './src/screens/LaunchScreen';
+import OnboardingOne from './src/screens/OnboardingOne';
+import OnboardingTwo from './src/screens/OnboardingTwo';
+import OnboardingThree from './src/screens/OnboardingThree';
 import LoginScreen from './src/screens/LoginScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
 import HomeScreen from './src/screens/HomeScreen';
+import PredictiveModelScreen from './src/screens/PredictiveModelScreen';
+import ActionPlannerScreen from './src/screens/ActionPlannerScreen';
+import ForumScreen from './src/screens/ForumScreen';
+import QuizzesScreen from './src/screens/QuizzesScreen';
 import { Colors } from './src/constants/Colors';
 import { useAuth } from './src/hooks/useAuth';
 import { AuthService } from './src/services/firebase';
@@ -15,6 +22,7 @@ const Stack = createStackNavigator();
 
 export default function App() {
   const [showLaunchScreen, setShowLaunchScreen] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(true);
   const { user, loading } = useAuth();
 
   const handleLaunchFinish = () => {
@@ -48,12 +56,21 @@ export default function App() {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator
-        initialRouteName={user ? 'Home' : 'Login'}
-        screenOptions={{ headerShown: false }}
-      >
-        <Stack.Screen name="Login">{props => <LoginScreen {...props} />}</Stack.Screen>
-        <Stack.Screen name="SignUp">{props => <SignUpScreen {...props} />}</Stack.Screen>
+      <Stack.Navigator initialRouteName={showOnboarding ? 'Onboarding1' : user ? 'Home' : 'Login'} screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Onboarding1" component={OnboardingOne} />
+        <Stack.Screen name="Onboarding2" component={OnboardingTwo} />
+        <Stack.Screen name="Onboarding3">
+          {props => (
+            <OnboardingThree
+              {...props}
+              onGetStarted={() => {
+                setShowOnboarding(false);
+              }}
+            />
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="SignUp" component={SignUpScreen} />
         <Stack.Screen name="Home">
           {props => (
             <HomeScreen
@@ -63,6 +80,10 @@ export default function App() {
             />
           )}
         </Stack.Screen>
+        <Stack.Screen name="PredictiveModel" component={PredictiveModelScreen} />
+        <Stack.Screen name="ActionPlanner" component={ActionPlannerScreen} />
+        <Stack.Screen name="Forum" component={ForumScreen} />
+        <Stack.Screen name="Quizzes" component={QuizzesScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
