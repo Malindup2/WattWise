@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
+import BottomMenu from '../components/BottomMenu';
+import { useNavigation } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
@@ -180,6 +182,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ username = 'User', onLogout }) 
           </TouchableOpacity>
         </View>
       </ScrollView>
+      <BottomMenu />
     </View>
   );
 };
