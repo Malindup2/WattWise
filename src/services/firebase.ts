@@ -1,18 +1,12 @@
-import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  signOut, 
-  User 
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  User,
 } from 'firebase/auth';
-import { 
-  collection, 
-  addDoc, 
-  getDocs, 
-  query, 
-  where, 
-  DocumentData 
-} from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, DocumentData } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
+import type { Firestore } from 'firebase/firestore';
 
 export class AuthService {
   static async signUp(email: string, password: string): Promise<User> {
@@ -47,12 +41,81 @@ export class AuthService {
 }
 
 export class FirestoreService {
+  static async testConnection(): Promise<boolean> {
+    try {
+      console.log('🔍 Testing Firestore connection...');
+      console.log('Project ID:', db._delegate?._databaseId?.projectId || 'unknown');
+
+      // Test 1: Create collection reference
+      const testCollection = collection(db, 'connection-test');
+      console.log('✅ Collection reference created:', testCollection.path);
+
+      // Test 2: Try to read (this should work even with restrictive rules)
+      try {
+        await getDocs(testCollection);
+        console.log('✅ Firestore read test passed');
+      } catch (readError: any) {
+        console.warn('⚠️ Firestore read failed (might be security rules):', readError.code);
+      }
+
+      console.log('✅ Basic Firestore connection test passed');
+      return true;
+    } catch (error: any) {
+      console.error('❌ Firestore connection test failed:', {
+        code: error.code,
+        message: error.message,
+        details: error,
+      });
+      return false;
+    }
+  }
+
   static async addDocument(collectionName: string, data: any): Promise<string> {
     try {
-      const docRef = await addDoc(collection(db, collectionName), data);
+      console.log(`🚀 FirestoreService: Adding document to collection '${collectionName}'`, data);
+      console.log('📍 Database instance:', db.app.name);
+
+      // Check if user is authenticated (this is crucial for Firestore rules)
+      const currentUser = auth.currentUser;
+      console.log('👤 Current user:', currentUser ? currentUser.uid : 'Not authenticated');
+
+      if (!currentUser) {
+        throw new Error('User must be authenticated to write to Firestore');
+      }
+
+      // Create collection reference
+      const collectionRef = collection(db, collectionName);
+      console.log('📂 Collection reference path:', collectionRef.path);
+
+      // Try to add document with more detailed logging
+      console.log('⏳ Attempting to add document...');
+      const docRef = await addDoc(collectionRef, data);
+      console.log(`✅ FirestoreService: Document added successfully with ID: ${docRef.id}`);
       return docRef.id;
-    } catch (error) {
+    } catch (error: any) {
+      console.error('❌ FirestoreService: Error adding document:', {
+        code: error.code,
+        message: error.message,
+        name: error.name,
+        customMessage: this.getFirestoreErrorMessage(error),
+      });
       throw error;
+    }
+  }
+
+  // Helper function to decode common Firestore errors
+  static getFirestoreErrorMessage(error: any): string {
+    switch (error.code) {
+      case 'permission-denied':
+        return 'Permission denied. Check Firestore security rules.';
+      case 'unavailable':
+        return 'Firestore service is currently unavailable.';
+      case 'deadline-exceeded':
+        return 'Request timed out. Check network connection.';
+      case 'unauthenticated':
+        return 'User is not authenticated.';
+      default:
+        return `Unknown Firestore error: ${error.code}`;
     }
   }
 
@@ -61,7 +124,7 @@ export class FirestoreService {
       const querySnapshot = await getDocs(collection(db, collectionName));
       return querySnapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       }));
     } catch (error) {
       throw error;
@@ -69,8 +132,8 @@ export class FirestoreService {
   }
 
   static async getDocumentsByField(
-    collectionName: string, 
-    field: string, 
+    collectionName: string,
+    field: string,
     value: any
   ): Promise<DocumentData[]> {
     try {
@@ -78,7 +141,7 @@ export class FirestoreService {
       const querySnapshot = await getDocs(q);
       return querySnapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       }));
     } catch (error) {
       throw error;
