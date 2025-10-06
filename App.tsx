@@ -34,14 +34,14 @@ const MainTabNavigator = () => {
 
           if (route.name === 'Home') {
             iconName = 'home-outline';
-          } else if (route.name === 'PredictiveModel') {
+          } else if (route.name === 'Prediction') {
             iconName = 'analytics-outline';
-          } else if (route.name === 'ActionPlanner') {
-            iconName = 'list-outline';
-          } else if (route.name === 'Forum') {
-            iconName = 'chatbubbles-outline';
           } else if (route.name === 'Quizzes') {
             iconName = 'help-circle-outline';
+          } else if (route.name === 'Forum') {
+            iconName = 'chatbubbles-outline';
+          } else if (route.name === 'Planner') {
+            iconName = 'list-outline';
           } else {
             iconName = 'home-outline';
           }
@@ -62,10 +62,10 @@ const MainTabNavigator = () => {
           username: user?.displayName || user?.email?.split('@')[0] || 'User',
         }}
       />
-      <Tab.Screen name="PredictiveModel" component={PredictiveModelScreen} />
-      <Tab.Screen name="ActionPlanner" component={ActionPlannerScreen} />
-      <Tab.Screen name="Forum" component={ForumScreen} />
+      <Tab.Screen name="Prediction" component={PredictiveModelScreen} />
       <Tab.Screen name="Quizzes" component={QuizzesScreen} />
+      <Tab.Screen name="Forum" component={ForumScreen} />
+      <Tab.Screen name="Planner" component={ActionPlannerScreen} />
     </Tab.Navigator>
   );
 };

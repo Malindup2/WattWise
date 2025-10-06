@@ -166,14 +166,14 @@ const HomeScreen: React.FC<HomeScreenProps> = () => {
 
         {/* Action Buttons */}
         <View style={styles.actionsContainer}>
-          <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('PredictiveModel')}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('Prediction')}>
             <View style={styles.actionIconContainer}>
               <Ionicons name="analytics-outline" size={24} color={Colors.primary} />
             </View>
             <Text style={styles.actionText}>Energy Predictor</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('ActionPlanner')}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('Planner')}>
             <View style={styles.actionIconContainer}>
               <Ionicons name="list-outline" size={24} color={Colors.primary} />
             </View>
