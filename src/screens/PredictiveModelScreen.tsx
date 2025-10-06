@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, StatusBar } from 'react-native';
 import { Colors } from '../constants/Colors';
-import BottomMenu from '../components/BottomMenu';
 
 const PredictiveModelScreen: React.FC = () => {
   return (
@@ -11,7 +10,6 @@ const PredictiveModelScreen: React.FC = () => {
         <Text style={styles.title}>Predictive Model</Text>
         <Text style={styles.subtitle}>Coming soon…</Text>
       </View>
-      <BottomMenu />
     </View>
   );
 };

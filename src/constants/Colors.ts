@@ -19,6 +19,10 @@ export const Colors = {
   // Status colors (derived from primary)
   success: '#49B02D',
   successLight: '#F0F9F0',
+  warning: '#F59E0B',
+  warningLight: '#FEF3C7',
+  error: '#EF4444',
+  errorLight: '#FEE2E2',
 
   // Text colors
   textPrimary: '#1F2937',

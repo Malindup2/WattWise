@@ -24,7 +24,7 @@ const { width, height } = Dimensions.get('window');
 type RootStackParamList = {
   Login: undefined;
   SignUp: undefined;
-  Home: undefined;
+  MainTabs: undefined;
 };
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
@@ -82,7 +82,7 @@ const LoginScreen: React.FC = () => {
       // Auto close and navigate
       setTimeout(() => {
         setAlertVisible(false);
-        navigation.replace('Home');
+        navigation.replace('MainTabs');
       }, 3000);
     } catch (error: any) {
       console.error('Login error:', error);

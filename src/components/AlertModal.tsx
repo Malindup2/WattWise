@@ -29,7 +29,7 @@ export const AlertModal: React.FC<AlertModalProps> = ({
   message,
   onClose,
   autoClose = true,
-  autoCloseTime = type === 'success' ? 4000 : 3000,
+  autoCloseTime = type === 'success' ? 3000 : 2000,
 }) => {
   // Keep track of internal visibility for animation purposes
   const [modalVisible, setModalVisible] = useState(false);
