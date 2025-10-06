@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, StatusBar } from 'react-native';
 import { Colors } from '../constants/Colors';
-import BottomMenu from '../components/BottomMenu';
 import CommunityForum from '../components/CommunityForum';
 
 const ForumScreen: React.FC = () => {
@@ -11,7 +10,6 @@ const ForumScreen: React.FC = () => {
       <View style={styles.content}>
         <CommunityForum />
       </View>
-      <BottomMenu />
     </View>
   );
 };

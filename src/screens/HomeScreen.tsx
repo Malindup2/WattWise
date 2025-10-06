@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
-import BottomMenu from '../components/BottomMenu';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { AuthService } from '../services/firebase';
 
 const { width } = Dimensions.get('window');
 
@@ -52,14 +52,27 @@ const mockUsageData = {
   ],
 };
 
-interface HomeScreenProps {
-  username?: string;
-  onLogout?: () => void;
-}
+interface HomeScreenProps {}
 
-const HomeScreen: React.FC<HomeScreenProps> = ({ username = 'User', onLogout }) => {
+const HomeScreen: React.FC<HomeScreenProps> = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [usageData, setUsageData] = useState(mockUsageData);
+  const navigation = useNavigation<any>();
+  const route = useRoute();
+  const username = (route.params as any)?.username || 'User';
+
+  const handleLogout = async () => {
+    try {
+      await AuthService.signOut();
+      const parentNavigation = navigation.getParent();
+      parentNavigation?.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
 
   // Simulating data fetch on pull refresh
   const onRefresh = () => {
@@ -87,7 +100,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ username = 'User', onLogout }) 
           <Text style={styles.greeting}>Hello, {username}</Text>
           <Text style={styles.headerText}>Welcome to WattWise</Text>
         </View>
-        <TouchableOpacity style={styles.profileButton} onPress={onLogout}>
+        <TouchableOpacity style={styles.profileButton} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={24} color={Colors.white} />
         </TouchableOpacity>
       </View>
@@ -153,28 +166,28 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ username = 'User', onLogout }) 
 
         {/* Action Buttons */}
         <View style={styles.actionsContainer}>
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('PredictiveModel')}>
             <View style={styles.actionIconContainer}>
               <Ionicons name="analytics-outline" size={24} color={Colors.primary} />
             </View>
             <Text style={styles.actionText}>Energy Predictor</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('ActionPlanner')}>
             <View style={styles.actionIconContainer}>
               <Ionicons name="list-outline" size={24} color={Colors.primary} />
             </View>
             <Text style={styles.actionText}>Action Planner</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('Quizzes')}>
             <View style={styles.actionIconContainer}>
               <Ionicons name="help-circle-outline" size={24} color={Colors.primary} />
             </View>
             <Text style={styles.actionText}>Energy Quiz</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('Forum')}>
             <View style={styles.actionIconContainer}>
               <Ionicons name="people-outline" size={24} color={Colors.primary} />
             </View>
@@ -182,7 +195,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ username = 'User', onLogout }) 
           </TouchableOpacity>
         </View>
       </ScrollView>
-      <BottomMenu />
     </View>
   );
 };
