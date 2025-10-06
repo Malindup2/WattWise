@@ -4,7 +4,7 @@ import {
   signOut,
   User,
 } from 'firebase/auth';
-import { collection, addDoc, getDocs, query, where, DocumentData } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, doc, updateDoc, DocumentData } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 import type { Firestore } from 'firebase/firestore';
 
@@ -144,6 +144,65 @@ export class FirestoreService {
         ...doc.data(),
       }));
     } catch (error) {
+      throw error;
+    }
+  }
+
+  static async saveUserLayout(layoutData: {
+    source: 'blueprint' | 'custom';
+    blueprintId: string | null;
+    sections: Array<{ name: string; count: number }>;
+    type: 'household' | 'industrial';
+    name: string;
+    area: number;
+  }): Promise<string> {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('User must be authenticated to save layout');
+      }
+
+      const layoutDoc = {
+        userId: currentUser.uid,
+        ...layoutData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      return await this.addDocument('user_layouts', layoutDoc);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async getUserLayout(userId: string): Promise<DocumentData | null> {
+    try {
+      const layouts = await this.getDocumentsByField('user_layouts', 'userId', userId);
+      return layouts.length > 0 ? layouts[0] : null;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async updateUserLayout(
+    layoutId: string,
+    updates: Partial<{
+      sections: Array<{ name: string; count: number }>;
+      name: string;
+      area: number;
+    }>
+  ): Promise<void> {
+    try {
+      const layoutRef = doc(db, 'user_layouts', layoutId);
+      const updateData = {
+        ...updates,
+        updatedAt: new Date().toISOString(),
+      };
+      
+      await updateDoc(layoutRef, updateData);
+      console.log('✅ Layout updated successfully');
+    } catch (error) {
+      console.error('❌ Error updating layout:', error);
       throw error;
     }
   }
