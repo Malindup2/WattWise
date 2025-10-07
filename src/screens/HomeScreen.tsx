@@ -33,6 +33,7 @@ import {
   calculateRoomEnergyConsumption,
   formatTime,
 } from '../utils/energyCalculations';
+import FloatingChatbot from '../components/FloatingChatbot';
 
 const { width, height } = Dimensions.get('window');
 const chartWidth = width - 60;
@@ -1079,6 +1080,7 @@ const HomeScreen = () => {
         message={alertMessage}
         onClose={() => setAlertVisible(false)}
       />
+      <FloatingChatbot />
     </View>
   );
 };
