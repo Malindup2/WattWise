@@ -87,19 +87,20 @@ const FloatingChatbot = () => {
     } catch (error: any) {
       console.error('Error communicating with Gemini API:', error);
       console.error('Error details:', error.response?.data);
-      
+
       let errorMessage = "I'm having trouble connecting right now. Please try again in a moment.";
-      
+
       if (error.response?.status === 400) {
-        errorMessage = "Invalid API request. Please check your API key configuration.";
+        errorMessage = 'Invalid API request. Please check your API key configuration.';
       } else if (error.response?.status === 403) {
-        errorMessage = "API key is not authorized. Please verify your Gemini API key.";
+        errorMessage = 'API key is not authorized. Please verify your Gemini API key.';
       } else if (error.response?.status === 404) {
-        errorMessage = "Model not found. Using an outdated model name.";
+        errorMessage = 'Model not found. Using an outdated model name.';
       } else if (error.response?.status === 429) {
-        errorMessage = "Rate limit reached. Please wait a moment before trying again.";
+        errorMessage = 'Rate limit reached. Please wait a moment before trying again.';
       } else if (!GEMINI_API_KEY) {
-        errorMessage = "API key is missing. Please add EXPO_PUBLIC_GEMINI_API_KEY to your .env file.";
+        errorMessage =
+          'API key is missing. Please add EXPO_PUBLIC_GEMINI_API_KEY to your .env file.';
       }
 
       const errorResponse: IMessage = {
@@ -200,11 +201,7 @@ const FloatingChatbot = () => {
 
   return (
     <>
-      <TouchableOpacity
-        style={styles.floatingButton}
-        onPress={toggleChatbot}
-        activeOpacity={0.8}
-      >
+      <TouchableOpacity style={styles.floatingButton} onPress={toggleChatbot} activeOpacity={0.8}>
         <Ionicons name="flash" size={28} color="#fff" />
         <View style={styles.badge}>
           <Text style={styles.badgeText}>AI</Text>
