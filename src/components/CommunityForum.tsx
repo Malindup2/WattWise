@@ -90,11 +90,15 @@ const CommunityForum: React.FC = () => {
   useEffect(() => {
     // default subscribe by date; we will client-sort for popularity
     const q = query(collection(db, POSTS_COLLECTION), orderBy('createdAt', 'desc'));
-    const unsub = onSnapshot(q, snapshot => {
-      const data: ForumPost[] = snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-      setPosts(data);
-      setLoading(false);
-    }, () => setLoading(false));
+    const unsub = onSnapshot(
+      q,
+      snapshot => {
+        const data: ForumPost[] = snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        setPosts(data);
+        setLoading(false);
+      },
+      () => setLoading(false)
+    );
     return () => unsub();
   }, []);
 
@@ -110,11 +114,15 @@ const CommunityForum: React.FC = () => {
       where('postId', '==', activePost.id),
       orderBy('createdAt', 'asc')
     );
-    const unsub = onSnapshot(q, snapshot => {
-      const data: ForumComment[] = snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-      setComments(data);
-      setCommentLoading(false);
-    }, () => setCommentLoading(false));
+    const unsub = onSnapshot(
+      q,
+      snapshot => {
+        const data: ForumComment[] = snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        setComments(data);
+        setCommentLoading(false);
+      },
+      () => setCommentLoading(false)
+    );
     return () => unsub();
   }, [activePost?.id]);
 
@@ -180,7 +188,7 @@ const CommunityForum: React.FC = () => {
     try {
       const voteDocRef = doc(db, POSTS_COLLECTION, post.id, 'votes', currentUser.uid);
       const existingSnap = await getDoc(voteDocRef);
-      const prev = existingSnap.exists() ? (existingSnap.data() as any)?.value ?? null : null;
+      const prev = existingSnap.exists() ? ((existingSnap.data() as any)?.value ?? null) : null;
       if (prev === value) {
         // unvote
         await deleteDoc(voteDocRef);
@@ -188,7 +196,16 @@ const CommunityForum: React.FC = () => {
         await updateDoc(doc(db, POSTS_COLLECTION, post.id), fields);
       } else {
         // set or switch vote
-        await updateDoc(doc(db, POSTS_COLLECTION, post.id), prev == null ? (value === 1 ? { upVotes: increment(1) } : { downVotes: increment(1) }) : (value === 1 ? { upVotes: increment(1), downVotes: increment(-1) } : { downVotes: increment(1), upVotes: increment(-1) }));
+        await updateDoc(
+          doc(db, POSTS_COLLECTION, post.id),
+          prev == null
+            ? value === 1
+              ? { upVotes: increment(1) }
+              : { downVotes: increment(1) }
+            : value === 1
+              ? { upVotes: increment(1), downVotes: increment(-1) }
+              : { downVotes: increment(1), upVotes: increment(-1) }
+        );
         await setDoc(voteDocRef, { value }, { merge: true });
         if (post.uid && post.uid !== currentUser.uid) {
           await addDoc(collection(db, 'notifications'), {
@@ -215,12 +232,18 @@ const CommunityForum: React.FC = () => {
         Alert.alert('Permission required', 'Media library access is needed to attach photos.');
         return;
       }
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+      });
       if (!result.canceled && result.assets?.length) {
         setMediaUri(result.assets[0].uri);
       }
     } catch (e) {
-      Alert.alert('Image picker not available', 'Please install expo-image-picker to attach images.');
+      Alert.alert(
+        'Image picker not available',
+        'Please install expo-image-picker to attach images.'
+      );
     }
   };
 
@@ -251,7 +274,9 @@ const CommunityForum: React.FC = () => {
     Alert.alert('Delete post', 'Are you sure you want to delete this post?', [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Delete', style: 'destructive', onPress: async () => {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
           try {
             await deleteDoc(doc(db, POSTS_COLLECTION, post.id));
             // Optionally: delete comments - fetch then delete
@@ -259,15 +284,13 @@ const CommunityForum: React.FC = () => {
             const snap = await getDocs(q);
             await Promise.all(snap.docs.map(d => deleteDoc(doc(db, COMMENTS_COLLECTION, d.id))));
           } catch {}
-        }
-      }
+        },
+      },
     ]);
   };
 
   const renderPost = ({ item }: { item: ForumPost }) => {
-    const dateText = item.createdAt?.toDate
-      ? item.createdAt.toDate().toLocaleString()
-      : '…';
+    const dateText = item.createdAt?.toDate ? item.createdAt.toDate().toLocaleString() : '…';
     return (
       <View style={styles.card}>
         <View style={styles.postHeaderRow}>
@@ -282,7 +305,9 @@ const CommunityForum: React.FC = () => {
             </TouchableOpacity>
           )}
         </View>
-        <Text style={styles.postMeta}>By {item.author} · {dateText}</Text>
+        <Text style={styles.postMeta}>
+          By {item.author} · {dateText}
+        </Text>
         <Text style={styles.postContent}>{item.content}</Text>
         {item.mediaUrl ? (
           <Image source={{ uri: item.mediaUrl }} style={styles.postImage} resizeMode="cover" />
@@ -362,7 +387,12 @@ const CommunityForum: React.FC = () => {
       ) : (
         <FlatList
           data={(posts || [])
-            .filter(p => !search.trim() || p.title.toLowerCase().includes(search.trim().toLowerCase()) || p.content.toLowerCase().includes(search.trim().toLowerCase()))
+            .filter(
+              p =>
+                !search.trim() ||
+                p.title.toLowerCase().includes(search.trim().toLowerCase()) ||
+                p.content.toLowerCase().includes(search.trim().toLowerCase())
+            )
             .sort((a, b) => {
               if (sortKey === 'date') {
                 const at = a.createdAt?.toMillis?.() || 0;
@@ -379,7 +409,9 @@ const CommunityForum: React.FC = () => {
           ListEmptyComponent={
             <View style={styles.emptyWrap}>
               <Ionicons name="chatbubbles-outline" size={48} color={Colors.textLight} />
-              <Text style={styles.emptyText}>No posts yet. Be the first to start a discussion!</Text>
+              <Text style={styles.emptyText}>
+                No posts yet. Be the first to start a discussion!
+              </Text>
             </View>
           }
           keyboardShouldPersistTaps="handled"
@@ -388,7 +420,10 @@ const CommunityForum: React.FC = () => {
 
       {/* New Post Modal */}
       <Modal visible={showNewPostModal} animationType="slide" transparent>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>{editingPostId ? 'Edit Post' : 'Create Post'}</Text>
             <TextInput
@@ -412,19 +447,23 @@ const CommunityForum: React.FC = () => {
                   <Ionicons name="image-outline" size={18} color={Colors.textPrimary} />
                   <Text style={[styles.secondaryBtnText, { marginLeft: 6 }]}>Add Photo</Text>
                 </TouchableOpacity>
-                {mediaUri && (
-                  <Image source={{ uri: mediaUri }} style={styles.mediaPreview} />
-                )}
+                {mediaUri && <Image source={{ uri: mediaUri }} style={styles.mediaPreview} />}
               </View>
             )}
 
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.secondaryBtn} onPress={() => setShowNewPostModal(false)}>
+              <TouchableOpacity
+                style={styles.secondaryBtn}
+                onPress={() => setShowNewPostModal(false)}
+              >
                 <Text style={styles.secondaryBtnText}>Cancel</Text>
               </TouchableOpacity>
               {editingPostId ? (
                 <TouchableOpacity
-                  style={[styles.primaryBtn, (!editTitle.trim() || !editContent.trim() || submitting) && styles.disabledBtn]}
+                  style={[
+                    styles.primaryBtn,
+                    (!editTitle.trim() || !editContent.trim() || submitting) && styles.disabledBtn,
+                  ]}
                   onPress={handleSavePost}
                   disabled={!editTitle.trim() || !editContent.trim() || submitting}
                 >
@@ -436,7 +475,11 @@ const CommunityForum: React.FC = () => {
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity
-                  style={[styles.primaryBtn, (!newTitle.trim() || !newContent.trim() || submitting || uploadingMedia) && styles.disabledBtn]}
+                  style={[
+                    styles.primaryBtn,
+                    (!newTitle.trim() || !newContent.trim() || submitting || uploadingMedia) &&
+                      styles.disabledBtn,
+                  ]}
                   onPress={handleCreatePost}
                   disabled={!newTitle.trim() || !newContent.trim() || submitting || uploadingMedia}
                 >
@@ -454,13 +497,23 @@ const CommunityForum: React.FC = () => {
 
       {/* Post action menu */}
       <Modal visible={!!postMenuFor} transparent animationType="fade">
-        <TouchableOpacity style={styles.menuOverlay} activeOpacity={1} onPress={() => setPostMenuFor(null)}>
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setPostMenuFor(null)}
+        >
           <TouchableOpacity activeOpacity={1} style={styles.menuCard} onPress={() => {}}>
-            <TouchableOpacity style={styles.menuItem} onPress={() => postMenuFor && openEditPost(postMenuFor)}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => postMenuFor && openEditPost(postMenuFor)}
+            >
               <Ionicons name="create-outline" size={18} color={Colors.textPrimary} />
               <Text style={styles.menuItemText}>Edit Post</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItem} onPress={() => postMenuFor && handleDeletePost(postMenuFor)}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => postMenuFor && handleDeletePost(postMenuFor)}
+            >
               <Ionicons name="trash-outline" size={18} color="#DC2626" />
               <Text style={[styles.menuItemText, { color: '#DC2626' }]}>Delete Post</Text>
             </TouchableOpacity>
@@ -473,126 +526,153 @@ const CommunityForum: React.FC = () => {
 
       {/* Comments Modal */}
       <Modal visible={!!activePost} animationType="slide" transparent>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setActivePost(null)}>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-            <TouchableOpacity activeOpacity={1} style={[styles.modalCard, { maxHeight: '86%' }]} onPress={() => {}}>
-            <View style={styles.commentsHeader}>
-              <Text style={styles.modalTitle}>Comments</Text>
-              <TouchableOpacity onPress={() => setActivePost(null)}>
-                <Ionicons name="close" size={24} color={Colors.textPrimary} />
-              </TouchableOpacity>
-            </View>
-
-            {activePost && (
-              <View style={styles.postPreview}>
-                <Text style={styles.postTitle}>{activePost.title}</Text>
-                <Text style={styles.postMeta}>By {activePost.author}</Text>
-                <Text style={styles.postContent}>{activePost.content}</Text>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setActivePost(null)}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={{ flex: 1, justifyContent: 'flex-end' }}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              style={[styles.modalCard, { maxHeight: '86%' }]}
+              onPress={() => {}}
+            >
+              <View style={styles.commentsHeader}>
+                <Text style={styles.modalTitle}>Comments</Text>
+                <TouchableOpacity onPress={() => setActivePost(null)}>
+                  <Ionicons name="close" size={24} color={Colors.textPrimary} />
+                </TouchableOpacity>
               </View>
-            )}
 
-            <View style={styles.commentsListWrap}>
-              {commentLoading ? (
-                <View style={styles.loadingWrap}>
-                  <ActivityIndicator color={Colors.primary} />
+              {activePost && (
+                <View style={styles.postPreview}>
+                  <Text style={styles.postTitle}>{activePost.title}</Text>
+                  <Text style={styles.postMeta}>By {activePost.author}</Text>
+                  <Text style={styles.postContent}>{activePost.content}</Text>
                 </View>
-              ) : (
-                <ScrollView contentContainerStyle={{ paddingBottom: 80 }}>
-                  {comments.map(c => (
-                    <View key={c.id} style={styles.commentCard}>
-                      <View style={styles.commentHeader}>
-                        <Text style={styles.commentAuthor}>{c.author}</Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                          <Text style={styles.commentDate}>
-                            {c.createdAt?.toDate ? c.createdAt.toDate().toLocaleString() : ''}
-                          </Text>
-                          {currentUser?.uid === c.uid && (
-                            <TouchableOpacity
-                              onPress={() => {
-                                setEditingCommentId(c.id);
-                                setEditCommentText(c.content);
-                              }}
-                              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                            >
-                              <Ionicons name="ellipsis-vertical" size={16} color={Colors.textSecondary} />
-                            </TouchableOpacity>
-                          )}
-                        </View>
-                      </View>
-                      {editingCommentId === c.id ? (
-                        <View>
-                          <TextInput
-                            style={[styles.input, { marginBottom: 8 }]}
-                            value={editCommentText}
-                            onChangeText={setEditCommentText}
-                            multiline
-                          />
-                          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
-                            <TouchableOpacity onPress={() => setEditingCommentId(null)} style={styles.secondaryBtn}>
-                              <Text style={styles.secondaryBtnText}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={styles.primaryBtn}
-                              onPress={async () => {
-                                try {
-                                  await updateDoc(doc(db, COMMENTS_COLLECTION, c.id), { content: editCommentText.trim() });
-                                  setEditingCommentId(null);
-                                } catch {}
-                              }}
-                            >
-                              <Text style={styles.primaryBtnText}>Save</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={[styles.secondaryBtn, { borderColor: '#DC2626' }]}
-                              onPress={async () => {
-                                try {
-                                  await deleteDoc(doc(db, COMMENTS_COLLECTION, c.id));
-                                } catch {}
-                              }}
-                            >
-                              <Text style={[styles.secondaryBtnText, { color: '#DC2626' }]}>Delete</Text>
-                            </TouchableOpacity>
+              )}
+
+              <View style={styles.commentsListWrap}>
+                {commentLoading ? (
+                  <View style={styles.loadingWrap}>
+                    <ActivityIndicator color={Colors.primary} />
+                  </View>
+                ) : (
+                  <ScrollView contentContainerStyle={{ paddingBottom: 80 }}>
+                    {comments.map(c => (
+                      <View key={c.id} style={styles.commentCard}>
+                        <View style={styles.commentHeader}>
+                          <Text style={styles.commentAuthor}>{c.author}</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                            <Text style={styles.commentDate}>
+                              {c.createdAt?.toDate ? c.createdAt.toDate().toLocaleString() : ''}
+                            </Text>
+                            {currentUser?.uid === c.uid && (
+                              <TouchableOpacity
+                                onPress={() => {
+                                  setEditingCommentId(c.id);
+                                  setEditCommentText(c.content);
+                                }}
+                                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                              >
+                                <Ionicons
+                                  name="ellipsis-vertical"
+                                  size={16}
+                                  color={Colors.textSecondary}
+                                />
+                              </TouchableOpacity>
+                            )}
                           </View>
                         </View>
-                      ) : (
-                        <Text style={styles.commentBody}>{c.content}</Text>
-                      )}
-                    </View>
-                  ))}
-                  {comments.length === 0 && (
-                    <View style={styles.emptyWrap}>
-                      <Ionicons name="chatbubble-outline" size={32} color={Colors.textLight} />
-                      <Text style={styles.emptyText}>No comments yet.</Text>
-                    </View>
-                  )}
-                </ScrollView>
-              )}
-            </View>
-
-            <View style={[styles.commentComposer, { paddingBottom: Math.max(8, insets.bottom) }]}>
-              <TextInput
-                placeholder={currentUser ? 'Add a comment…' : 'Log in to comment'}
-                placeholderTextColor={Colors.textLight}
-                style={[styles.input, styles.commentInput]}
-                editable={!!currentUser}
-                value={newComment}
-                onChangeText={setNewComment}
-                returnKeyType="send"
-                onSubmitEditing={handleAddComment}
-              />
-              <TouchableOpacity
-                style={[styles.primaryBtn, (!newComment.trim() || !currentUser || submitting) && styles.disabledBtn]}
-                onPress={handleAddComment}
-                disabled={!newComment.trim() || !currentUser || submitting}
-                activeOpacity={0.9}
-              >
-                {submitting ? (
-                  <ActivityIndicator color={Colors.textOnPrimary} />
-                ) : (
-                  <Text style={styles.primaryBtnText}>Post</Text>
+                        {editingCommentId === c.id ? (
+                          <View>
+                            <TextInput
+                              style={[styles.input, { marginBottom: 8 }]}
+                              value={editCommentText}
+                              onChangeText={setEditCommentText}
+                              multiline
+                            />
+                            <View
+                              style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}
+                            >
+                              <TouchableOpacity
+                                onPress={() => setEditingCommentId(null)}
+                                style={styles.secondaryBtn}
+                              >
+                                <Text style={styles.secondaryBtnText}>Cancel</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={styles.primaryBtn}
+                                onPress={async () => {
+                                  try {
+                                    await updateDoc(doc(db, COMMENTS_COLLECTION, c.id), {
+                                      content: editCommentText.trim(),
+                                    });
+                                    setEditingCommentId(null);
+                                  } catch {}
+                                }}
+                              >
+                                <Text style={styles.primaryBtnText}>Save</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={[styles.secondaryBtn, { borderColor: '#DC2626' }]}
+                                onPress={async () => {
+                                  try {
+                                    await deleteDoc(doc(db, COMMENTS_COLLECTION, c.id));
+                                  } catch {}
+                                }}
+                              >
+                                <Text style={[styles.secondaryBtnText, { color: '#DC2626' }]}>
+                                  Delete
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        ) : (
+                          <Text style={styles.commentBody}>{c.content}</Text>
+                        )}
+                      </View>
+                    ))}
+                    {comments.length === 0 && (
+                      <View style={styles.emptyWrap}>
+                        <Ionicons name="chatbubble-outline" size={32} color={Colors.textLight} />
+                        <Text style={styles.emptyText}>No comments yet.</Text>
+                      </View>
+                    )}
+                  </ScrollView>
                 )}
-              </TouchableOpacity>
-            </View>
+              </View>
+
+              <View style={[styles.commentComposer, { paddingBottom: Math.max(8, insets.bottom) }]}>
+                <TextInput
+                  placeholder={currentUser ? 'Add a comment…' : 'Log in to comment'}
+                  placeholderTextColor={Colors.textLight}
+                  style={[styles.input, styles.commentInput]}
+                  editable={!!currentUser}
+                  value={newComment}
+                  onChangeText={setNewComment}
+                  returnKeyType="send"
+                  onSubmitEditing={handleAddComment}
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.primaryBtn,
+                    (!newComment.trim() || !currentUser || submitting) && styles.disabledBtn,
+                  ]}
+                  onPress={handleAddComment}
+                  disabled={!newComment.trim() || !currentUser || submitting}
+                  activeOpacity={0.9}
+                >
+                  {submitting ? (
+                    <ActivityIndicator color={Colors.textOnPrimary} />
+                  ) : (
+                    <Text style={styles.primaryBtnText}>Post</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
             </TouchableOpacity>
           </KeyboardAvoidingView>
         </TouchableOpacity>
@@ -687,7 +767,13 @@ const styles = StyleSheet.create({
   postHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   postMeta: { fontSize: 12, color: Colors.textLight, marginBottom: 8 },
   postContent: { fontSize: 14, color: Colors.textSecondary },
-  postImage: { height: 180, borderRadius: 10, marginTop: 8, borderWidth: 1, borderColor: Colors.border },
+  postImage: {
+    height: 180,
+    borderRadius: 10,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
   postActions: { flexDirection: 'row', gap: 16, marginTop: 12 },
   iconButton: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   iconButtonText: { color: Colors.primary, fontWeight: '600' },
@@ -772,9 +858,22 @@ const styles = StyleSheet.create({
   commentComposer: { flexDirection: 'row', gap: 8, marginTop: 8 },
   commentInput: { flex: 1 },
   mediaRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
-  mediaPreview: { width: 44, height: 44, borderRadius: 8, borderWidth: 1, borderColor: Colors.border },
+  mediaPreview: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
   menuOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.2)', justifyContent: 'flex-end' },
-  menuCard: { backgroundColor: Colors.white, padding: 12, borderTopLeftRadius: 16, borderTopRightRadius: 16, borderWidth: 1, borderColor: Colors.borderLight },
+  menuCard: {
+    backgroundColor: Colors.white,
+    padding: 12,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
   menuItemText: { color: Colors.textPrimary, fontSize: 16 },
   menuCancel: { marginTop: 4, alignItems: 'center', paddingVertical: 10 },
@@ -782,5 +881,3 @@ const styles = StyleSheet.create({
 });
 
 export default CommunityForum;
-
-

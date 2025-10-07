@@ -4,7 +4,18 @@ import {
   signOut,
   User,
 } from 'firebase/auth';
-import { collection, addDoc, getDocs, query, where, doc, updateDoc, DocumentData } from 'firebase/firestore';
+import {
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  doc,
+  updateDoc,
+  DocumentData,
+  getDoc,
+  setDoc,
+} from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 import type { Firestore } from 'firebase/firestore';
 
@@ -198,11 +209,91 @@ export class FirestoreService {
         ...updates,
         updatedAt: new Date().toISOString(),
       };
-      
+
       await updateDoc(layoutRef, updateData);
       console.log('✅ Layout updated successfully');
     } catch (error) {
       console.error('❌ Error updating layout:', error);
+      throw error;
+    }
+  }
+
+  // Enhanced layout methods for room and device management
+  static async saveEnhancedUserLayout(layoutData: {
+    layoutName: string;
+    area: number;
+    rooms: Array<{
+      roomId: string;
+      roomName: string;
+      devices: Array<{
+        deviceId: string;
+        deviceName: string;
+        wattage: number;
+        usage: Array<{
+          start: string;
+          end: string;
+          totalHours: number;
+        }>;
+        totalPowerUsed?: number;
+      }>;
+    }>;
+  }): Promise<void> {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('User must be authenticated to save layout');
+      }
+
+      const layoutDoc = {
+        userId: currentUser.uid,
+        ...layoutData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const layoutRef = doc(db, 'layouts', currentUser.uid);
+      await setDoc(layoutRef, layoutDoc);
+      console.log('✅ Enhanced layout saved successfully');
+    } catch (error) {
+      console.error('❌ Error saving enhanced layout:', error);
+      throw error;
+    }
+  }
+
+  static async getEnhancedUserLayout(userId: string): Promise<DocumentData | null> {
+    try {
+      const layoutRef = doc(db, 'layouts', userId);
+      const layoutDoc = await getDoc(layoutRef);
+
+      if (layoutDoc.exists()) {
+        return { id: layoutDoc.id, ...layoutDoc.data() };
+      }
+      return null;
+    } catch (error) {
+      console.error('❌ Error getting enhanced layout:', error);
+      throw error;
+    }
+  }
+
+  static async updateEnhancedUserLayout(
+    userId: string,
+    updates: Partial<{
+      layoutName: string;
+      area: number;
+      rooms: Array<any>;
+    }>
+  ): Promise<void> {
+    try {
+      const layoutRef = doc(db, 'layouts', userId);
+      const updateData = {
+        ...updates,
+        updatedAt: new Date(),
+      };
+
+      await updateDoc(layoutRef, updateData);
+      console.log('✅ Enhanced layout updated successfully');
+    } catch (error) {
+      console.error('❌ Error updating enhanced layout:', error);
       throw error;
     }
   }
