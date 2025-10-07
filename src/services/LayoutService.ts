@@ -50,6 +50,32 @@ export class LayoutService {
   }
 
   /**
+   * Migrate old layout structure to new room-based structure
+   */
+  static async migrateLayout(userLayout: any): Promise<Layout> {
+    const rooms: Room[] = [];
+    
+    if (userLayout.sections && Array.isArray(userLayout.sections)) {
+      userLayout.sections.forEach((section: any) => {
+        rooms.push({
+          roomId: generateId(),
+          roomName: section.name || 'Unnamed Room',
+          devices: []
+        });
+      });
+    }
+    
+    return {
+      userId: userLayout.userId || '',
+      layoutName: userLayout.layoutName || 'My Home',
+      area: userLayout.area || 0,
+      rooms,
+      createdAt: userLayout.createdAt || new Date(),
+      updatedAt: new Date()
+    };
+  }
+
+  /**
    * Add a new room to the layout
    */
   static async addRoom(userId: string, roomName: string): Promise<Room> {
@@ -129,10 +155,10 @@ export class LayoutService {
         const currentLayout = layoutDoc.data() as Layout;
         const updatedRooms = currentLayout.rooms.filter(room => room.roomId !== roomId);
         
-        await updateDoc(layoutRef, { 
+        await setDoc(layoutRef, { 
           rooms: updatedRooms,
           updatedAt: new Date()
-        });
+        }, { merge: true });
       }
     } catch (error) {
       console.error('Error deleting room:', error);
@@ -176,10 +202,34 @@ export class LayoutService {
             : room
         );
         
-        await updateDoc(layoutRef, { 
+        await setDoc(layoutRef, { 
           rooms: updatedRooms,
           updatedAt: new Date()
-        });
+        }, { merge: true });
+      } else {
+        // If no layout exists, we need to get from user_layouts and migrate
+        const userLayoutRef = doc(db, 'user_layouts', userId);
+        const userLayoutDoc = await getDoc(userLayoutRef);
+        
+        if (userLayoutDoc.exists()) {
+          const userLayout = userLayoutDoc.data();
+          const migratedLayout = await LayoutService.migrateLayout(userLayout);
+          
+          // Add device to the migrated layout
+          const updatedRooms = migratedLayout.rooms.map(room => 
+            room.roomId === roomId 
+              ? { ...room, devices: [...room.devices, newDevice] }
+              : room
+          );
+          
+          await setDoc(layoutRef, {
+            ...migratedLayout,
+            rooms: updatedRooms,
+            updatedAt: new Date()
+          });
+        } else {
+          throw new Error('No layout found for user');
+        }
       }
 
       return newDevice;
@@ -240,10 +290,10 @@ export class LayoutService {
           return room;
         });
         
-        await updateDoc(layoutRef, { 
+        await setDoc(layoutRef, { 
           rooms: updatedRooms,
           updatedAt: new Date()
-        });
+        }, { merge: true });
       }
     } catch (error) {
       console.error('Error updating device:', error);
@@ -271,10 +321,10 @@ export class LayoutService {
           return room;
         });
         
-        await updateDoc(layoutRef, { 
+        await setDoc(layoutRef, { 
           rooms: updatedRooms,
           updatedAt: new Date()
-        });
+        }, { merge: true });
       }
     } catch (error) {
       console.error('Error deleting device:', error);
