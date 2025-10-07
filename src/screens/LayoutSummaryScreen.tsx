@@ -28,7 +28,7 @@ const LayoutSummaryScreen = () => {
   const [showAddRoomModal, setShowAddRoomModal] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
   const [saving, setSaving] = useState(false);
-  
+
   // Alert state
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertType, setAlertType] = useState<'success' | 'error' | 'warning' | 'info'>('success');
@@ -50,7 +50,11 @@ const LayoutSummaryScreen = () => {
     }
   };
 
-  const showAlert = (type: 'success' | 'error' | 'warning' | 'info', title: string, message: string) => {
+  const showAlert = (
+    type: 'success' | 'error' | 'warning' | 'info',
+    title: string,
+    message: string
+  ) => {
     setAlertType(type);
     setAlertTitle(title);
     setAlertMessage(message);
@@ -97,12 +101,14 @@ const LayoutSummaryScreen = () => {
   }, []);
 
   const getRoomIcon = (roomName: string): keyof typeof Ionicons.glyphMap => {
-    return (ROOM_ICONS[roomName as keyof typeof ROOM_ICONS] || ROOM_ICONS.default) as keyof typeof Ionicons.glyphMap;
+    return (ROOM_ICONS[roomName as keyof typeof ROOM_ICONS] ||
+      ROOM_ICONS.default) as keyof typeof Ionicons.glyphMap;
   };
 
-  const totalEnergyConsumption = layout?.rooms?.reduce((total, room) => {
-    return total + calculateRoomEnergyConsumption(room.devices || []);
-  }, 0) || 0;
+  const totalEnergyConsumption =
+    layout?.rooms?.reduce((total, room) => {
+      return total + calculateRoomEnergyConsumption(room.devices || []);
+    }, 0) || 0;
 
   if (loading) {
     return (
@@ -135,9 +141,7 @@ const LayoutSummaryScreen = () => {
           {totalEnergyConsumption > 0 && (
             <View style={styles.energyBadge}>
               <Ionicons name="flash" size={16} color={Colors.primary} />
-              <Text style={styles.energyText}>
-                {totalEnergyConsumption.toFixed(2)} kWh/day
-              </Text>
+              <Text style={styles.energyText}>{totalEnergyConsumption.toFixed(2)} kWh/day</Text>
             </View>
           )}
         </View>
@@ -146,7 +150,7 @@ const LayoutSummaryScreen = () => {
         <View style={styles.roomsContainer}>
           <Text style={styles.sectionTitle}>Rooms & Spaces</Text>
           <View style={styles.roomsGrid}>
-            {layout?.rooms?.map((room) => {
+            {layout?.rooms?.map(room => {
               const roomEnergy = calculateRoomEnergyConsumption(room.devices || []);
               return (
                 <TouchableOpacity
@@ -156,21 +160,17 @@ const LayoutSummaryScreen = () => {
                 >
                   <View style={styles.roomHeader}>
                     <View style={styles.roomIconContainer}>
-                      <Ionicons 
-                        name={getRoomIcon(room.roomName)} 
-                        size={24} 
-                        color={Colors.primary} 
+                      <Ionicons
+                        name={getRoomIcon(room.roomName)}
+                        size={24}
+                        color={Colors.primary}
                       />
                     </View>
                     <View style={styles.roomInfo}>
                       <Text style={styles.roomName}>{room.roomName}</Text>
-                      <Text style={styles.deviceCount}>
-                        {room.devices?.length || 0} devices
-                      </Text>
+                      <Text style={styles.deviceCount}>{room.devices?.length || 0} devices</Text>
                       {roomEnergy > 0 && (
-                        <Text style={styles.roomEnergy}>
-                          {roomEnergy.toFixed(2)} kWh/day
-                        </Text>
+                        <Text style={styles.roomEnergy}>{roomEnergy.toFixed(2)} kWh/day</Text>
                       )}
                     </View>
                     <Ionicons name="chevron-forward" size={20} color="#64748b" />
@@ -178,12 +178,9 @@ const LayoutSummaryScreen = () => {
                 </TouchableOpacity>
               );
             })}
-            
+
             {/* Add Room Button */}
-            <TouchableOpacity
-              style={styles.addRoomCard}
-              onPress={() => setShowAddRoomModal(true)}
-            >
+            <TouchableOpacity style={styles.addRoomCard} onPress={() => setShowAddRoomModal(true)}>
               <Ionicons name="add-circle-outline" size={32} color={Colors.primary} />
               <Text style={styles.addRoomText}>Add Room</Text>
             </TouchableOpacity>
@@ -198,10 +195,7 @@ const LayoutSummaryScreen = () => {
             <Text style={styles.emptyText}>
               Start by adding rooms to your home layout to track energy usage.
             </Text>
-            <TouchableOpacity
-              style={styles.emptyButton}
-              onPress={() => setShowAddRoomModal(true)}
-            >
+            <TouchableOpacity style={styles.emptyButton} onPress={() => setShowAddRoomModal(true)}>
               <Ionicons name="add-circle-outline" size={20} color="#ffffff" />
               <Text style={styles.emptyButtonText}>Add Your First Room</Text>
             </TouchableOpacity>
@@ -240,7 +234,7 @@ const LayoutSummaryScreen = () => {
               )}
             </TouchableOpacity>
           </View>
-          
+
           <View style={styles.modalContent}>
             <Text style={styles.inputLabel}>Room Name</Text>
             <TextInput
@@ -251,11 +245,18 @@ const LayoutSummaryScreen = () => {
               autoFocus
               maxLength={30}
             />
-            
+
             <View style={styles.suggestionsContainer}>
               <Text style={styles.suggestionsTitle}>Common Rooms</Text>
               <View style={styles.suggestionsGrid}>
-                {['Master Bedroom', 'Kitchen', 'Living Room', 'Bathroom', 'Dining Room', 'Study'].map((suggestion) => (
+                {[
+                  'Master Bedroom',
+                  'Kitchen',
+                  'Living Room',
+                  'Bathroom',
+                  'Dining Room',
+                  'Study',
+                ].map(suggestion => (
                   <TouchableOpacity
                     key={suggestion}
                     style={styles.suggestionChip}

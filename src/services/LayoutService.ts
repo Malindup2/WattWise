@@ -1,11 +1,4 @@
-import { 
-  doc, 
-  updateDoc, 
-  arrayUnion, 
-  arrayRemove,
-  getDoc,
-  setDoc 
-} from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { Layout, Room, Device } from '../types/layout';
 import { generateId, calculateDuration, calculatePowerUsage } from '../utils/energyCalculations';
@@ -34,14 +27,18 @@ export class LayoutService {
   static async updateLayout(userId: string, layout: Partial<Layout>): Promise<void> {
     try {
       const layoutRef = doc(db, 'layouts', userId);
-      
+
       // Use setDoc with merge to create document if it doesn't exist
-      await setDoc(layoutRef, {
-        ...layout,
-        userId,
-        updatedAt: new Date()
-      }, { merge: true });
-      
+      await setDoc(
+        layoutRef,
+        {
+          ...layout,
+          userId,
+          updatedAt: new Date(),
+        },
+        { merge: true }
+      );
+
       console.log('✅ Layout updated/created successfully');
     } catch (error) {
       console.error('Error updating layout:', error);
@@ -54,24 +51,24 @@ export class LayoutService {
    */
   static async migrateLayout(userLayout: any): Promise<Layout> {
     const rooms: Room[] = [];
-    
+
     if (userLayout.sections && Array.isArray(userLayout.sections)) {
       userLayout.sections.forEach((section: any) => {
         rooms.push({
           roomId: generateId(),
           roomName: section.name || 'Unnamed Room',
-          devices: []
+          devices: [],
         });
       });
     }
-    
+
     return {
       userId: userLayout.userId || '',
       layoutName: userLayout.layoutName || 'My Home',
       area: userLayout.area || 0,
       rooms,
       createdAt: userLayout.createdAt || new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
   }
 
@@ -83,20 +80,24 @@ export class LayoutService {
       const newRoom: Room = {
         roomId: generateId(),
         roomName,
-        devices: []
+        devices: [],
       };
 
       const layoutRef = doc(db, 'layouts', userId);
       const layoutDoc = await getDoc(layoutRef);
-      
+
       if (layoutDoc.exists()) {
         const currentLayout = layoutDoc.data() as Layout;
         const updatedRooms = [...(currentLayout.rooms || []), newRoom];
-        
-        await setDoc(layoutRef, { 
-          rooms: updatedRooms,
-          updatedAt: new Date()
-        }, { merge: true });
+
+        await setDoc(
+          layoutRef,
+          {
+            rooms: updatedRooms,
+            updatedAt: new Date(),
+          },
+          { merge: true }
+        );
       } else {
         // Create new layout if it doesn't exist
         const newLayout: Layout = {
@@ -105,9 +106,9 @@ export class LayoutService {
           rooms: [newRoom],
           userId,
           createdAt: new Date(),
-          updatedAt: new Date()
+          updatedAt: new Date(),
         };
-        
+
         await setDoc(layoutRef, newLayout);
       }
 
@@ -125,17 +126,21 @@ export class LayoutService {
     try {
       const layoutRef = doc(db, 'layouts', userId);
       const layoutDoc = await getDoc(layoutRef);
-      
+
       if (layoutDoc.exists()) {
         const currentLayout = layoutDoc.data() as Layout;
-        const updatedRooms = currentLayout.rooms.map(room => 
+        const updatedRooms = currentLayout.rooms.map(room =>
           room.roomId === roomId ? { ...room, ...updates } : room
         );
-        
-        await setDoc(layoutRef, { 
-          rooms: updatedRooms,
-          updatedAt: new Date()
-        }, { merge: true });
+
+        await setDoc(
+          layoutRef,
+          {
+            rooms: updatedRooms,
+            updatedAt: new Date(),
+          },
+          { merge: true }
+        );
       }
     } catch (error) {
       console.error('Error updating room:', error);
@@ -150,15 +155,19 @@ export class LayoutService {
     try {
       const layoutRef = doc(db, 'layouts', userId);
       const layoutDoc = await getDoc(layoutRef);
-      
+
       if (layoutDoc.exists()) {
         const currentLayout = layoutDoc.data() as Layout;
         const updatedRooms = currentLayout.rooms.filter(room => room.roomId !== roomId);
-        
-        await setDoc(layoutRef, { 
-          rooms: updatedRooms,
-          updatedAt: new Date()
-        }, { merge: true });
+
+        await setDoc(
+          layoutRef,
+          {
+            rooms: updatedRooms,
+            updatedAt: new Date(),
+          },
+          { merge: true }
+        );
       }
     } catch (error) {
       console.error('Error deleting room:', error);
@@ -169,12 +178,16 @@ export class LayoutService {
   /**
    * Add device to a specific room
    */
-  static async addDevice(userId: string, roomId: string, deviceData: {
-    deviceName: string;
-    wattage: number;
-    startTime: string;
-    endTime: string;
-  }): Promise<Device> {
+  static async addDevice(
+    userId: string,
+    roomId: string,
+    deviceData: {
+      deviceName: string;
+      wattage: number;
+      startTime: string;
+      endTime: string;
+    }
+  ): Promise<Device> {
     try {
       const totalHours = calculateDuration(deviceData.startTime, deviceData.endTime);
       const totalPowerUsed = calculatePowerUsage(deviceData.wattage, totalHours);
@@ -183,49 +196,51 @@ export class LayoutService {
         deviceId: generateId(),
         deviceName: deviceData.deviceName,
         wattage: deviceData.wattage,
-        usage: [{
-          start: deviceData.startTime,
-          end: deviceData.endTime,
-          totalHours
-        }],
-        totalPowerUsed
+        usage: [
+          {
+            start: deviceData.startTime,
+            end: deviceData.endTime,
+            totalHours,
+          },
+        ],
+        totalPowerUsed,
       };
 
       const layoutRef = doc(db, 'layouts', userId);
       const layoutDoc = await getDoc(layoutRef);
-      
+
       if (layoutDoc.exists()) {
         const currentLayout = layoutDoc.data() as Layout;
-        const updatedRooms = currentLayout.rooms.map(room => 
-          room.roomId === roomId 
-            ? { ...room, devices: [...room.devices, newDevice] }
-            : room
+        const updatedRooms = currentLayout.rooms.map(room =>
+          room.roomId === roomId ? { ...room, devices: [...room.devices, newDevice] } : room
         );
-        
-        await setDoc(layoutRef, { 
-          rooms: updatedRooms,
-          updatedAt: new Date()
-        }, { merge: true });
+
+        await setDoc(
+          layoutRef,
+          {
+            rooms: updatedRooms,
+            updatedAt: new Date(),
+          },
+          { merge: true }
+        );
       } else {
         // If no layout exists, we need to get from user_layouts and migrate
         const userLayoutRef = doc(db, 'user_layouts', userId);
         const userLayoutDoc = await getDoc(userLayoutRef);
-        
+
         if (userLayoutDoc.exists()) {
           const userLayout = userLayoutDoc.data();
           const migratedLayout = await LayoutService.migrateLayout(userLayout);
-          
+
           // Add device to the migrated layout
-          const updatedRooms = migratedLayout.rooms.map(room => 
-            room.roomId === roomId 
-              ? { ...room, devices: [...room.devices, newDevice] }
-              : room
+          const updatedRooms = migratedLayout.rooms.map(room =>
+            room.roomId === roomId ? { ...room, devices: [...room.devices, newDevice] } : room
           );
-          
+
           await setDoc(layoutRef, {
             ...migratedLayout,
             rooms: updatedRooms,
-            updatedAt: new Date()
+            updatedAt: new Date(),
           });
         } else {
           throw new Error('No layout found for user');
@@ -242,16 +257,21 @@ export class LayoutService {
   /**
    * Update device in a specific room
    */
-  static async updateDevice(userId: string, roomId: string, deviceId: string, updates: {
-    deviceName?: string;
-    wattage?: number;
-    startTime?: string;
-    endTime?: string;
-  }): Promise<void> {
+  static async updateDevice(
+    userId: string,
+    roomId: string,
+    deviceId: string,
+    updates: {
+      deviceName?: string;
+      wattage?: number;
+      startTime?: string;
+      endTime?: string;
+    }
+  ): Promise<void> {
     try {
       const layoutRef = doc(db, 'layouts', userId);
       const layoutDoc = await getDoc(layoutRef);
-      
+
       if (layoutDoc.exists()) {
         const currentLayout = layoutDoc.data() as Layout;
         const updatedRooms = currentLayout.rooms.map(room => {
@@ -259,41 +279,47 @@ export class LayoutService {
             const updatedDevices = room.devices.map(device => {
               if (device.deviceId === deviceId) {
                 const updatedDevice = { ...device };
-                
+
                 if (updates.deviceName) updatedDevice.deviceName = updates.deviceName;
                 if (updates.wattage) updatedDevice.wattage = updates.wattage;
-                
+
                 if (updates.startTime || updates.endTime) {
                   const startTime = updates.startTime || device.usage[0]?.start || '00:00';
                   const endTime = updates.endTime || device.usage[0]?.end || '00:00';
                   const totalHours = calculateDuration(startTime, endTime);
-                  
-                  updatedDevice.usage = [{
-                    start: startTime,
-                    end: endTime,
-                    totalHours
-                  }];
-                  
+
+                  updatedDevice.usage = [
+                    {
+                      start: startTime,
+                      end: endTime,
+                      totalHours,
+                    },
+                  ];
+
                   updatedDevice.totalPowerUsed = calculatePowerUsage(
-                    updatedDevice.wattage, 
+                    updatedDevice.wattage,
                     totalHours
                   );
                 }
-                
+
                 return updatedDevice;
               }
               return device;
             });
-            
+
             return { ...room, devices: updatedDevices };
           }
           return room;
         });
-        
-        await setDoc(layoutRef, { 
-          rooms: updatedRooms,
-          updatedAt: new Date()
-        }, { merge: true });
+
+        await setDoc(
+          layoutRef,
+          {
+            rooms: updatedRooms,
+            updatedAt: new Date(),
+          },
+          { merge: true }
+        );
       }
     } catch (error) {
       console.error('Error updating device:', error);
@@ -308,23 +334,27 @@ export class LayoutService {
     try {
       const layoutRef = doc(db, 'layouts', userId);
       const layoutDoc = await getDoc(layoutRef);
-      
+
       if (layoutDoc.exists()) {
         const currentLayout = layoutDoc.data() as Layout;
         const updatedRooms = currentLayout.rooms.map(room => {
           if (room.roomId === roomId) {
             return {
               ...room,
-              devices: room.devices.filter(device => device.deviceId !== deviceId)
+              devices: room.devices.filter(device => device.deviceId !== deviceId),
             };
           }
           return room;
         });
-        
-        await setDoc(layoutRef, { 
-          rooms: updatedRooms,
-          updatedAt: new Date()
-        }, { merge: true });
+
+        await setDoc(
+          layoutRef,
+          {
+            rooms: updatedRooms,
+            updatedAt: new Date(),
+          },
+          { merge: true }
+        );
       }
     } catch (error) {
       console.error('Error deleting device:', error);

@@ -41,7 +41,9 @@ const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
 
   return (
     <Text style={style}>
-      {prefix}{displayValue.toFixed(decimals)}{suffix}
+      {prefix}
+      {displayValue.toFixed(decimals)}
+      {suffix}
     </Text>
   );
 };

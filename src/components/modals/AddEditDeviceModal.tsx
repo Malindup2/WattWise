@@ -69,7 +69,7 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
     setSelectedPreset(null);
   };
 
-  const handlePresetSelect = (preset: typeof DEVICE_PRESETS[0]) => {
+  const handlePresetSelect = (preset: (typeof DEVICE_PRESETS)[0]) => {
     setDeviceName(preset.name);
     setWattage(preset.wattage.toString());
     setSelectedPreset(preset.name);
@@ -126,7 +126,7 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
   };
 
   const totalHours = calculateDuration(startTime, endTime);
-  const dailyConsumption = (Number(wattage) || 0) * totalHours / 1000; // kWh
+  const dailyConsumption = ((Number(wattage) || 0) * totalHours) / 1000; // kWh
 
   return (
     <Modal
@@ -140,9 +140,7 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
           <TouchableOpacity style={styles.modalCloseButton} onPress={onClose}>
             <Ionicons name="close" size={24} color="#64748b" />
           </TouchableOpacity>
-          <Text style={styles.modalTitle}>
-            {isEditing ? 'Edit Device' : 'Add Device'}
-          </Text>
+          <Text style={styles.modalTitle}>{isEditing ? 'Edit Device' : 'Add Device'}</Text>
           <TouchableOpacity
             style={[styles.modalSaveButton, { opacity: saving ? 0.5 : 1 }]}
             onPress={handleSave}
@@ -151,9 +149,7 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
             {saving ? (
               <ActivityIndicator size="small" color="#ffffff" />
             ) : (
-              <Text style={styles.modalSaveText}>
-                {isEditing ? 'Update' : 'Add'}
-              </Text>
+              <Text style={styles.modalSaveText}>{isEditing ? 'Update' : 'Add'}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -163,37 +159,41 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
           {!isEditing && (
             <View style={styles.presetsContainer}>
               <Text style={styles.sectionTitle}>Common Devices</Text>
-              <ScrollView 
-                horizontal 
+              <ScrollView
+                horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.presetsScroll}
               >
-                {DEVICE_PRESETS.slice(0, 10).map((preset) => (
+                {DEVICE_PRESETS.slice(0, 10).map(preset => (
                   <TouchableOpacity
                     key={preset.name}
                     style={[
                       styles.presetCard,
-                      selectedPreset === preset.name && styles.presetCardSelected
+                      selectedPreset === preset.name && styles.presetCardSelected,
                     ]}
                     onPress={() => handlePresetSelect(preset)}
                   >
                     <View style={styles.presetIcon}>
-                      <Ionicons 
-                        name={preset.icon as keyof typeof Ionicons.glyphMap} 
-                        size={20} 
-                        color={selectedPreset === preset.name ? Colors.primary : '#64748b'} 
+                      <Ionicons
+                        name={preset.icon as keyof typeof Ionicons.glyphMap}
+                        size={20}
+                        color={selectedPreset === preset.name ? Colors.primary : '#64748b'}
                       />
                     </View>
-                    <Text style={[
-                      styles.presetName,
-                      selectedPreset === preset.name && styles.presetNameSelected
-                    ]}>
+                    <Text
+                      style={[
+                        styles.presetName,
+                        selectedPreset === preset.name && styles.presetNameSelected,
+                      ]}
+                    >
                       {preset.name}
                     </Text>
-                    <Text style={[
-                      styles.presetWattage,
-                      selectedPreset === preset.name && styles.presetWattageSelected
-                    ]}>
+                    <Text
+                      style={[
+                        styles.presetWattage,
+                        selectedPreset === preset.name && styles.presetWattageSelected,
+                      ]}
+                    >
                       {preset.wattage}W
                     </Text>
                   </TouchableOpacity>
@@ -233,7 +233,7 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
           {/* Usage Time */}
           <View style={styles.timeContainer}>
             <Text style={styles.sectionTitle}>Usage Schedule</Text>
-            
+
             <View style={styles.timeRow}>
               <View style={styles.timeInput}>
                 <Text style={styles.timeLabel}>Start Time</Text>
@@ -245,17 +245,14 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
                   <Text style={styles.timeText}>{formatTime(startTime)}</Text>
                 </TouchableOpacity>
               </View>
-              
+
               <View style={styles.timeArrow}>
                 <Ionicons name="arrow-forward" size={20} color="#64748b" />
               </View>
-              
+
               <View style={styles.timeInput}>
                 <Text style={styles.timeLabel}>End Time</Text>
-                <TouchableOpacity
-                  style={styles.timeButton}
-                  onPress={() => openTimeSelector('end')}
-                >
+                <TouchableOpacity style={styles.timeButton} onPress={() => openTimeSelector('end')}>
                   <Ionicons name="time-outline" size={20} color="#64748b" />
                   <Text style={styles.timeText}>{formatTime(endTime)}</Text>
                 </TouchableOpacity>
@@ -275,9 +272,7 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
                 <View style={styles.summaryDivider} />
                 <View style={styles.summaryItem}>
                   <Text style={styles.summaryLabel}>Daily Consumption</Text>
-                  <Text style={styles.summaryValue}>
-                    {dailyConsumption.toFixed(2)} kWh
-                  </Text>
+                  <Text style={styles.summaryValue}>{dailyConsumption.toFixed(2)} kWh</Text>
                 </View>
               </View>
             </View>
@@ -296,20 +291,26 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
               <Text style={styles.timeModalTitle}>
                 Select {editingTimeType === 'start' ? 'Start' : 'End'} Time
               </Text>
-              
+
               <ScrollView style={styles.timeOptionsContainer}>
-                {Array.from({ length: 24 }, (_, hour) => 
+                {Array.from({ length: 24 }, (_, hour) =>
                   ['00', '30'].map(minute => {
                     const timeValue = `${hour.toString().padStart(2, '0')}:${minute}`;
-                    const isSelected = (editingTimeType === 'start' ? startTime : endTime) === timeValue;
-                    
+                    const isSelected =
+                      (editingTimeType === 'start' ? startTime : endTime) === timeValue;
+
                     return (
                       <TouchableOpacity
                         key={timeValue}
                         style={[styles.timeOption, isSelected && styles.timeOptionSelected]}
                         onPress={() => handleTimeSelect(timeValue)}
                       >
-                        <Text style={[styles.timeOptionText, isSelected && styles.timeOptionTextSelected]}>
+                        <Text
+                          style={[
+                            styles.timeOptionText,
+                            isSelected && styles.timeOptionTextSelected,
+                          ]}
+                        >
                           {formatTime(timeValue)}
                         </Text>
                       </TouchableOpacity>
@@ -317,7 +318,7 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
                   })
                 ).flat()}
               </ScrollView>
-              
+
               <TouchableOpacity
                 style={styles.timeModalCloseButton}
                 onPress={() => setShowTimeModal(false)}

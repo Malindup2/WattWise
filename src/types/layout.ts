@@ -1,6 +1,6 @@
 export interface DeviceUsage {
   start: string; // Format: "HH:MM"
-  end: string;   // Format: "HH:MM"
+  end: string; // Format: "HH:MM"
   totalHours: number;
 }
 

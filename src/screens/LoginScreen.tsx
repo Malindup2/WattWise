@@ -258,15 +258,21 @@ const LoginScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8f9fa' },
   scrollContent: { flexGrow: 1, justifyContent: 'center', minHeight: height },
-  imageContainer: { 
-    alignItems: 'center', 
-    paddingTop: height * 0.08, 
+  imageContainer: {
+    alignItems: 'center',
+    paddingTop: height * 0.08,
     paddingBottom: height * 0.04,
-    paddingHorizontal: 24 
+    paddingHorizontal: 24,
   },
   heroImage: { width: width * 0.8, height: height * 0.22, maxWidth: 300, maxHeight: 180 },
   formContainer: { flex: 1, paddingHorizontal: 24, paddingTop: 10, paddingBottom: 40 },
-  title: { fontSize: 28, fontWeight: '700', color: Colors.textPrimary, marginBottom: 40, textAlign: 'center' },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: 40,
+    textAlign: 'center',
+  },
   inputContainer: { marginBottom: 24 },
   inputWrapper: {
     flexDirection: 'row',
@@ -330,7 +336,12 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   socialIcon: { width: 24, height: 24 },
-  signupContainer: { flexDirection: 'row', justifyContent: 'center', marginBottom: 20, paddingTop: 8 },
+  signupContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 20,
+    paddingTop: 8,
+  },
   signupText: { fontSize: 16, color: Colors.textSecondary },
   signupLink: { fontSize: 16, color: Colors.primary, fontWeight: '600' },
   errorContainer: {

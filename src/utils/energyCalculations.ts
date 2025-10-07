@@ -7,15 +7,15 @@
 export const calculateDuration = (start: string, end: string): number => {
   const [startHour, startMin] = start.split(':').map(Number);
   const [endHour, endMin] = end.split(':').map(Number);
-  
+
   let startMinutes = startHour * 60 + startMin;
   let endMinutes = endHour * 60 + endMin;
-  
+
   // Handle overnight usage (e.g., 20:00 to 06:00)
   if (endMinutes <= startMinutes) {
     endMinutes += 24 * 60; // Add 24 hours
   }
-  
+
   const durationMinutes = endMinutes - startMinutes;
   return Math.round((durationMinutes / 60) * 100) / 100; // Round to 2 decimal places
 };
@@ -27,7 +27,7 @@ export const calculateDuration = (start: string, end: string): number => {
  * @returns Total power used in kWh
  */
 export const calculatePowerUsage = (wattage: number, totalHours: number): number => {
-  return Math.round((wattage * totalHours / 1000) * 100) / 100; // Convert to kWh and round
+  return Math.round(((wattage * totalHours) / 1000) * 100) / 100; // Convert to kWh and round
 };
 
 /**

@@ -108,7 +108,10 @@ export default function App() {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName={showOnboarding ? 'Onboarding1' : user ? 'MainTabs' : 'Login'} screenOptions={{ headerShown: false }}>
+      <Stack.Navigator
+        initialRouteName={showOnboarding ? 'Onboarding1' : user ? 'MainTabs' : 'Login'}
+        screenOptions={{ headerShown: false }}
+      >
         <Stack.Screen name="Onboarding1" component={OnboardingOne} />
         <Stack.Screen name="Onboarding2" component={OnboardingTwo} />
         <Stack.Screen name="Onboarding3">
@@ -124,8 +127,8 @@ export default function App() {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
         <Stack.Screen name="MainTabs" component={MainTabNavigator} />
-        <Stack.Screen 
-          name="LayoutSummary" 
+        <Stack.Screen
+          name="LayoutSummary"
           component={LayoutSummaryScreen}
           options={{
             headerShown: true,
@@ -135,8 +138,8 @@ export default function App() {
             headerTitleStyle: { fontWeight: 'bold' },
           }}
         />
-        <Stack.Screen 
-          name="RoomDetails" 
+        <Stack.Screen
+          name="RoomDetails"
           component={RoomDetailsScreen}
           options={{
             headerShown: false,

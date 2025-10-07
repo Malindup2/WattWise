@@ -27,11 +27,11 @@ import { LayoutService } from '../services/LayoutService';
 import { AlertModal } from '../components/AlertModal';
 import { AddEditDeviceModal } from '../components/modals';
 import { DEVICE_PRESETS, ROOM_ICONS } from '../constants/DeviceTypes';
-import { 
-  calculateDuration, 
-  calculatePowerUsage, 
-  calculateRoomEnergyConsumption, 
-  formatTime 
+import {
+  calculateDuration,
+  calculatePowerUsage,
+  calculateRoomEnergyConsumption,
+  formatTime,
 } from '../utils/energyCalculations';
 
 const { width, height } = Dimensions.get('window');
@@ -39,7 +39,7 @@ const chartWidth = width - 60;
 
 const HomeScreen = () => {
   const navigation = useNavigation();
-  
+
   const [user, setUser] = useState<User | null>(null);
   const [userLayout, setUserLayout] = useState<any>(null);
   const [loadingLayout, setLoadingLayout] = useState(false);
@@ -52,28 +52,28 @@ const HomeScreen = () => {
   const [alertType, setAlertType] = useState<'success' | 'error' | 'warning' | 'info'>('success');
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
-  
+
   // Device management state
   const [showDeviceModal, setShowDeviceModal] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
   const [editingDevice, setEditingDevice] = useState<any>(null);
   const [expandedRoom, setExpandedRoom] = useState<string | null>(null);
-  
+
   const [energyData, setEnergyData] = useState({
     totalConsumption: 2847,
     currentUsage: 3.2,
-    monthlyBill: 284.50,
+    monthlyBill: 284.5,
     efficiency: 87,
     predictions: [2.1, 2.8, 3.2, 2.9, 3.5, 4.1, 3.8],
     categories: {
       'Heat/Cool': 45,
-      'Appliances': 23,
-      'Lighting': 12,
-      'Electronics': 15,
-      'Other': 5
-    }
+      Appliances: 23,
+      Lighting: 12,
+      Electronics: 15,
+      Other: 5,
+    },
   });
-  
+
   const [refreshing, setRefreshing] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('Week');
 
@@ -83,7 +83,7 @@ const HomeScreen = () => {
         setEnergyData(prev => ({
           ...prev,
           currentUsage: Math.random() * 5 + 2,
-          efficiency: Math.floor(Math.random() * 15 + 80)
+          efficiency: Math.floor(Math.random() * 15 + 80),
         }));
       }, 1000);
     } catch (error) {
@@ -115,26 +115,26 @@ const HomeScreen = () => {
 
   const handleSaveLayout = async () => {
     if (!editingLayout || !user) return;
-    
+
     try {
       const updates = {
         sections: editingLayout.sections,
         name: editingLayout.name,
         area: editingLayout.area,
       };
-      
+
       await FirestoreService.updateUserLayout(editingLayout.id, updates);
       setUserLayout(editingLayout);
       setShowLayoutModal(false);
       setEditingLayout(null);
-      
+
       setAlertType('success');
       setAlertTitle('Layout Updated!');
       setAlertMessage('Your home layout has been updated successfully. ');
       setAlertVisible(true);
     } catch (error) {
       console.error('Error saving layout:', error);
-      
+
       setAlertType('error');
       setAlertTitle('Update Failed');
       setAlertMessage('Failed to save layout changes. Please check your connection and try again.');
@@ -144,7 +144,7 @@ const HomeScreen = () => {
 
   const handleAddSection = () => {
     if (!newSectionName.trim() || !editingLayout) return;
-    
+
     const updatedSections = [...editingLayout.sections, { name: newSectionName.trim(), count: 1 }];
     setEditingLayout({ ...editingLayout, sections: updatedSections });
     setNewSectionName('');
@@ -153,14 +153,14 @@ const HomeScreen = () => {
 
   const handleDeleteSection = (index: number) => {
     if (!editingLayout) return;
-    
+
     const updatedSections = editingLayout.sections.filter((_: any, i: number) => i !== index);
     setEditingLayout({ ...editingLayout, sections: updatedSections });
   };
 
   const handleUpdateSectionCount = (index: number, count: number) => {
     if (!editingLayout || count < 1) return;
-    
+
     const updatedSections = [...editingLayout.sections];
     updatedSections[index] = { ...updatedSections[index], count };
     setEditingLayout({ ...editingLayout, sections: updatedSections });
@@ -174,16 +174,16 @@ const HomeScreen = () => {
     endTime: string;
   }) => {
     if (!selectedRoom || !user) return;
-    
+
     try {
       // First ensure we have the enhanced layout structure
       await ensureEnhancedLayout();
-      
+
       await LayoutService.addDevice(user.uid, selectedRoom.roomId, deviceData);
       await loadUserLayout();
       setShowDeviceModal(false);
       setSelectedRoom(null);
-      
+
       setAlertType('success');
       setAlertTitle('Device Added!');
       setAlertMessage(`${deviceData.deviceName} has been added to ${selectedRoom.roomName}.`);
@@ -204,14 +204,19 @@ const HomeScreen = () => {
     endTime: string;
   }) => {
     if (!editingDevice || !selectedRoom || !user) return;
-    
+
     try {
-      await LayoutService.updateDevice(user.uid, selectedRoom.roomId, editingDevice.deviceId, deviceData);
+      await LayoutService.updateDevice(
+        user.uid,
+        selectedRoom.roomId,
+        editingDevice.deviceId,
+        deviceData
+      );
       await loadUserLayout();
       setShowDeviceModal(false);
       setEditingDevice(null);
       setSelectedRoom(null);
-      
+
       setAlertType('success');
       setAlertTitle('Device Updated!');
       setAlertMessage(`${deviceData.deviceName} has been updated successfully.`);
@@ -227,11 +232,11 @@ const HomeScreen = () => {
 
   const handleDeleteDevice = async (device: any, room: any) => {
     if (!user) return;
-    
+
     try {
       await LayoutService.deleteDevice(user.uid, room.roomId, device.deviceId);
       await loadUserLayout();
-      
+
       setAlertType('success');
       setAlertTitle('Device Removed!');
       setAlertMessage(`${device.deviceName} has been removed from ${room.roomName}.`);
@@ -254,11 +259,11 @@ const HomeScreen = () => {
 
     // If has sections but no rooms, convert to enhanced structure
     if (userLayout.sections && userLayout.sections.length > 0) {
-      const rooms = userLayout.sections.flatMap((section: any) => 
+      const rooms = userLayout.sections.flatMap((section: any) =>
         Array.from({ length: section.count }, (_, index) => ({
           roomId: `${section.name.toLowerCase().replace(/\s+/g, '_')}_${index + 1}`,
           roomName: section.count > 1 ? `${section.name} ${index + 1}` : section.name,
-          devices: []
+          devices: [],
         }))
       );
 
@@ -268,7 +273,7 @@ const HomeScreen = () => {
         rooms: rooms,
         userId: user.uid,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
 
       // Save the enhanced structure to the new collection
@@ -293,15 +298,17 @@ const HomeScreen = () => {
   };
 
   const getDeviceIcon = (deviceName: string): keyof typeof Ionicons.glyphMap => {
-    const preset = DEVICE_PRESETS.find(p => 
-      p.name.toLowerCase() === deviceName.toLowerCase() ||
-      deviceName.toLowerCase().includes(p.name.toLowerCase().split(' ')[0])
+    const preset = DEVICE_PRESETS.find(
+      p =>
+        p.name.toLowerCase() === deviceName.toLowerCase() ||
+        deviceName.toLowerCase().includes(p.name.toLowerCase().split(' ')[0])
     );
     return (preset?.icon as keyof typeof Ionicons.glyphMap) || 'flash-outline';
   };
 
   const getRoomIcon = (roomName: string): keyof typeof Ionicons.glyphMap => {
-    return (ROOM_ICONS[roomName as keyof typeof ROOM_ICONS] || ROOM_ICONS.default) as keyof typeof Ionicons.glyphMap;
+    return (ROOM_ICONS[roomName as keyof typeof ROOM_ICONS] ||
+      ROOM_ICONS.default) as keyof typeof Ionicons.glyphMap;
   };
 
   const BLUEPRINT_LAYOUTS = [
@@ -314,8 +321,8 @@ const HomeScreen = () => {
         { name: 'Bedroom', count: 1 },
         { name: 'Kitchen', count: 1 },
         { name: 'Living Room', count: 1 },
-        { name: 'Bathroom', count: 1 }
-      ]
+        { name: 'Bathroom', count: 1 },
+      ],
     },
     {
       id: 'bp_medium_house',
@@ -328,8 +335,8 @@ const HomeScreen = () => {
         { name: 'Living Room', count: 1 },
         { name: 'Bathroom', count: 2 },
         { name: 'Garage', count: 1 },
-        { name: 'Dining Room', count: 1 }
-      ]
+        { name: 'Dining Room', count: 1 },
+      ],
     },
     {
       id: 'bp_large_house',
@@ -344,14 +351,14 @@ const HomeScreen = () => {
         { name: 'Garage', count: 2 },
         { name: 'Dining Room', count: 1 },
         { name: 'Study', count: 1 },
-        { name: 'Laundry Room', count: 1 }
-      ]
-    }
+        { name: 'Laundry Room', count: 1 },
+      ],
+    },
   ];
 
   const handleSelectBlueprint = async (blueprint: any) => {
     if (!user) return;
-    
+
     try {
       const layoutData = {
         source: 'blueprint' as const,
@@ -359,23 +366,27 @@ const HomeScreen = () => {
         sections: blueprint.sections,
         type: blueprint.type,
         name: blueprint.name,
-        area: blueprint.area
+        area: blueprint.area,
       };
-      
+
       await FirestoreService.saveUserLayout(layoutData);
       await loadUserLayout();
       setShowSelectionModal(false);
-      
+
       setAlertType('success');
       setAlertTitle('Layout Selected!');
-      setAlertMessage(`Perfect! ${blueprint.name} has been set as your home layout. Your energy insights are now personalized.`);
+      setAlertMessage(
+        `Perfect! ${blueprint.name} has been set as your home layout. Your energy insights are now personalized.`
+      );
       setAlertVisible(true);
     } catch (error) {
       console.error('Error selecting layout:', error);
-      
+
       setAlertType('error');
       setAlertTitle('Selection Failed');
-      setAlertMessage('Failed to save your layout selection. Please check your connection and try again.');
+      setAlertMessage(
+        'Failed to save your layout selection. Please check your connection and try again.'
+      );
       setAlertVisible(true);
     }
   };
@@ -411,14 +422,16 @@ const HomeScreen = () => {
         <View style={styles.headerContent}>
           <View style={styles.headerLeft}>
             <Text style={styles.welcomeText}>{getGreeting()}!</Text>
-            <Text style={styles.userNameText}>{user?.email?.split('@')[0] || user?.displayName || 'User'}</Text>
+            <Text style={styles.userNameText}>
+              {user?.email?.split('@')[0] || user?.displayName || 'User'}
+            </Text>
           </View>
           <TouchableOpacity style={styles.notificationButton}>
             <Ionicons name="notifications-outline" size={24} color="#fff" />
             <View style={styles.notificationBadge} />
           </TouchableOpacity>
         </View>
-        
+
         <View style={styles.headerStats}>
           <View style={styles.statItem}>
             <Ionicons name="flash" size={20} color="#86efac" />
@@ -443,8 +456,8 @@ const HomeScreen = () => {
           <View style={[styles.metricIcon, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
             <Ionicons name="speedometer-outline" size={24} color="#3b82f6" />
           </View>
-          <AnimatedCounter 
-            value={energyData.currentUsage} 
+          <AnimatedCounter
+            value={energyData.currentUsage}
             style={styles.metricValue}
             suffix=" kW"
             decimals={1}
@@ -460,8 +473,8 @@ const HomeScreen = () => {
           <View style={[styles.metricIcon, { backgroundColor: 'rgba(168, 85, 247, 0.1)' }]}>
             <Ionicons name="calendar-outline" size={24} color="#a855f7" />
           </View>
-          <AnimatedCounter 
-            value={energyData.totalConsumption} 
+          <AnimatedCounter
+            value={energyData.totalConsumption}
             style={styles.metricValue}
             suffix=" kWh"
           />
@@ -476,8 +489,8 @@ const HomeScreen = () => {
           <View style={[styles.metricIcon, { backgroundColor: 'rgba(249, 115, 22, 0.1)' }]}>
             <Ionicons name="card-outline" size={24} color="#f97316" />
           </View>
-          <AnimatedCounter 
-            value={energyData.monthlyBill} 
+          <AnimatedCounter
+            value={energyData.monthlyBill}
             style={styles.metricValue}
             prefix="LKR"
             decimals={2}
@@ -493,11 +506,7 @@ const HomeScreen = () => {
           <View style={[styles.metricIcon, { backgroundColor: 'rgba(34, 197, 94, 0.1)' }]}>
             <Ionicons name="leaf-outline" size={24} color="#22c55e" />
           </View>
-          <AnimatedCounter 
-            value={892} 
-            style={styles.metricValue}
-            suffix=" lbs"
-          />
+          <AnimatedCounter value={892} style={styles.metricValue} suffix=" lbs" />
           <Text style={styles.metricLabel}>CO₂ Saved</Text>
           <View style={styles.metricChange}>
             <Ionicons name="trending-up" size={12} color="#22c55e" />
@@ -513,13 +522,10 @@ const HomeScreen = () => {
       <Text style={styles.sectionTitle}>Usage Trends</Text>
       <View style={styles.periodSelectorContainer}>
         <View style={styles.periodSelector}>
-          {['Week', 'Month', 'Year'].map((period) => (
+          {['Week', 'Month', 'Year'].map(period => (
             <TouchableOpacity
               key={period}
-              style={[
-                styles.periodButton,
-                selectedPeriod === period && styles.periodButtonActive,
-              ]}
+              style={[styles.periodButton, selectedPeriod === period && styles.periodButtonActive]}
               onPress={() => setSelectedPeriod(period)}
             >
               <Text
@@ -537,16 +543,24 @@ const HomeScreen = () => {
       <View style={styles.chartCard}>
         <LineChart
           data={{
-            labels: selectedPeriod === 'Week' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : 
-                   selectedPeriod === 'Month' ? ['W1', 'W2', 'W3', 'W4'] : 
-                   ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-            datasets: [{
-              data: selectedPeriod === 'Week' ? energyData.predictions : 
-                   selectedPeriod === 'Month' ? [45, 52, 48, 55] : 
-                   [320, 280, 350, 290, 380, 320],
-              color: (opacity = 1) => '#49B02D',
-              strokeWidth: 3,
-            }],
+            labels:
+              selectedPeriod === 'Week'
+                ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+                : selectedPeriod === 'Month'
+                  ? ['W1', 'W2', 'W3', 'W4']
+                  : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+            datasets: [
+              {
+                data:
+                  selectedPeriod === 'Week'
+                    ? energyData.predictions
+                    : selectedPeriod === 'Month'
+                      ? [45, 52, 48, 55]
+                      : [320, 280, 350, 290, 380, 320],
+                color: (opacity = 1) => '#49B02D',
+                strokeWidth: 3,
+              },
+            ],
           }}
           width={chartWidth}
           height={220}
@@ -576,16 +590,18 @@ const HomeScreen = () => {
         <BarChart
           data={{
             labels: ['', '', '', '', ''], // Empty labels since we have custom legend
-            datasets: [{
-              data: Object.values(energyData.categories),
-              colors: [
-                () => '#ef4444',   // Bright Red
-                () => '#f97316',   // Bright Orange
-                () => '#3b82f6',   // Bright Blue
-                () => '#a855f7',   // Purple (undo green for this square)
-                () => '#06b6d4',   // Teal
-              ]
-            }],
+            datasets: [
+              {
+                data: Object.values(energyData.categories),
+                colors: [
+                  () => '#ef4444', // Bright Red
+                  () => '#f97316', // Bright Orange
+                  () => '#3b82f6', // Bright Blue
+                  () => '#a855f7', // Purple (undo green for this square)
+                  () => '#06b6d4', // Teal
+                ],
+              },
+            ],
           }}
           width={chartWidth}
           height={240}
@@ -619,7 +635,7 @@ const HomeScreen = () => {
           flatColor={true}
           segments={4}
         />
-        
+
         {/* Custom Legend inside chart container */}
         <View style={styles.legendContainer}>
           {Object.keys(energyData.categories).map((category, index) => {
@@ -639,7 +655,7 @@ const HomeScreen = () => {
   const renderLayoutSection = () => (
     <Animatable.View animation="fadeInUp" delay={800} style={styles.layoutSection}>
       <Text style={styles.sectionTitle}>Home Layout</Text>
-      
+
       {loadingLayout ? (
         <View style={styles.layoutCard}>
           <ActivityIndicator size="large" color="#49B02D" />
@@ -651,11 +667,12 @@ const HomeScreen = () => {
             <View style={styles.layoutInfo}>
               <Text style={styles.layoutName}>{userLayout.name}</Text>
               <Text style={styles.layoutDetails}>
-                {userLayout.area} sq ft • {userLayout.type === 'household' ? 'Residential' : 'Industrial'}
+                {userLayout.area} sq ft •{' '}
+                {userLayout.type === 'household' ? 'Residential' : 'Industrial'}
               </Text>
             </View>
             <View style={styles.layoutActions}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.manageButton}
                 onPress={() => {
                   // TODO: Navigate to LayoutSummaryScreen when navigation is set up
@@ -665,7 +682,7 @@ const HomeScreen = () => {
                 <Ionicons name="list-outline" size={20} color="#49B02D" />
                 <Text style={styles.manageButtonText}>Manage</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.editButton}
                 onPress={() => {
                   setEditingLayout(userLayout);
@@ -677,14 +694,16 @@ const HomeScreen = () => {
               </TouchableOpacity>
             </View>
           </View>
-          
+
           <View style={styles.roomsContainer}>
             <Text style={styles.roomsTitle}>Rooms & Spaces</Text>
             <View style={styles.roomsGrid}>
               {userLayout.sections?.slice(0, 6).map((section: any, index: number) => (
                 <View key={index} style={styles.roomItem}>
                   <Ionicons name="home-outline" size={16} color="#64748b" />
-                  <Text style={styles.roomText}>{section.name} ({section.count})</Text>
+                  <Text style={styles.roomText}>
+                    {section.name} ({section.count})
+                  </Text>
                 </View>
               ))}
               {userLayout.sections?.length > 6 && (
@@ -703,7 +722,7 @@ const HomeScreen = () => {
             <Text style={styles.noLayoutText}>
               Choose a home layout to get personalized energy insights
             </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.selectLayoutButton}
               onPress={() => setShowSelectionModal(true)}
             >
@@ -725,11 +744,11 @@ const HomeScreen = () => {
     let rooms = userLayout.rooms || [];
     if (rooms.length === 0 && userLayout.sections) {
       // Convert sections to rooms for device management
-      rooms = userLayout.sections.flatMap((section: any) => 
+      rooms = userLayout.sections.flatMap((section: any) =>
         Array.from({ length: section.count }, (_, index) => ({
           roomId: `${section.name.toLowerCase().replace(/\s+/g, '_')}_${index + 1}`,
           roomName: section.count > 1 ? `${section.name} ${index + 1}` : section.name,
-          devices: []
+          devices: [],
         }))
       );
     }
@@ -744,11 +763,11 @@ const HomeScreen = () => {
         <Text style={styles.deviceSubtitle}>
           Add and manage devices in each room to track energy usage
         </Text>
-        
+
         {rooms.map((room: any) => {
           const roomEnergy = calculateRoomEnergyConsumption(room.devices || []);
           const isExpanded = expandedRoom === room.roomId;
-          
+
           return (
             <View key={room.roomId} style={styles.roomCard}>
               <TouchableOpacity
@@ -756,11 +775,7 @@ const HomeScreen = () => {
                 onPress={() => toggleRoomExpansion(room.roomId)}
               >
                 <View style={styles.roomIconContainer}>
-                  <Ionicons 
-                    name={getRoomIcon(room.roomName)} 
-                    size={24} 
-                    color={Colors.primary} 
-                  />
+                  <Ionicons name={getRoomIcon(room.roomName)} size={24} color={Colors.primary} />
                 </View>
                 <View style={styles.roomInfo}>
                   <Text style={styles.roomName}>{room.roomName}</Text>
@@ -776,14 +791,14 @@ const HomeScreen = () => {
                   >
                     <Ionicons name="add" size={20} color={Colors.primary} />
                   </TouchableOpacity>
-                  <Ionicons 
-                    name={isExpanded ? "chevron-up" : "chevron-down"} 
-                    size={20} 
-                    color="#64748b" 
+                  <Ionicons
+                    name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                    size={20}
+                    color="#64748b"
                   />
                 </View>
               </TouchableOpacity>
-              
+
               {isExpanded && (
                 <View style={styles.devicesContainer}>
                   {room.devices && room.devices.length > 0 ? (
@@ -791,19 +806,19 @@ const HomeScreen = () => {
                       <View key={device.deviceId} style={styles.deviceCard}>
                         <View style={styles.deviceHeader}>
                           <View style={styles.deviceIconContainer}>
-                            <Ionicons 
-                              name={getDeviceIcon(device.deviceName)} 
-                              size={20} 
-                              color={Colors.primary} 
+                            <Ionicons
+                              name={getDeviceIcon(device.deviceName)}
+                              size={20}
+                              color={Colors.primary}
                             />
                           </View>
                           <View style={styles.deviceInfo}>
                             <Text style={styles.deviceName}>{device.deviceName}</Text>
                             <Text style={styles.deviceDetails}>
                               {device.wattage}W
-                              {device.usage && device.usage.length > 0 && (
-                                ` • ${formatTime(device.usage[0].start)} - ${formatTime(device.usage[0].end)}`
-                              )}
+                              {device.usage &&
+                                device.usage.length > 0 &&
+                                ` • ${formatTime(device.usage[0].start)} - ${formatTime(device.usage[0].end)}`}
                             </Text>
                             {device.totalPowerUsed && (
                               <Text style={styles.deviceEnergy}>
@@ -867,11 +882,11 @@ const HomeScreen = () => {
           <Text style={styles.modalTitle}>Select Home Layout</Text>
           <View style={{ width: 24 }} />
         </View>
-        
+
         <ScrollView style={styles.modalContent}>
           <Text style={styles.modalSubtitle}>Choose a blueprint that matches your home:</Text>
-          
-          {BLUEPRINT_LAYOUTS.map((blueprint) => (
+
+          {BLUEPRINT_LAYOUTS.map(blueprint => (
             <TouchableOpacity
               key={blueprint.id}
               style={styles.blueprintCard}
@@ -881,12 +896,13 @@ const HomeScreen = () => {
                 <View>
                   <Text style={styles.blueprintName}>{blueprint.name}</Text>
                   <Text style={styles.blueprintDetails}>
-                    {blueprint.area} sq ft • {blueprint.type === 'household' ? 'Residential' : 'Industrial'}
+                    {blueprint.area} sq ft •{' '}
+                    {blueprint.type === 'household' ? 'Residential' : 'Industrial'}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#64748b" />
               </View>
-              
+
               <View style={styles.blueprintSections}>
                 {blueprint.sections.map((section, index) => (
                   <View key={index} style={styles.blueprintSection}>
@@ -926,24 +942,22 @@ const HomeScreen = () => {
             <Ionicons name="close" size={24} color="#64748b" />
           </TouchableOpacity>
           <Text style={styles.modalTitle}>Edit Layout</Text>
-          <TouchableOpacity
-            style={styles.modalSaveButton}
-            onPress={handleSaveLayout}
-          >
+          <TouchableOpacity style={styles.modalSaveButton} onPress={handleSaveLayout}>
             <Text style={styles.modalSaveText}>Save</Text>
           </TouchableOpacity>
         </View>
-        
+
         <ScrollView style={styles.modalContent}>
           {editingLayout && (
             <>
               <View style={styles.layoutInfoCard}>
                 <Text style={styles.layoutModalName}>{editingLayout.name}</Text>
                 <Text style={styles.layoutModalDetails}>
-                  {editingLayout.area} sq ft • {editingLayout.type === 'household' ? 'Residential' : 'Industrial'}
+                  {editingLayout.area} sq ft •{' '}
+                  {editingLayout.type === 'household' ? 'Residential' : 'Industrial'}
                 </Text>
               </View>
-              
+
               <View style={styles.sectionsCard}>
                 <View style={styles.sectionsHeader}>
                   <Text style={styles.sectionsTitle}>Rooms & Spaces</Text>
@@ -955,14 +969,14 @@ const HomeScreen = () => {
                     <Text style={styles.addSectionText}>Add</Text>
                   </TouchableOpacity>
                 </View>
-                
+
                 {editingLayout.sections?.map((section: any, index: number) => (
                   <View key={index} style={styles.sectionRow}>
                     <View style={styles.sectionInfo}>
                       <Ionicons name="home-outline" size={18} color="#64748b" />
                       <Text style={styles.sectionName}>{section.name}</Text>
                     </View>
-                    
+
                     <View style={styles.sectionControls}>
                       <TouchableOpacity
                         style={styles.countButton}
@@ -970,16 +984,16 @@ const HomeScreen = () => {
                       >
                         <Ionicons name="remove" size={16} color="#64748b" />
                       </TouchableOpacity>
-                      
+
                       <Text style={styles.countText}>{section.count}</Text>
-                      
+
                       <TouchableOpacity
                         style={styles.countButton}
                         onPress={() => handleUpdateSectionCount(index, section.count + 1)}
                       >
                         <Ionicons name="add" size={16} color="#64748b" />
                       </TouchableOpacity>
-                      
+
                       <TouchableOpacity
                         style={styles.deleteButton}
                         onPress={() => handleDeleteSection(index)}
@@ -989,7 +1003,7 @@ const HomeScreen = () => {
                     </View>
                   </View>
                 ))}
-                
+
                 {showAddSection && (
                   <View style={styles.addSectionRow}>
                     <TextInput
@@ -999,10 +1013,7 @@ const HomeScreen = () => {
                       onChangeText={setNewSectionName}
                       autoFocus
                     />
-                    <TouchableOpacity
-                      style={styles.confirmAddButton}
-                      onPress={handleAddSection}
-                    >
+                    <TouchableOpacity style={styles.confirmAddButton} onPress={handleAddSection}>
                       <Ionicons name="checkmark" size={20} color="#49B02D" />
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -1046,10 +1057,10 @@ const HomeScreen = () => {
         {renderDeviceManagement()}
         <View style={styles.bottomSpacer} />
       </ScrollView>
-      
+
       {renderLayoutSelectionModal()}
       {renderLayoutEditModal()}
-      
+
       <AddEditDeviceModal
         visible={showDeviceModal}
         device={editingDevice}
@@ -1060,7 +1071,7 @@ const HomeScreen = () => {
           setSelectedRoom(null);
         }}
       />
-      
+
       <AlertModal
         visible={alertVisible}
         type={alertType}

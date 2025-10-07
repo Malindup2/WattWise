@@ -32,20 +32,24 @@ const RoomDetailsScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { room: initialRoom } = (route.params as any) || {};
-  
+
   const [room, setRoom] = useState<Room>(initialRoom);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showAddDeviceModal, setShowAddDeviceModal] = useState(false);
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
-  
+
   // Alert state
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertType, setAlertType] = useState<'success' | 'error' | 'warning' | 'info'>('success');
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
 
-  const showAlert = (type: 'success' | 'error' | 'warning' | 'info', title: string, message: string) => {
+  const showAlert = (
+    type: 'success' | 'error' | 'warning' | 'info',
+    title: string,
+    message: string
+  ) => {
     setAlertType(type);
     setAlertTitle(title);
     setAlertMessage(message);
@@ -80,7 +84,11 @@ const RoomDetailsScreen = () => {
         await LayoutService.addDevice(user.uid, room.roomId, deviceData);
         await loadRoomData();
         setShowAddDeviceModal(false);
-        showAlert('success', 'Device Added', `${deviceData.deviceName} has been added to ${room.roomName}.`);
+        showAlert(
+          'success',
+          'Device Added',
+          `${deviceData.deviceName} has been added to ${room.roomName}.`
+        );
       }
     } catch (error) {
       console.error('Error adding device:', error);
@@ -95,7 +103,7 @@ const RoomDetailsScreen = () => {
     endTime: string;
   }) => {
     if (!editingDevice) return;
-    
+
     try {
       const user = AuthService.getCurrentUser();
       if (user) {
@@ -116,7 +124,11 @@ const RoomDetailsScreen = () => {
       if (user) {
         await LayoutService.deleteDevice(user.uid, room.roomId, device.deviceId);
         await loadRoomData();
-        showAlert('success', 'Device Removed', `${device.deviceName} has been removed from ${room.roomName}.`);
+        showAlert(
+          'success',
+          'Device Removed',
+          `${device.deviceName} has been removed from ${room.roomName}.`
+        );
       }
     } catch (error) {
       console.error('Error deleting device:', error);
@@ -131,16 +143,18 @@ const RoomDetailsScreen = () => {
   };
 
   const getDeviceIcon = (deviceName: string): keyof typeof Ionicons.glyphMap => {
-    const preset = DEVICE_PRESETS.find(p => 
-      p.name.toLowerCase() === deviceName.toLowerCase() ||
-      deviceName.toLowerCase().includes(p.name.toLowerCase().split(' ')[0])
+    const preset = DEVICE_PRESETS.find(
+      p =>
+        p.name.toLowerCase() === deviceName.toLowerCase() ||
+        deviceName.toLowerCase().includes(p.name.toLowerCase().split(' ')[0])
     );
     return (preset?.icon as keyof typeof Ionicons.glyphMap) || 'flash-outline';
   };
 
-  const totalRoomConsumption = room.devices?.reduce((total, device) => {
-    return total + (device.totalPowerUsed || 0);
-  }, 0) || 0;
+  const totalRoomConsumption =
+    room.devices?.reduce((total, device) => {
+      return total + (device.totalPowerUsed || 0);
+    }, 0) || 0;
 
   const totalDevices = room.devices?.length || 0;
 
@@ -159,10 +173,7 @@ const RoomDetailsScreen = () => {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" size={24} color={Colors.primary} />
           </TouchableOpacity>
           <View style={styles.headerContent}>
@@ -192,10 +203,7 @@ const RoomDetailsScreen = () => {
         <View style={styles.devicesContainer}>
           <View style={styles.devicesHeader}>
             <Text style={styles.sectionTitle}>Devices</Text>
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={() => setShowAddDeviceModal(true)}
-            >
+            <TouchableOpacity style={styles.addButton} onPress={() => setShowAddDeviceModal(true)}>
               <Ionicons name="add" size={20} color={Colors.primary} />
               <Text style={styles.addButtonText}>Add Device</Text>
             </TouchableOpacity>
@@ -203,14 +211,14 @@ const RoomDetailsScreen = () => {
 
           {room.devices && room.devices.length > 0 ? (
             <View style={styles.devicesList}>
-              {room.devices.map((device) => (
+              {room.devices.map(device => (
                 <View key={device.deviceId} style={styles.deviceCard}>
                   <View style={styles.deviceHeader}>
                     <View style={styles.deviceIconContainer}>
-                      <Ionicons 
-                        name={getDeviceIcon(device.deviceName)} 
-                        size={24} 
-                        color={Colors.primary} 
+                      <Ionicons
+                        name={getDeviceIcon(device.deviceName)}
+                        size={24}
+                        color={Colors.primary}
                       />
                     </View>
                     <View style={styles.deviceInfo}>
@@ -232,7 +240,7 @@ const RoomDetailsScreen = () => {
                       </TouchableOpacity>
                     </View>
                   </View>
-                  
+
                   {device.usage && device.usage.length > 0 && (
                     <View style={styles.usageContainer}>
                       {device.usage.map((usage, index) => (

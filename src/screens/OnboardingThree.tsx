@@ -1,5 +1,14 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, Dimensions, Animated, TouchableOpacity, StatusBar } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  Dimensions,
+  Animated,
+  TouchableOpacity,
+  StatusBar,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Colors } from '../constants/Colors';
 
@@ -14,18 +23,29 @@ const OnboardingThree: React.FC<OnboardingThreeProps> = ({ onGetStarted }) => {
   const navigation = useNavigation<any>();
 
   useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 700, delay: 150, useNativeDriver: true }).start();
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 700,
+      delay: 150,
+      useNativeDriver: true,
+    }).start();
   }, [fadeAnim]);
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
-      <Animated.View style={[styles.content, { opacity: fadeAnim }]}>        
+      <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
         <View style={styles.imageContainer}>
-          <Image source={require('../../assets/banner.png')} style={styles.image} resizeMode="contain" />
+          <Image
+            source={require('../../assets/banner.png')}
+            style={styles.image}
+            resizeMode="contain"
+          />
         </View>
         <Text style={styles.title}>Reach Your Savings Goals</Text>
-        <Text style={styles.subtitle}>Set targets and track progress with an elegant, simple dashboard.</Text>
+        <Text style={styles.subtitle}>
+          Set targets and track progress with an elegant, simple dashboard.
+        </Text>
 
         <TouchableOpacity
           style={styles.ctaButton}
@@ -47,8 +67,20 @@ const styles = StyleSheet.create({
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
   imageContainer: { alignItems: 'center', marginBottom: 24 },
   image: { width: width * 0.78, height: height * 0.26, maxWidth: 310, maxHeight: 210 },
-  title: { fontSize: 28, fontWeight: '700', color: Colors.textPrimary, textAlign: 'center', marginBottom: 12 },
-  subtitle: { fontSize: 16, color: Colors.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 24 },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
   ctaButton: {
     backgroundColor: Colors.primary,
     borderRadius: 28,
@@ -66,5 +98,3 @@ const styles = StyleSheet.create({
 });
 
 export default OnboardingThree;
-
-

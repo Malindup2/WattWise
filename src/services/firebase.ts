@@ -4,17 +4,17 @@ import {
   signOut,
   User,
 } from 'firebase/auth';
-import { 
-  collection, 
-  addDoc, 
-  getDocs, 
-  query, 
-  where, 
-  doc, 
-  updateDoc, 
-  DocumentData, 
-  getDoc, 
-  setDoc 
+import {
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  doc,
+  updateDoc,
+  DocumentData,
+  getDoc,
+  setDoc,
 } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 import type { Firestore } from 'firebase/firestore';
@@ -209,7 +209,7 @@ export class FirestoreService {
         ...updates,
         updatedAt: new Date().toISOString(),
       };
-      
+
       await updateDoc(layoutRef, updateData);
       console.log('✅ Layout updated successfully');
     } catch (error) {
@@ -264,7 +264,7 @@ export class FirestoreService {
     try {
       const layoutRef = doc(db, 'layouts', userId);
       const layoutDoc = await getDoc(layoutRef);
-      
+
       if (layoutDoc.exists()) {
         return { id: layoutDoc.id, ...layoutDoc.data() };
       }
@@ -289,7 +289,7 @@ export class FirestoreService {
         ...updates,
         updatedAt: new Date(),
       };
-      
+
       await updateDoc(layoutRef, updateData);
       console.log('✅ Enhanced layout updated successfully');
     } catch (error) {
