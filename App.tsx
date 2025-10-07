@@ -16,6 +16,8 @@ import PredictiveModelScreen from './src/screens/PredictiveModelScreen';
 import ActionPlannerScreen from './src/screens/ActionPlannerScreen';
 import ForumScreen from './src/screens/ForumScreen';
 import QuizzesScreen from './src/screens/QuizzesScreen';
+import LayoutSummaryScreen from './src/screens/LayoutSummaryScreen';
+import RoomDetailsScreen from './src/screens/RoomDetailsScreen';
 import { Colors } from './src/constants/Colors';
 import { useAuth } from './src/hooks/useAuth';
 import { AuthService } from './src/services/firebase';
@@ -122,6 +124,24 @@ export default function App() {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
         <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+        <Stack.Screen 
+          name="LayoutSummary" 
+          component={LayoutSummaryScreen}
+          options={{
+            headerShown: true,
+            title: 'Home Layout',
+            headerStyle: { backgroundColor: Colors.primary },
+            headerTintColor: '#fff',
+            headerTitleStyle: { fontWeight: 'bold' },
+          }}
+        />
+        <Stack.Screen 
+          name="RoomDetails" 
+          component={RoomDetailsScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

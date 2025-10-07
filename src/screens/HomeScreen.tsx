@@ -23,7 +23,16 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { AuthService } from '../services/firebase';
 import { User } from 'firebase/auth';
 import { FirestoreService } from '../services/firebase';
+import { LayoutService } from '../services/LayoutService';
 import { AlertModal } from '../components/AlertModal';
+import { AddEditDeviceModal } from '../components/modals';
+import { DEVICE_PRESETS, ROOM_ICONS } from '../constants/DeviceTypes';
+import { 
+  calculateDuration, 
+  calculatePowerUsage, 
+  calculateRoomEnergyConsumption, 
+  formatTime 
+} from '../utils/energyCalculations';
 
 const { width, height } = Dimensions.get('window');
 const chartWidth = width - 60;
@@ -43,6 +52,13 @@ const HomeScreen = () => {
   const [alertType, setAlertType] = useState<'success' | 'error' | 'warning' | 'info'>('success');
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
+  
+  // Device management state
+  const [showDeviceModal, setShowDeviceModal] = useState(false);
+  const [selectedRoom, setSelectedRoom] = useState<any>(null);
+  const [editingDevice, setEditingDevice] = useState<any>(null);
+  const [expandedRoom, setExpandedRoom] = useState<string | null>(null);
+  
   const [energyData, setEnergyData] = useState({
     totalConsumption: 2847,
     currentUsage: 3.2,
@@ -80,8 +96,15 @@ const HomeScreen = () => {
     try {
       const currentUser = AuthService.getCurrentUser();
       if (currentUser) {
-        const layout = await FirestoreService.getUserLayout(currentUser.uid);
-        setUserLayout(layout);
+        // Try the new enhanced layout first
+        const enhancedLayout = await LayoutService.getUserLayoutWithRooms(currentUser.uid);
+        if (enhancedLayout) {
+          setUserLayout(enhancedLayout);
+        } else {
+          // Fallback to old layout structure
+          const oldLayout = await FirestoreService.getUserLayout(currentUser.uid);
+          setUserLayout(oldLayout);
+        }
       }
     } catch (error) {
       console.error('Error loading user layout:', error);
@@ -141,6 +164,144 @@ const HomeScreen = () => {
     const updatedSections = [...editingLayout.sections];
     updatedSections[index] = { ...updatedSections[index], count };
     setEditingLayout({ ...editingLayout, sections: updatedSections });
+  };
+
+  // Device management functions
+  const handleAddDevice = async (deviceData: {
+    deviceName: string;
+    wattage: number;
+    startTime: string;
+    endTime: string;
+  }) => {
+    if (!selectedRoom || !user) return;
+    
+    try {
+      // First ensure we have the enhanced layout structure
+      await ensureEnhancedLayout();
+      
+      await LayoutService.addDevice(user.uid, selectedRoom.roomId, deviceData);
+      await loadUserLayout();
+      setShowDeviceModal(false);
+      setSelectedRoom(null);
+      
+      setAlertType('success');
+      setAlertTitle('Device Added!');
+      setAlertMessage(`${deviceData.deviceName} has been added to ${selectedRoom.roomName}.`);
+      setAlertVisible(true);
+    } catch (error) {
+      console.error('Error adding device:', error);
+      setAlertType('error');
+      setAlertTitle('Add Failed');
+      setAlertMessage('Failed to add device. Please try again.');
+      setAlertVisible(true);
+    }
+  };
+
+  const handleEditDevice = async (deviceData: {
+    deviceName: string;
+    wattage: number;
+    startTime: string;
+    endTime: string;
+  }) => {
+    if (!editingDevice || !selectedRoom || !user) return;
+    
+    try {
+      await LayoutService.updateDevice(user.uid, selectedRoom.roomId, editingDevice.deviceId, deviceData);
+      await loadUserLayout();
+      setShowDeviceModal(false);
+      setEditingDevice(null);
+      setSelectedRoom(null);
+      
+      setAlertType('success');
+      setAlertTitle('Device Updated!');
+      setAlertMessage(`${deviceData.deviceName} has been updated successfully.`);
+      setAlertVisible(true);
+    } catch (error) {
+      console.error('Error updating device:', error);
+      setAlertType('error');
+      setAlertTitle('Update Failed');
+      setAlertMessage('Failed to update device. Please try again.');
+      setAlertVisible(true);
+    }
+  };
+
+  const handleDeleteDevice = async (device: any, room: any) => {
+    if (!user) return;
+    
+    try {
+      await LayoutService.deleteDevice(user.uid, room.roomId, device.deviceId);
+      await loadUserLayout();
+      
+      setAlertType('success');
+      setAlertTitle('Device Removed!');
+      setAlertMessage(`${device.deviceName} has been removed from ${room.roomName}.`);
+      setAlertVisible(true);
+    } catch (error) {
+      console.error('Error deleting device:', error);
+      setAlertType('error');
+      setAlertTitle('Delete Failed');
+      setAlertMessage('Failed to remove device. Please try again.');
+      setAlertVisible(true);
+    }
+  };
+
+  // Ensure we have enhanced layout structure for device management
+  const ensureEnhancedLayout = async () => {
+    if (!user || !userLayout) return;
+
+    // If already has rooms, we're good
+    if (userLayout.rooms && userLayout.rooms.length > 0) return;
+
+    // If has sections but no rooms, convert to enhanced structure
+    if (userLayout.sections && userLayout.sections.length > 0) {
+      const rooms = userLayout.sections.flatMap((section: any) => 
+        Array.from({ length: section.count }, (_, index) => ({
+          roomId: `${section.name.toLowerCase().replace(/\s+/g, '_')}_${index + 1}`,
+          roomName: section.count > 1 ? `${section.name} ${index + 1}` : section.name,
+          devices: []
+        }))
+      );
+
+      const enhancedLayout = {
+        layoutName: userLayout.name || 'My Home',
+        area: userLayout.area || 1000,
+        rooms: rooms,
+        userId: user.uid,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      // Save the enhanced structure to the new collection
+      await LayoutService.updateLayout(user.uid, enhancedLayout);
+    }
+  };
+
+  const openAddDeviceModal = (room: any) => {
+    setSelectedRoom(room);
+    setEditingDevice(null);
+    setShowDeviceModal(true);
+  };
+
+  const openEditDeviceModal = (device: any, room: any) => {
+    setSelectedRoom(room);
+    setEditingDevice(device);
+    setShowDeviceModal(true);
+  };
+
+  const toggleRoomExpansion = (roomId: string) => {
+    setExpandedRoom(expandedRoom === roomId ? null : roomId);
+  };
+
+  const getDeviceIcon = (deviceName: string): keyof typeof Ionicons.glyphMap => {
+    const preset = DEVICE_PRESETS.find(p => 
+      p.name.toLowerCase() === deviceName.toLowerCase() ||
+      deviceName.toLowerCase().includes(p.name.toLowerCase().split(' ')[0])
+    );
+    return (preset?.icon as keyof typeof Ionicons.glyphMap) || 'flash-outline';
+  };
+
+  const getRoomIcon = (roomName: string): keyof typeof Ionicons.glyphMap => {
+    return (ROOM_ICONS[roomName as keyof typeof ROOM_ICONS] || ROOM_ICONS.default) as keyof typeof Ionicons.glyphMap;
   };
 
   const BLUEPRINT_LAYOUTS = [
@@ -493,16 +654,28 @@ const HomeScreen = () => {
                 {userLayout.area} sq ft • {userLayout.type === 'household' ? 'Residential' : 'Industrial'}
               </Text>
             </View>
-            <TouchableOpacity 
-              style={styles.editButton}
-              onPress={() => {
-                setEditingLayout(userLayout);
-                setShowLayoutModal(true);
-              }}
-            >
-              <Ionicons name="settings-outline" size={20} color="#49B02D" />
-              <Text style={styles.editButtonText}>Edit</Text>
-            </TouchableOpacity>
+            <View style={styles.layoutActions}>
+              <TouchableOpacity 
+                style={styles.manageButton}
+                onPress={() => {
+                  // TODO: Navigate to LayoutSummaryScreen when navigation is set up
+                  console.log('Navigate to Layout Summary');
+                }}
+              >
+                <Ionicons name="list-outline" size={20} color="#49B02D" />
+                <Text style={styles.manageButtonText}>Manage</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.editButton}
+                onPress={() => {
+                  setEditingLayout(userLayout);
+                  setShowLayoutModal(true);
+                }}
+              >
+                <Ionicons name="settings-outline" size={20} color="#49B02D" />
+                <Text style={styles.editButtonText}>Edit</Text>
+              </TouchableOpacity>
+            </View>
           </View>
           
           <View style={styles.roomsContainer}>
@@ -542,6 +715,139 @@ const HomeScreen = () => {
       )}
     </Animatable.View>
   );
+
+  const renderDeviceManagement = () => {
+    if (!userLayout) {
+      return null;
+    }
+
+    // Create rooms from sections if rooms don't exist (backward compatibility)
+    let rooms = userLayout.rooms || [];
+    if (rooms.length === 0 && userLayout.sections) {
+      // Convert sections to rooms for device management
+      rooms = userLayout.sections.flatMap((section: any) => 
+        Array.from({ length: section.count }, (_, index) => ({
+          roomId: `${section.name.toLowerCase().replace(/\s+/g, '_')}_${index + 1}`,
+          roomName: section.count > 1 ? `${section.name} ${index + 1}` : section.name,
+          devices: []
+        }))
+      );
+    }
+
+    if (rooms.length === 0) {
+      return null;
+    }
+
+    return (
+      <Animatable.View animation="fadeInUp" delay={1000} style={styles.deviceSection}>
+        <Text style={styles.sectionTitle}>Device Management</Text>
+        <Text style={styles.deviceSubtitle}>
+          Add and manage devices in each room to track energy usage
+        </Text>
+        
+        {rooms.map((room: any) => {
+          const roomEnergy = calculateRoomEnergyConsumption(room.devices || []);
+          const isExpanded = expandedRoom === room.roomId;
+          
+          return (
+            <View key={room.roomId} style={styles.roomCard}>
+              <TouchableOpacity
+                style={styles.roomHeader}
+                onPress={() => toggleRoomExpansion(room.roomId)}
+              >
+                <View style={styles.roomIconContainer}>
+                  <Ionicons 
+                    name={getRoomIcon(room.roomName)} 
+                    size={24} 
+                    color={Colors.primary} 
+                  />
+                </View>
+                <View style={styles.roomInfo}>
+                  <Text style={styles.roomName}>{room.roomName}</Text>
+                  <Text style={styles.deviceCount}>
+                    {room.devices?.length || 0} devices
+                    {roomEnergy > 0 && ` • ${roomEnergy.toFixed(2)} kWh/day`}
+                  </Text>
+                </View>
+                <View style={styles.roomActions}>
+                  <TouchableOpacity
+                    style={styles.addDeviceButton}
+                    onPress={() => openAddDeviceModal(room)}
+                  >
+                    <Ionicons name="add" size={20} color={Colors.primary} />
+                  </TouchableOpacity>
+                  <Ionicons 
+                    name={isExpanded ? "chevron-up" : "chevron-down"} 
+                    size={20} 
+                    color="#64748b" 
+                  />
+                </View>
+              </TouchableOpacity>
+              
+              {isExpanded && (
+                <View style={styles.devicesContainer}>
+                  {room.devices && room.devices.length > 0 ? (
+                    room.devices.map((device: any) => (
+                      <View key={device.deviceId} style={styles.deviceCard}>
+                        <View style={styles.deviceHeader}>
+                          <View style={styles.deviceIconContainer}>
+                            <Ionicons 
+                              name={getDeviceIcon(device.deviceName)} 
+                              size={20} 
+                              color={Colors.primary} 
+                            />
+                          </View>
+                          <View style={styles.deviceInfo}>
+                            <Text style={styles.deviceName}>{device.deviceName}</Text>
+                            <Text style={styles.deviceDetails}>
+                              {device.wattage}W
+                              {device.usage && device.usage.length > 0 && (
+                                ` • ${formatTime(device.usage[0].start)} - ${formatTime(device.usage[0].end)}`
+                              )}
+                            </Text>
+                            {device.totalPowerUsed && (
+                              <Text style={styles.deviceEnergy}>
+                                {device.totalPowerUsed.toFixed(2)} kWh/day
+                              </Text>
+                            )}
+                          </View>
+                          <View style={styles.deviceActions}>
+                            <TouchableOpacity
+                              style={styles.deviceActionButton}
+                              onPress={() => openEditDeviceModal(device, room)}
+                            >
+                              <Ionicons name="create-outline" size={16} color="#64748b" />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.deviceActionButton}
+                              onPress={() => handleDeleteDevice(device, room)}
+                            >
+                              <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      </View>
+                    ))
+                  ) : (
+                    <View style={styles.noDevicesContainer}>
+                      <Ionicons name="flash-outline" size={32} color="#d1d5db" />
+                      <Text style={styles.noDevicesText}>No devices added yet</Text>
+                      <TouchableOpacity
+                        style={styles.addFirstDeviceButton}
+                        onPress={() => openAddDeviceModal(room)}
+                      >
+                        <Text style={styles.addFirstDeviceText}>Add Device</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
+          );
+        })}
+      </Animatable.View>
+    );
+  };
 
   const renderLayoutSelectionModal = () => (
     <Modal
@@ -737,11 +1043,23 @@ const HomeScreen = () => {
         {renderMetricsGrid()}
         {renderCharts()}
         {renderLayoutSection()}
+        {renderDeviceManagement()}
         <View style={styles.bottomSpacer} />
       </ScrollView>
       
       {renderLayoutSelectionModal()}
       {renderLayoutEditModal()}
+      
+      <AddEditDeviceModal
+        visible={showDeviceModal}
+        device={editingDevice}
+        onSave={editingDevice ? handleEditDevice : handleAddDevice}
+        onClose={() => {
+          setShowDeviceModal(false);
+          setEditingDevice(null);
+          setSelectedRoom(null);
+        }}
+      />
       
       <AlertModal
         visible={alertVisible}
@@ -991,6 +1309,24 @@ const styles = StyleSheet.create({
   },
   layoutInfo: {
     flex: 1,
+  },
+  layoutActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  manageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(73, 176, 45, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  manageButtonText: {
+    color: '#49B02D',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 4,
   },
   layoutName: {
     fontSize: 20,
@@ -1311,6 +1647,145 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // Device Management Styles
+  deviceSection: {
+    marginHorizontal: 20,
+    marginBottom: 24,
+  },
+  deviceSubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  roomCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  roomHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  roomIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(73, 176, 45, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  roomInfo: {
+    flex: 1,
+  },
+  roomName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 2,
+  },
+  deviceCount: {
+    fontSize: 14,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  roomActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  addDeviceButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(73, 176, 45, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  devicesContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  deviceCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+  },
+  deviceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  deviceIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(73, 176, 45, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  deviceInfo: {
+    flex: 1,
+  },
+  deviceName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 2,
+  },
+  deviceDetails: {
+    fontSize: 12,
+    color: '#64748b',
+    marginBottom: 2,
+  },
+  deviceEnergy: {
+    fontSize: 12,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  deviceActions: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  deviceActionButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noDevicesContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  noDevicesText: {
+    fontSize: 14,
+    color: '#94a3b8',
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  addFirstDeviceButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  addFirstDeviceText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 
