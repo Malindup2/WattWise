@@ -230,16 +230,15 @@ const FloatingChatbot = () => {
         supportedOrientations={['portrait']}
         presentationStyle="overFullScreen"
       >
-        <View style={styles.overlay}>
+        <KeyboardAvoidingView 
+          style={styles.overlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        >
           <TouchableWithoutFeedback onPress={toggleChatbot}>
             <View style={styles.overlayBackground} />
           </TouchableWithoutFeedback>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.keyboardView}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 120 : 20}
-            enabled={true}
-          >
+          <View style={styles.keyboardView}>
             <Animated.View
               style={[
                 styles.chatContainer,
@@ -265,46 +264,43 @@ const FloatingChatbot = () => {
                 </TouchableOpacity>
               </View>
 
-              {/* Content Area */}
-              <View style={styles.contentArea}>
-                {/* Quick Action Capsules */}
-                {messages.length <= 1 && (
-                  <View style={styles.capsulesContainer}>
-                    <Text style={styles.capsulesTitle}>Quick Actions</Text>
-                    <View style={styles.capsulesRow}>
-                      {predefinedCapsules.map((capsule, index) => (
-                        <TouchableOpacity
-                          key={index}
-                          style={styles.capsule}
-                          onPress={() => handleCapsulePress(capsule)}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={styles.capsuleText}>{capsule}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
+              {/* Quick Action Capsules */}
+              {messages.length <= 1 && (
+                <View style={styles.capsulesContainer}>
+                  <Text style={styles.capsulesTitle}>Quick Actions</Text>
+                  <View style={styles.capsulesRow}>
+                    {predefinedCapsules.map((capsule, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={styles.capsule}
+                        onPress={() => handleCapsulePress(capsule)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.capsuleText}>{capsule}</Text>
+                      </TouchableOpacity>
+                    ))}
                   </View>
-                )}
-
-                {/* Chat Messages */}
-                <View style={styles.messagesWrapper}>
-                  <GiftedChat
-                    messages={messages}
-                    onSend={onSend}
-                    user={{ _id: 1, name: 'User' }}
-                    renderBubble={renderBubble}
-                    renderSend={renderSend}
-                    renderInputToolbar={() => null}
-                    renderFooter={renderFooter}
-                    alwaysShowSend={false}
-                    keyboardShouldPersistTaps="handled"
-                    messagesContainerStyle={styles.messagesContainer}
-                    showUserAvatar={false}
-                    inverted={true}
-                    minInputToolbarHeight={0}
-                    infiniteScroll={false}
-                  />
                 </View>
+              )}
+
+              {/* Chat Messages */}
+              <View style={styles.messagesWrapper}>
+                <GiftedChat
+                  messages={messages}
+                  onSend={onSend}
+                  user={{ _id: 1, name: 'User' }}
+                  renderBubble={renderBubble}
+                  renderSend={renderSend}
+                  renderInputToolbar={() => null}
+                  renderFooter={renderFooter}
+                  alwaysShowSend={false}
+                  keyboardShouldPersistTaps="handled"
+                  messagesContainerStyle={styles.messagesContainer}
+                  showUserAvatar={false}
+                  inverted={true}
+                  minInputToolbarHeight={0}
+                  infiniteScroll={false}
+                />
               </View>
 
               {/* Custom Input Field */}
@@ -318,14 +314,15 @@ const FloatingChatbot = () => {
                   multiline
                   blurOnSubmit={false}
                   placeholderTextColor="#9ca3af"
+                  returnKeyType="send"
                 />
                 <TouchableOpacity onPress={handleSendPress} style={styles.customSendButton}>
                   <Ionicons name="send" size={24} color="#49B02D" />
                 </TouchableOpacity>
               </View>
             </Animated.View>
-          </KeyboardAvoidingView>
-        </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );
@@ -382,7 +379,7 @@ const styles = StyleSheet.create({
   },
   chatContainer: {
     width: width * 0.9,
-    height: height * 0.75,
+    height: height * 0.65,
     backgroundColor: '#fff',
     borderRadius: 24,
     overflow: 'hidden',
@@ -396,7 +393,10 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     display: 'flex',
     flexDirection: 'column',
-    justifyContent: 'space-between',
+  },
+  chatContainerKeyboard: {
+    height: height * 0.45,
+    marginTop: 20,
   },
   keyboardView: {
     flex: 1,
@@ -412,10 +412,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
-  },
-  contentArea: {
-    flex: 1,
-    justifyContent: 'flex-end',
+    flexShrink: 0,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -446,10 +443,12 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   capsulesContainer: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#f8fafc',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
+    flexShrink: 0,
   },
   capsulesTitle: {
     fontSize: 13,
@@ -499,14 +498,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   messagesContainer: {
-    paddingBottom: 8,
+    paddingBottom: 0,
     paddingHorizontal: 16,
-    justifyContent: 'flex-end',
   },
   messagesWrapper: {
-    flexGrow: 1,
-    justifyContent: 'flex-end',
-    minHeight: 150,
+    flex: 1,
+    minHeight: 0,
   },
   customInputContainer: {
     flexDirection: 'row',
@@ -516,6 +513,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
     minHeight: 60,
+    flexShrink: 0,
   },
   customInput: {
     flex: 1,
