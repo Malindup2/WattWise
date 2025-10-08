@@ -21,13 +21,13 @@ const FloatingChatbot = () => {
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [inputText, setInputText] = useState('');
-  
+
   // BottomSheet ref
   const bottomSheetRef = useRef<BottomSheet>(null);
-  
+
   // ScrollView ref for auto-scrolling
   const scrollViewRef = useRef<ScrollView>(null);
-  
+
   // BottomSheet snap points
   const snapPoints = useMemo(() => ['65%', '90%'], []);
 
@@ -169,13 +169,7 @@ const FloatingChatbot = () => {
 
   // Render backdrop for BottomSheet
   const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
+    (props: any) => <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} />,
     []
   );
 
@@ -262,7 +256,10 @@ const FloatingChatbot = () => {
                 <Text style={styles.headerSubtitle}>Always here to help</Text>
               </View>
             </View>
-            <TouchableOpacity onPress={() => bottomSheetRef.current?.close()} style={styles.closeButton}>
+            <TouchableOpacity
+              onPress={() => bottomSheetRef.current?.close()}
+              style={styles.closeButton}
+            >
               <Ionicons name="close" size={24} color="#64748b" />
             </TouchableOpacity>
           </View>
@@ -292,29 +289,28 @@ const FloatingChatbot = () => {
               <Text style={styles.debugText}>Messages: {messages.length}</Text>
             )}
             {/* Scrollable message list with fixed height */}
-            <ScrollView 
+            <ScrollView
               ref={scrollViewRef}
               style={styles.scrollableMessageList}
               showsVerticalScrollIndicator={true}
               contentContainerStyle={styles.scrollContent}
             >
               {messages.map((message, index) => (
-                <View key={message._id} style={[
-                  styles.messageItem,
-                  message.user._id === 1 ? styles.userMessage : styles.botMessage
-                ]}>
-                  <Text style={[
-                    styles.messageText,
-                    message.user._id === 1 && { color: '#fff' }
-                  ]}>{message.text}</Text>
-                  <Text style={[
-                    styles.messageTime,
-                    message.user._id === 1 && { color: '#fff' }
-                  ]}>
-                    {new Date(message.createdAt).toLocaleTimeString('en-US', { 
-                      hour: '2-digit', 
+                <View
+                  key={message._id}
+                  style={[
+                    styles.messageItem,
+                    message.user._id === 1 ? styles.userMessage : styles.botMessage,
+                  ]}
+                >
+                  <Text style={[styles.messageText, message.user._id === 1 && { color: '#fff' }]}>
+                    {message.text}
+                  </Text>
+                  <Text style={[styles.messageTime, message.user._id === 1 && { color: '#fff' }]}>
+                    {new Date(message.createdAt).toLocaleTimeString('en-US', {
+                      hour: '2-digit',
                       minute: '2-digit',
-                      hour12: true 
+                      hour12: true,
                     })}
                   </Text>
                 </View>
