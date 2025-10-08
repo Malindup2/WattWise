@@ -12,6 +12,7 @@ import {
 import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { GiftedChat, IMessage, Bubble, Send } from 'react-native-gifted-chat';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import axios from 'axios';
 
 const { width, height } = Dimensions.get('window');
@@ -45,7 +46,7 @@ const FloatingChatbot = () => {
         _id: 'welcome',
         text: "Hi! I'm your energy assistant. I can help you understand your energy usage, provide saving tips, and answer questions about your home's energy consumption. How can I help you today?",
         createdAt: new Date(),
-        user: { _id: 2, name: 'Energy Bot', avatar: '⚡' },
+        user: { _id: 2, name: 'WattWise AI', avatar: '⚡' },
       };
       setMessages([welcomeMessage]);
     }
@@ -93,7 +94,7 @@ const FloatingChatbot = () => {
         _id: Math.random().toString(),
         text: botReply,
         createdAt: new Date(),
-        user: { _id: 2, name: 'Energy Bot', avatar: '⚡' },
+        user: { _id: 2, name: 'WattWise AI', avatar: '⚡' },
       };
 
       setMessages(previousMessages => [...previousMessages, botResponse]);
@@ -120,7 +121,7 @@ const FloatingChatbot = () => {
         _id: Math.random().toString(),
         text: errorMessage,
         createdAt: new Date(),
-        user: { _id: 2, name: 'Energy Bot', avatar: '⚡' },
+        user: { _id: 2, name: 'WattWise AI', avatar: '⚡' },
       };
 
       setMessages(previousMessages => [...previousMessages, errorResponse]);
@@ -251,10 +252,13 @@ const FloatingChatbot = () => {
           <View style={styles.chatHeader}>
             <View style={styles.headerLeft}>
               <View style={styles.avatarContainer}>
-                <Text style={styles.avatarEmoji}>⚡</Text>
+                <Ionicons name="flash" size={22} color="#49B02D" />
               </View>
               <View>
-                <Text style={styles.headerTitle}>Energy Assistant</Text>
+                <View style={styles.headerTitleContainer}>
+                  <Text style={styles.headerTitleWattWise}>WattWise</Text>
+                  <Text style={styles.headerTitleAI}>AI</Text>
+                </View>
                 <Text style={styles.headerSubtitle}>Always here to help</Text>
               </View>
             </View>
@@ -303,6 +307,16 @@ const FloatingChatbot = () => {
                     styles.messageText,
                     message.user._id === 1 && { color: '#fff' }
                   ]}>{message.text}</Text>
+                  <Text style={[
+                    styles.messageTime,
+                    message.user._id === 1 && { color: '#fff' }
+                  ]}>
+                    {new Date(message.createdAt).toLocaleTimeString('en-US', { 
+                      hour: '2-digit', 
+                      minute: '2-digit',
+                      hour12: true 
+                    })}
+                  </Text>
                 </View>
               ))}
             </ScrollView>
@@ -392,18 +406,26 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#49B02D',
+    backgroundColor: 'rgba(73, 176, 45, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(73, 176, 45, 0.3)',
   },
-  avatarEmoji: {
-    fontSize: 20,
+  headerTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  headerTitle: {
+  headerTitleWattWise: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#000000',
+  },
+  headerTitleAI: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#49B02D',
   },
   headerSubtitle: {
     fontSize: 12,
@@ -415,9 +437,7 @@ const styles = StyleSheet.create({
   capsulesContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#f8fafc',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
     flexShrink: 0,
   },
   capsulesTitle: {
@@ -488,10 +508,14 @@ const styles = StyleSheet.create({
   },
   debugText: {
     padding: 10,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: 'rgba(73, 176, 45, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(73, 176, 45, 0.2)',
     textAlign: 'center',
     fontSize: 14,
-    color: '#333',
+    color: '#49B02D',
+    fontWeight: '600',
+    borderRadius: 8,
   },
   simpleMessageList: {
     paddingHorizontal: 16,
@@ -514,6 +538,12 @@ const styles = StyleSheet.create({
   messageText: {
     fontSize: 16,
     color: '#333',
+  },
+  messageTime: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 4,
+    alignSelf: 'flex-end',
   },
   customInputContainer: {
     flexDirection: 'row',
