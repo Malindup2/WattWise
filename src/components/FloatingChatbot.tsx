@@ -1,19 +1,15 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   TouchableOpacity,
-  Modal,
   StyleSheet,
   Text,
-  Animated,
-  Easing,
   Dimensions,
-  TouchableWithoutFeedback,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
   TextInput,
+  ScrollView,
 } from 'react-native';
+import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { GiftedChat, IMessage, Bubble, Send } from 'react-native-gifted-chat';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
@@ -22,10 +18,17 @@ const { width, height } = Dimensions.get('window');
 
 const FloatingChatbot = () => {
   const [messages, setMessages] = useState<IMessage[]>([]);
-  const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [inputText, setInputText] = useState('');
-  const scaleAnim = useRef(new Animated.Value(0)).current;
+  
+  // BottomSheet ref
+  const bottomSheetRef = useRef<BottomSheet>(null);
+  
+  // ScrollView ref for auto-scrolling
+  const scrollViewRef = useRef<ScrollView>(null);
+  
+  // BottomSheet snap points
+  const snapPoints = useMemo(() => ['65%', '90%'], []);
 
   const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 
@@ -47,6 +50,15 @@ const FloatingChatbot = () => {
       setMessages([welcomeMessage]);
     }
   }, []);
+
+  // Auto-scroll to bottom when messages change (newest messages at bottom)
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages]);
 
   const sendMessageToAPI = async (text: string) => {
     setIsLoading(true);
@@ -84,7 +96,7 @@ const FloatingChatbot = () => {
         user: { _id: 2, name: 'Energy Bot', avatar: '⚡' },
       };
 
-      setMessages(previousMessages => GiftedChat.append(previousMessages, [botResponse]));
+      setMessages(previousMessages => [...previousMessages, botResponse]);
     } catch (error: any) {
       console.error('Error communicating with Gemini API:', error);
       console.error('Error details:', error.response?.data);
@@ -111,14 +123,14 @@ const FloatingChatbot = () => {
         user: { _id: 2, name: 'Energy Bot', avatar: '⚡' },
       };
 
-      setMessages(previousMessages => GiftedChat.append(previousMessages, [errorResponse]));
+      setMessages(previousMessages => [...previousMessages, errorResponse]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const onSend = (newMessages: IMessage[] = []) => {
-    setMessages(previousMessages => GiftedChat.append(previousMessages, newMessages));
+    setMessages(previousMessages => [...previousMessages, ...newMessages]);
     const userMessage = newMessages[0].text;
     sendMessageToAPI(userMessage);
   };
@@ -146,26 +158,25 @@ const FloatingChatbot = () => {
     onSend([message]);
   };
 
-  const toggleChatbot = () => {
-    if (isVisible) {
-      // Close animation
-      Animated.timing(scaleAnim, {
-        toValue: 0,
-        duration: 250,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }).start(() => setIsVisible(false));
-    } else {
-      // Open animation
-      setIsVisible(true);
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }).start();
-    }
-  };
+  const toggleChatbot = useCallback(() => {
+    bottomSheetRef.current?.snapToIndex(0); // Start at first snap point (60%)
+  }, []);
+
+  const handleSheetChanges = useCallback((index: number) => {
+    // Handle sheet state changes if needed
+  }, []);
+
+  // Render backdrop for BottomSheet
+  const renderBackdrop = useCallback(
+    (props: any) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+      />
+    ),
+    []
+  );
 
   const renderBubble = (props: any) => {
     return (
@@ -222,108 +233,100 @@ const FloatingChatbot = () => {
         </View>
       </TouchableOpacity>
 
-      <Modal
-        visible={isVisible}
-        animationType="none"
-        transparent={true}
-        onRequestClose={toggleChatbot}
-        supportedOrientations={['portrait']}
-        presentationStyle="overFullScreen"
+      <BottomSheet
+        ref={bottomSheetRef}
+        index={-1}
+        snapPoints={snapPoints}
+        onChange={handleSheetChanges}
+        keyboardBehavior="extend"
+        keyboardBlurBehavior="restore"
+        enableDynamicSizing={true}
+        backdropComponent={renderBackdrop}
+        handleIndicatorStyle={{ backgroundColor: '#49B02D' }}
+        backgroundStyle={{ backgroundColor: '#fff' }}
+        enablePanDownToClose={true}
       >
-        <KeyboardAvoidingView 
-          style={styles.overlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-        >
-          <TouchableWithoutFeedback onPress={toggleChatbot}>
-            <View style={styles.overlayBackground} />
-          </TouchableWithoutFeedback>
-          <View style={styles.keyboardView}>
-            <Animated.View
-              style={[
-                styles.chatContainer,
-                {
-                  transform: [{ scale: scaleAnim }],
-                  opacity: scaleAnim,
-                },
-              ]}
-            >
-              {/* Header */}
-              <View style={styles.chatHeader}>
-                <View style={styles.headerLeft}>
-                  <View style={styles.avatarContainer}>
-                    <Text style={styles.avatarEmoji}>⚡</Text>
-                  </View>
-                  <View>
-                    <Text style={styles.headerTitle}>Energy Assistant</Text>
-                    <Text style={styles.headerSubtitle}>Always here to help</Text>
-                  </View>
-                </View>
-                <TouchableOpacity onPress={toggleChatbot} style={styles.closeButton}>
-                  <Ionicons name="close" size={24} color="#64748b" />
-                </TouchableOpacity>
+        <BottomSheetView style={styles.bottomSheetContent}>
+          {/* Header */}
+          <View style={styles.chatHeader}>
+            <View style={styles.headerLeft}>
+              <View style={styles.avatarContainer}>
+                <Text style={styles.avatarEmoji}>⚡</Text>
               </View>
-
-              {/* Quick Action Capsules */}
-              {messages.length <= 1 && (
-                <View style={styles.capsulesContainer}>
-                  <Text style={styles.capsulesTitle}>Quick Actions</Text>
-                  <View style={styles.capsulesRow}>
-                    {predefinedCapsules.map((capsule, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        style={styles.capsule}
-                        onPress={() => handleCapsulePress(capsule)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={styles.capsuleText}>{capsule}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {/* Chat Messages */}
-              <View style={styles.messagesWrapper}>
-                <GiftedChat
-                  messages={messages}
-                  onSend={onSend}
-                  user={{ _id: 1, name: 'User' }}
-                  renderBubble={renderBubble}
-                  renderSend={renderSend}
-                  renderInputToolbar={() => null}
-                  renderFooter={renderFooter}
-                  alwaysShowSend={false}
-                  keyboardShouldPersistTaps="handled"
-                  messagesContainerStyle={styles.messagesContainer}
-                  showUserAvatar={false}
-                  inverted={true}
-                  minInputToolbarHeight={0}
-                  infiniteScroll={false}
-                />
+              <View>
+                <Text style={styles.headerTitle}>Energy Assistant</Text>
+                <Text style={styles.headerSubtitle}>Always here to help</Text>
               </View>
-
-              {/* Custom Input Field */}
-              <View style={styles.customInputContainer}>
-                <TextInput
-                  style={styles.customInput}
-                  value={inputText}
-                  onChangeText={setInputText}
-                  placeholder="Type your message..."
-                  onSubmitEditing={handleSendPress}
-                  multiline
-                  blurOnSubmit={false}
-                  placeholderTextColor="#9ca3af"
-                  returnKeyType="send"
-                />
-                <TouchableOpacity onPress={handleSendPress} style={styles.customSendButton}>
-                  <Ionicons name="send" size={24} color="#49B02D" />
-                </TouchableOpacity>
-              </View>
-            </Animated.View>
+            </View>
+            <TouchableOpacity onPress={() => bottomSheetRef.current?.close()} style={styles.closeButton}>
+              <Ionicons name="close" size={24} color="#64748b" />
+            </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
+
+          {/* Quick Action Capsules */}
+          {messages.length <= 1 && (
+            <View style={styles.capsulesContainer}>
+              <Text style={styles.capsulesTitle}>Quick Actions</Text>
+              <View style={styles.capsulesRow}>
+                {predefinedCapsules.map((capsule, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.capsule}
+                    onPress={() => handleCapsulePress(capsule)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.capsuleText}>{capsule}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Chat Messages */}
+          <View style={styles.messagesWrapper}>
+            {messages.length > 0 && (
+              <Text style={styles.debugText}>Messages: {messages.length}</Text>
+            )}
+            {/* Scrollable message list with fixed height */}
+            <ScrollView 
+              ref={scrollViewRef}
+              style={styles.scrollableMessageList}
+              showsVerticalScrollIndicator={true}
+              contentContainerStyle={styles.scrollContent}
+            >
+              {messages.map((message, index) => (
+                <View key={message._id} style={[
+                  styles.messageItem,
+                  message.user._id === 1 ? styles.userMessage : styles.botMessage
+                ]}>
+                  <Text style={[
+                    styles.messageText,
+                    message.user._id === 1 && { color: '#fff' }
+                  ]}>{message.text}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Custom Input Field */}
+          <View style={styles.customInputContainer}>
+            <TextInput
+              style={styles.customInput}
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Type your message..."
+              onSubmitEditing={handleSendPress}
+              multiline
+              blurOnSubmit={false}
+              placeholderTextColor="#9ca3af"
+              returnKeyType="send"
+            />
+            <TouchableOpacity onPress={handleSendPress} style={styles.customSendButton}>
+              <Ionicons name="send" size={24} color="#49B02D" />
+            </TouchableOpacity>
+          </View>
+        </BottomSheetView>
+      </BottomSheet>
     </>
   );
 };
@@ -364,44 +367,11 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
   },
-  overlay: {
+  bottomSheetContent: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  overlayBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  chatContainer: {
-    width: width * 0.9,
-    height: height * 0.65,
     backgroundColor: '#fff',
-    borderRadius: 24,
-    overflow: 'hidden',
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 5,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  chatContainerKeyboard: {
-    height: height * 0.45,
-    marginTop: 20,
-  },
-  keyboardView: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingTop: 0,
+    paddingBottom: 8, // Add padding to ensure input is fully visible
   },
   chatHeader: {
     flexDirection: 'row',
@@ -498,12 +468,52 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   messagesContainer: {
-    paddingBottom: 0,
-    paddingHorizontal: 16,
+    paddingBottom: 8,
+    paddingHorizontal: 8,
+    backgroundColor: '#fff',
   },
   messagesWrapper: {
     flex: 1,
-    minHeight: 0,
+    backgroundColor: '#fff',
+    maxHeight: '100%', // Ensure it doesn't grow beyond container
+  },
+  scrollableMessageList: {
+    flex: 1,
+    maxHeight: 250, // Reduced height to ensure input is always visible
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    flexGrow: 1,
+  },
+  debugText: {
+    padding: 10,
+    backgroundColor: '#f0f0f0',
+    textAlign: 'center',
+    fontSize: 14,
+    color: '#333',
+  },
+  simpleMessageList: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  messageItem: {
+    marginVertical: 4,
+    padding: 12,
+    borderRadius: 12,
+    maxWidth: '80%',
+  },
+  userMessage: {
+    backgroundColor: '#49B02D',
+    alignSelf: 'flex-end',
+  },
+  botMessage: {
+    backgroundColor: '#f0f0f0',
+    alignSelf: 'flex-start',
+  },
+  messageText: {
+    fontSize: 16,
+    color: '#333',
   },
   customInputContainer: {
     flexDirection: 'row',
