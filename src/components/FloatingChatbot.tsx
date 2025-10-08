@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { GiftedChat, IMessage, Bubble, Send } from 'react-native-gifted-chat';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +24,7 @@ const FloatingChatbot = () => {
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [inputText, setInputText] = useState('');
   const scaleAnim = useRef(new Animated.Value(0)).current;
 
   const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
@@ -49,7 +51,6 @@ const FloatingChatbot = () => {
   const sendMessageToAPI = async (text: string) => {
     setIsLoading(true);
     try {
-      // CORRECT: Use gemini-2.5-flash with x-goog-api-key header (official method)
       const response = await axios.post(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
         {
@@ -120,6 +121,19 @@ const FloatingChatbot = () => {
     setMessages(previousMessages => GiftedChat.append(previousMessages, newMessages));
     const userMessage = newMessages[0].text;
     sendMessageToAPI(userMessage);
+  };
+
+  const handleSendPress = () => {
+    if (inputText.trim()) {
+      const message: IMessage = {
+        _id: Math.random().toString(),
+        text: inputText,
+        createdAt: new Date(),
+        user: { _id: 1, name: 'User' },
+      };
+      onSend([message]);
+      setInputText('');
+    }
   };
 
   const handleCapsulePress = (capsuleText: string) => {
@@ -213,77 +227,105 @@ const FloatingChatbot = () => {
         animationType="none"
         transparent={true}
         onRequestClose={toggleChatbot}
+        supportedOrientations={['portrait']}
+        presentationStyle="overFullScreen"
       >
-        <TouchableWithoutFeedback onPress={toggleChatbot}>
-          <View style={styles.overlay}>
-            <TouchableWithoutFeedback>
-              <Animated.View
-                style={[
-                  styles.chatContainer,
-                  {
-                    transform: [{ scale: scaleAnim }],
-                    opacity: scaleAnim,
-                  },
-                ]}
-              >
-                <KeyboardAvoidingView
-                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                  style={styles.keyboardView}
-                  keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-                >
-                  {/* Header */}
-                  <View style={styles.chatHeader}>
-                    <View style={styles.headerLeft}>
-                      <View style={styles.avatarContainer}>
-                        <Text style={styles.avatarEmoji}>⚡</Text>
-                      </View>
-                      <View>
-                        <Text style={styles.headerTitle}>Energy Assistant</Text>
-                        <Text style={styles.headerSubtitle}>Always here to help</Text>
-                      </View>
-                    </View>
-                    <TouchableOpacity onPress={toggleChatbot} style={styles.closeButton}>
-                      <Ionicons name="close" size={24} color="#64748b" />
-                    </TouchableOpacity>
+        <View style={styles.overlay}>
+          <TouchableWithoutFeedback onPress={toggleChatbot}>
+            <View style={styles.overlayBackground} />
+          </TouchableWithoutFeedback>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.keyboardView}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 120 : 20}
+            enabled={true}
+          >
+            <Animated.View
+              style={[
+                styles.chatContainer,
+                {
+                  transform: [{ scale: scaleAnim }],
+                  opacity: scaleAnim,
+                },
+              ]}
+            >
+              {/* Header */}
+              <View style={styles.chatHeader}>
+                <View style={styles.headerLeft}>
+                  <View style={styles.avatarContainer}>
+                    <Text style={styles.avatarEmoji}>⚡</Text>
                   </View>
+                  <View>
+                    <Text style={styles.headerTitle}>Energy Assistant</Text>
+                    <Text style={styles.headerSubtitle}>Always here to help</Text>
+                  </View>
+                </View>
+                <TouchableOpacity onPress={toggleChatbot} style={styles.closeButton}>
+                  <Ionicons name="close" size={24} color="#64748b" />
+                </TouchableOpacity>
+              </View>
 
-                  {/* Quick Action Capsules */}
-                  {messages.length <= 1 && (
-                    <View style={styles.capsulesContainer}>
-                      <Text style={styles.capsulesTitle}>Quick Actions</Text>
-                      <View style={styles.capsulesRow}>
-                        {predefinedCapsules.map((capsule, index) => (
-                          <TouchableOpacity
-                            key={index}
-                            style={styles.capsule}
-                            onPress={() => handleCapsulePress(capsule)}
-                            activeOpacity={0.7}
-                          >
-                            <Text style={styles.capsuleText}>{capsule}</Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
+              {/* Content Area */}
+              <View style={styles.contentArea}>
+                {/* Quick Action Capsules */}
+                {messages.length <= 1 && (
+                  <View style={styles.capsulesContainer}>
+                    <Text style={styles.capsulesTitle}>Quick Actions</Text>
+                    <View style={styles.capsulesRow}>
+                      {predefinedCapsules.map((capsule, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={styles.capsule}
+                          onPress={() => handleCapsulePress(capsule)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.capsuleText}>{capsule}</Text>
+                        </TouchableOpacity>
+                      ))}
                     </View>
-                  )}
+                  </View>
+                )}
 
-                  {/* Chat Messages */}
+                {/* Chat Messages */}
+                <View style={styles.messagesWrapper}>
                   <GiftedChat
                     messages={messages}
                     onSend={onSend}
                     user={{ _id: 1, name: 'User' }}
                     renderBubble={renderBubble}
                     renderSend={renderSend}
+                    renderInputToolbar={() => null}
                     renderFooter={renderFooter}
-                    placeholder="Ask me anything about energy..."
-                    alwaysShowSend
-                    maxComposerHeight={100}
-                    minComposerHeight={50}
+                    alwaysShowSend={false}
+                    keyboardShouldPersistTaps="handled"
+                    messagesContainerStyle={styles.messagesContainer}
+                    showUserAvatar={false}
+                    inverted={true}
+                    minInputToolbarHeight={0}
+                    infiniteScroll={false}
                   />
-                </KeyboardAvoidingView>
-              </Animated.View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
+                </View>
+              </View>
+
+              {/* Custom Input Field */}
+              <View style={styles.customInputContainer}>
+                <TextInput
+                  style={styles.customInput}
+                  value={inputText}
+                  onChangeText={setInputText}
+                  placeholder="Type your message..."
+                  onSubmitEditing={handleSendPress}
+                  multiline
+                  blurOnSubmit={false}
+                  placeholderTextColor="#9ca3af"
+                />
+                <TouchableOpacity onPress={handleSendPress} style={styles.customSendButton}>
+                  <Ionicons name="send" size={24} color="#49B02D" />
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
     </>
   );
@@ -327,9 +369,16 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  overlayBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   chatContainer: {
     width: width * 0.9,
@@ -345,9 +394,14 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.3,
     shadowRadius: 10,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
   },
   keyboardView: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   chatHeader: {
     flexDirection: 'row',
@@ -358,6 +412,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
+  },
+  contentArea: {
+    flex: 1,
+    justifyContent: 'flex-end',
   },
   headerLeft: {
     flexDirection: 'row',
@@ -439,6 +497,46 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     color: '#64748b',
     fontSize: 14,
+  },
+  messagesContainer: {
+    paddingBottom: 8,
+    paddingHorizontal: 16,
+    justifyContent: 'flex-end',
+  },
+  messagesWrapper: {
+    flexGrow: 1,
+    justifyContent: 'flex-end',
+    minHeight: 150,
+  },
+  customInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    padding: 12,
+    backgroundColor: '#f8fafc',
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    minHeight: 60,
+  },
+  customInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    fontSize: 16,
+    backgroundColor: '#fff',
+    maxHeight: 100,
+    marginRight: 8,
+    textAlignVertical: 'center',
+  },
+  customSendButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f0f9ff',
   },
 });
 
