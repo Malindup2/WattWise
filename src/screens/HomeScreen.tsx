@@ -31,10 +31,10 @@ import { Room } from '../types/layout';
 // Extended layout type to handle both old and new layout structures
 interface ExtendedLayout {
   id?: string;
-  name?: string;           // for blueprint layouts
-  layoutName?: string;     // for new layout structure
+  name?: string; // for blueprint layouts
+  layoutName?: string; // for new layout structure
   imageUrl?: string;
-  sections?: { name: string; count: number; }[];
+  sections?: { name: string; count: number }[];
   rooms?: Room[];
   area?: number;
   type?: string;
@@ -116,15 +116,15 @@ const HomeScreen = () => {
         const enhancedLayout = await LayoutService.getUserLayoutWithRooms(currentUser.uid);
         if (enhancedLayout) {
           console.log('Enhanced layout loaded:', enhancedLayout);
-          
+
           // Convert new layout structure to include sections for backward compatibility
           const layoutWithSections = { ...enhancedLayout } as any;
-          
+
           if (!layoutWithSections.sections && enhancedLayout.rooms) {
             // Convert rooms back to sections for display
             const sectionMap = new Map();
             console.log('Converting rooms to sections. Rooms:', enhancedLayout.rooms);
-            
+
             enhancedLayout.rooms.forEach((room: any) => {
               const baseName = room.roomName.replace(/\s+\d+$/, ''); // Remove numbers at end
               if (sectionMap.has(baseName)) {
@@ -133,20 +133,20 @@ const HomeScreen = () => {
                 sectionMap.set(baseName, 1);
               }
             });
-            
+
             layoutWithSections.sections = Array.from(sectionMap.entries()).map(([name, count]) => ({
               name,
-              count
+              count,
             }));
-            
+
             console.log('Converted sections:', layoutWithSections.sections);
           }
-          
+
           setUserLayout(layoutWithSections);
           console.log('Final layout with sections:', {
             sections: layoutWithSections.sections,
             hasLayout: !!layoutWithSections,
-            layoutKeys: Object.keys(layoutWithSections)
+            layoutKeys: Object.keys(layoutWithSections),
           });
         } else {
           console.log('No enhanced layout found, trying old layout...');
@@ -266,7 +266,7 @@ const HomeScreen = () => {
       setDeleteConfirmVisible(false);
       await LayoutService.deleteLayout(user.uid);
       setUserLayout(null);
-      
+
       setAlertType('success');
       setAlertTitle('Layout Deleted!');
       setAlertMessage('Your home layout has been deleted successfully.');
@@ -767,10 +767,7 @@ const HomeScreen = () => {
                 <Ionicons name="settings-outline" size={20} color="#49B02D" />
                 <Text style={styles.editButtonText}>Edit Structure</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.layoutDeleteButton}
-                onPress={handleDeleteLayout}
-              >
+              <TouchableOpacity style={styles.layoutDeleteButton} onPress={handleDeleteLayout}>
                 <Ionicons name="trash-outline" size={20} color="#ef4444" />
                 <Text style={styles.layoutDeleteButtonText}>Delete</Text>
               </TouchableOpacity>
@@ -792,7 +789,9 @@ const HomeScreen = () => {
               ) : (
                 <View style={styles.roomItem}>
                   <Text style={styles.noRoomsText}>
-                    {userLayout && userLayout.sections ? 'No rooms configured yet' : 'Loading room structure...'}
+                    {userLayout && userLayout.sections
+                      ? 'No rooms configured yet'
+                      : 'Loading room structure...'}
                   </Text>
                 </View>
               )}
@@ -1185,20 +1184,21 @@ const HomeScreen = () => {
               </View>
               <Text style={styles.deleteModalTitle}>Delete Layout</Text>
             </View>
-            
+
             <Text style={styles.deleteModalMessage}>
-              Are you sure you want to delete this layout? This action cannot be undone and will remove all rooms and devices.
+              Are you sure you want to delete this layout? This action cannot be undone and will
+              remove all rooms and devices.
             </Text>
-            
+
             <View style={styles.deleteModalButtons}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.deleteModalButton, styles.cancelButton]}
                 onPress={() => setDeleteConfirmVisible(false)}
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={[styles.deleteModalButton, styles.confirmDeleteButton]}
                 onPress={confirmDeleteLayout}
               >
@@ -1938,7 +1938,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  
+
   // Delete confirmation modal styles
   modalOverlay: {
     flex: 1,

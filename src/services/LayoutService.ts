@@ -373,15 +373,19 @@ export class LayoutService {
   static async deleteLayout(userId: string): Promise<void> {
     try {
       const layoutRef = doc(db, 'layouts', userId);
-      
+
       // Actually delete the document by setting it to an empty object and then using deleteDoc
       // For now, we'll clear all data but keep the document to avoid breaking references
-      await setDoc(layoutRef, {
-        deleted: true,
-        deletedAt: new Date(),
-        userId
-      }, { merge: false });
-      
+      await setDoc(
+        layoutRef,
+        {
+          deleted: true,
+          deletedAt: new Date(),
+          userId,
+        },
+        { merge: false }
+      );
+
       console.log('✅ Layout deleted successfully');
     } catch (error) {
       console.error('Error deleting layout:', error);
