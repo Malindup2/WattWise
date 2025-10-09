@@ -32,9 +32,11 @@ export class QuizService {
     try {
       console.log('🧠 Generating personalized quiz for user profile:', userProfile);
       const currentUser = AuthService.getCurrentUser();
-      const recentQuestions = currentUser ? await this.getRecentQuestionTexts(currentUser.uid, 50) : new Set<string>();
+      const recentQuestions = currentUser ? await this.getRecentQuestionTexts(currentUser.uid, 100) : new Set<string>();
+      // Build avoid list for the model (cap to keep prompt small)
+      const avoidList = Array.from(recentQuestions).slice(0, 25);
       // Try Gemini first, fallback to local generator
-      const geminiPrompt = this.buildGeminiPrompt(userProfile);
+      const geminiPrompt = this.buildGeminiPrompt(userProfile, avoidList);
       const fromGemini = await GeminiService.generateQuestions(geminiPrompt);
       const normalizedGemini: QuizQuestion[] = (fromGemini || []).map((q, i) => ({
         id: q.id || `gq_${Date.now()}_${i}`,
@@ -46,8 +48,10 @@ export class QuizService {
         points: typeof q.points === 'number' ? q.points : 10,
       }));
       const generated = normalizedGemini.length > 0 ? normalizedGemini : this.generateQuestionsFromProfile(userProfile);
-      // Filter out duplicates shown recently by matching question text
-      let deduped = generated.filter(q => !recentQuestions.has(q.question));
+      // Strong de-duplication: normalized comparison to avoid paraphrased repeats
+      const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '').trim();
+      const recentNormalized = new Set(Array.from(recentQuestions).map(normalize));
+      let deduped = generated.filter(q => !recentNormalized.has(normalize(q.question)));
 
       // Ensure we always return exactly 5 questions
       if (deduped.length < 5) {
@@ -220,12 +224,27 @@ export class QuizService {
     return pool;
   }
 
-  private static buildGeminiPrompt(profile: UserQuizProfile): string {
+  private static buildGeminiPrompt(profile: UserQuizProfile, avoidList: string[] = []): string {
     const deviceList = profile.devices
       .slice(0, 10)
       .map(d => `${d.name} (${d.watt}W, ${d.hours}h/day)`) // concise
       .join(', ');
-    return `Create 5 multiple-choice questions (4 options each, exactly one correct) about home energy usage tailored to this user. Use LKR for any currency. Return only JSON.\nUser type: ${profile.userType}\nRooms: ${profile.layout.rooms}, Area: ${profile.layout.area} sqm\nAverage daily kWh: ${profile.averageDailyKwh}\nDevices: ${deviceList}`;
+    const avoidBlock = avoidList.length
+      ? `\nAvoid repeating or rephrasing any of these questions (or semantically similar ones):\n- ${avoidList.join('\n- ')}\n`
+      : '';
+    return `Create 5 multiple-choice questions (4 options each, exactly one correct) about home energy for this user.
+- Vary topics across: energy-saving, device-efficiency, cost-reduction, eco-tips.
+- Use the user's actual devices in the wording where helpful.
+- Use LKR for currency.
+- Return ONLY a JSON array of objects with: id, question, options[4], answer, tip, category (one of energy-saving|device-efficiency|cost-reduction|eco-tips), points (number).
+- Ensure the 5 questions are all unique, not paraphrased repeats, and tailored to the user.
+
+User context:
+- User type: ${profile.userType}
+- Rooms: ${profile.layout.rooms}, Area: ${profile.layout.area} sqm
+- Average daily kWh: ${profile.averageDailyKwh}
+- Devices: ${deviceList}
+${avoidBlock}`;
   }
 
   // Fetch recent question texts for a user to avoid repeats
