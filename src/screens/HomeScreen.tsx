@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
@@ -27,6 +26,20 @@ import { LayoutService } from '../services/LayoutService';
 import { AlertModal } from '../components/AlertModal';
 import { AddEditDeviceModal } from '../components/modals';
 import { DEVICE_PRESETS, ROOM_ICONS } from '../constants/DeviceTypes';
+import { Room } from '../types/layout';
+
+// Extended layout type to handle both old and new layout structures
+interface ExtendedLayout {
+  id?: string;
+  name?: string;           // for blueprint layouts
+  layoutName?: string;     // for new layout structure
+  imageUrl?: string;
+  sections?: { name: string; count: number; }[];
+  rooms?: Room[];
+  area?: number;
+  type?: string;
+  createdAt?: any;
+}
 import {
   calculateDuration,
   calculatePowerUsage,
@@ -42,7 +55,7 @@ const HomeScreen = () => {
   const navigation = useNavigation();
 
   const [user, setUser] = useState<User | null>(null);
-  const [userLayout, setUserLayout] = useState<any>(null);
+  const [userLayout, setUserLayout] = useState<ExtendedLayout | null>(null);
   const [loadingLayout, setLoadingLayout] = useState(false);
   const [showLayoutModal, setShowLayoutModal] = useState(false);
   const [showSelectionModal, setShowSelectionModal] = useState(false);
@@ -53,6 +66,7 @@ const HomeScreen = () => {
   const [alertType, setAlertType] = useState<'success' | 'error' | 'warning' | 'info'>('success');
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
 
   // Device management state
   const [showDeviceModal, setShowDeviceModal] = useState(false);
@@ -97,15 +111,52 @@ const HomeScreen = () => {
     try {
       const currentUser = AuthService.getCurrentUser();
       if (currentUser) {
+        console.log('Loading layout for user:', currentUser.uid);
         // Try the new enhanced layout first
         const enhancedLayout = await LayoutService.getUserLayoutWithRooms(currentUser.uid);
         if (enhancedLayout) {
-          setUserLayout(enhancedLayout);
+          console.log('Enhanced layout loaded:', enhancedLayout);
+          
+          // Convert new layout structure to include sections for backward compatibility
+          const layoutWithSections = { ...enhancedLayout } as any;
+          
+          if (!layoutWithSections.sections && enhancedLayout.rooms) {
+            // Convert rooms back to sections for display
+            const sectionMap = new Map();
+            console.log('Converting rooms to sections. Rooms:', enhancedLayout.rooms);
+            
+            enhancedLayout.rooms.forEach((room: any) => {
+              const baseName = room.roomName.replace(/\s+\d+$/, ''); // Remove numbers at end
+              if (sectionMap.has(baseName)) {
+                sectionMap.set(baseName, sectionMap.get(baseName) + 1);
+              } else {
+                sectionMap.set(baseName, 1);
+              }
+            });
+            
+            layoutWithSections.sections = Array.from(sectionMap.entries()).map(([name, count]) => ({
+              name,
+              count
+            }));
+            
+            console.log('Converted sections:', layoutWithSections.sections);
+          }
+          
+          setUserLayout(layoutWithSections);
+          console.log('Final layout with sections:', {
+            sections: layoutWithSections.sections,
+            hasLayout: !!layoutWithSections,
+            layoutKeys: Object.keys(layoutWithSections)
+          });
         } else {
+          console.log('No enhanced layout found, trying old layout...');
           // Fallback to old layout structure
           const oldLayout = await FirestoreService.getUserLayout(currentUser.uid);
-          setUserLayout(oldLayout);
+          console.log('Old layout loaded:', oldLayout);
+          setUserLayout(oldLayout as ExtendedLayout);
         }
+      } else {
+        console.log('No current user found');
       }
     } catch (error) {
       console.error('Error loading user layout:', error);
@@ -122,10 +173,13 @@ const HomeScreen = () => {
         sections: editingLayout.sections,
         name: editingLayout.name,
         area: editingLayout.area,
+        type: editingLayout.type || 'household',
+        userId: user.uid,
       };
 
-      await FirestoreService.updateUserLayout(editingLayout.id, updates);
-      setUserLayout(editingLayout);
+      // Use the new LayoutService instead of old FirestoreService
+      await LayoutService.updateLayout(user.uid, updates);
+      setUserLayout({ ...editingLayout, ...updates });
       setShowLayoutModal(false);
       setEditingLayout(null);
 
@@ -194,6 +248,34 @@ const HomeScreen = () => {
       setAlertType('error');
       setAlertTitle('Add Failed');
       setAlertMessage('Failed to add device. Please try again.');
+      setAlertVisible(true);
+    }
+  };
+
+  // Delete layout function
+  const handleDeleteLayout = async () => {
+    if (!userLayout || !user) return;
+    setDeleteConfirmVisible(true);
+  };
+
+  // Confirm delete layout
+  const confirmDeleteLayout = async () => {
+    if (!userLayout || !user) return;
+
+    try {
+      setDeleteConfirmVisible(false);
+      await LayoutService.deleteLayout(user.uid);
+      setUserLayout(null);
+      
+      setAlertType('success');
+      setAlertTitle('Layout Deleted!');
+      setAlertMessage('Your home layout has been deleted successfully.');
+      setAlertVisible(true);
+    } catch (error) {
+      console.error('Error deleting layout:', error);
+      setAlertType('error');
+      setAlertTitle('Delete Failed');
+      setAlertMessage('Failed to delete layout. Please try again.');
       setAlertVisible(true);
     }
   };
@@ -368,9 +450,11 @@ const HomeScreen = () => {
         type: blueprint.type,
         name: blueprint.name,
         area: blueprint.area,
+        userId: user.uid,
       };
 
-      await FirestoreService.saveUserLayout(layoutData);
+      // Use new LayoutService for proper persistence
+      await LayoutService.updateLayout(user.uid, layoutData);
       await loadUserLayout();
       setShowSelectionModal(false);
 
@@ -666,23 +750,13 @@ const HomeScreen = () => {
         <View style={styles.layoutCard}>
           <View style={styles.layoutHeader}>
             <View style={styles.layoutInfo}>
-              <Text style={styles.layoutName}>{userLayout.name}</Text>
+              <Text style={styles.layoutName}>{userLayout.name || userLayout.layoutName}</Text>
               <Text style={styles.layoutDetails}>
                 {userLayout.area} sq ft •{' '}
                 {userLayout.type === 'household' ? 'Residential' : 'Industrial'}
               </Text>
             </View>
             <View style={styles.layoutActions}>
-              <TouchableOpacity
-                style={styles.manageButton}
-                onPress={() => {
-                  // TODO: Navigate to LayoutSummaryScreen when navigation is set up
-                  console.log('Navigate to Layout Summary');
-                }}
-              >
-                <Ionicons name="list-outline" size={20} color="#49B02D" />
-                <Text style={styles.manageButtonText}>Manage</Text>
-              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.editButton}
                 onPress={() => {
@@ -691,7 +765,14 @@ const HomeScreen = () => {
                 }}
               >
                 <Ionicons name="settings-outline" size={20} color="#49B02D" />
-                <Text style={styles.editButtonText}>Edit</Text>
+                <Text style={styles.editButtonText}>Edit Structure</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.layoutDeleteButton}
+                onPress={handleDeleteLayout}
+              >
+                <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                <Text style={styles.layoutDeleteButtonText}>Delete</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -699,15 +780,23 @@ const HomeScreen = () => {
           <View style={styles.roomsContainer}>
             <Text style={styles.roomsTitle}>Rooms & Spaces</Text>
             <View style={styles.roomsGrid}>
-              {userLayout.sections?.slice(0, 6).map((section: any, index: number) => (
-                <View key={index} style={styles.roomItem}>
-                  <Ionicons name="home-outline" size={16} color="#64748b" />
-                  <Text style={styles.roomText}>
-                    {section.name} ({section.count})
+              {userLayout.sections && userLayout.sections.length > 0 ? (
+                userLayout.sections.slice(0, 6).map((section: any, index: number) => (
+                  <View key={index} style={styles.roomItem}>
+                    <Ionicons name="home-outline" size={16} color="#64748b" />
+                    <Text style={styles.roomText}>
+                      {section.name} ({section.count})
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <View style={styles.roomItem}>
+                  <Text style={styles.noRoomsText}>
+                    {userLayout && userLayout.sections ? 'No rooms configured yet' : 'Loading room structure...'}
                   </Text>
                 </View>
-              ))}
-              {userLayout.sections?.length > 6 && (
+              )}
+              {userLayout.sections && userLayout.sections.length > 6 && (
                 <View style={styles.roomItem}>
                   <Text style={styles.roomText}>+{userLayout.sections.length - 6} more</Text>
                 </View>
@@ -760,9 +849,9 @@ const HomeScreen = () => {
 
     return (
       <Animatable.View animation="fadeInUp" delay={1000} style={styles.deviceSection}>
-        <Text style={styles.sectionTitle}>Device Management</Text>
+        <Text style={styles.sectionTitle}>Room & Device Management</Text>
         <Text style={styles.deviceSubtitle}>
-          Add and manage devices in each room to track energy usage
+          Manage devices in each room to track energy usage and get personalized insights
         </Text>
 
         {rooms.map((room: any) => {
@@ -1080,6 +1169,46 @@ const HomeScreen = () => {
         message={alertMessage}
         onClose={() => setAlertVisible(false)}
       />
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={deleteConfirmVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setDeleteConfirmVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.deleteModalContainer}>
+            <View style={styles.deleteModalHeader}>
+              <View style={[styles.deleteIconContainer, { backgroundColor: '#EF4444' }]}>
+                <Ionicons name="trash-outline" size={24} color="#FFFFFF" />
+              </View>
+              <Text style={styles.deleteModalTitle}>Delete Layout</Text>
+            </View>
+            
+            <Text style={styles.deleteModalMessage}>
+              Are you sure you want to delete this layout? This action cannot be undone and will remove all rooms and devices.
+            </Text>
+            
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity 
+                style={[styles.deleteModalButton, styles.cancelButton]}
+                onPress={() => setDeleteConfirmVisible(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.deleteModalButton, styles.confirmDeleteButton]}
+                onPress={confirmDeleteLayout}
+              >
+                <Text style={styles.deleteButtonText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <FloatingChatbot />
     </View>
   );
@@ -1324,22 +1453,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   layoutActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  manageButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(73, 176, 45, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  manageButtonText: {
-    color: '#49B02D',
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 4,
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: 6,
   },
   layoutName: {
     fontSize: 20,
@@ -1351,6 +1467,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748b',
     fontWeight: '500',
+    flexWrap: 'nowrap',
   },
   editButton: {
     flexDirection: 'row',
@@ -1362,6 +1479,20 @@ const styles = StyleSheet.create({
   },
   editButtonText: {
     color: '#49B02D',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  layoutDeleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  layoutDeleteButtonText: {
+    color: '#ef4444',
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 4,
@@ -1395,6 +1526,13 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontWeight: '500',
     marginLeft: 6,
+  },
+  noRoomsText: {
+    fontSize: 13,
+    color: '#9ca3af',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    flex: 1,
   },
   noLayoutContainer: {
     alignItems: 'center',
@@ -1799,6 +1937,87 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  
+  // Delete confirmation modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteModalContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 24,
+    margin: 20,
+    maxWidth: 340,
+    width: '90%',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 10.32,
+    elevation: 16,
+  },
+  deleteModalHeader: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  deleteIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  deleteModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1f2937',
+    textAlign: 'center',
+  },
+  deleteModalMessage: {
+    fontSize: 16,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  deleteModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  deleteModalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 40,
+    alignItems: 'center',
+    minHeight: 48,
+  },
+  cancelButton: {
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  confirmDeleteButton: {
+    backgroundColor: '#EF4444',
+  },
+  cancelButtonText: {
+    color: '#374151',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  deleteButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });
 

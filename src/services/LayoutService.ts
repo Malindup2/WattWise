@@ -12,7 +12,12 @@ export class LayoutService {
       // First try the new layouts collection
       const layoutDoc = await getDoc(doc(db, 'layouts', userId));
       if (layoutDoc.exists()) {
-        return { id: layoutDoc.id, ...layoutDoc.data() } as Layout;
+        const data = layoutDoc.data();
+        // Check if layout is marked as deleted
+        if (data.deleted) {
+          return null;
+        }
+        return { id: layoutDoc.id, ...data } as Layout;
       }
       return null;
     } catch (error) {
@@ -358,6 +363,28 @@ export class LayoutService {
       }
     } catch (error) {
       console.error('Error deleting device:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete entire layout for a user
+   */
+  static async deleteLayout(userId: string): Promise<void> {
+    try {
+      const layoutRef = doc(db, 'layouts', userId);
+      
+      // Actually delete the document by setting it to an empty object and then using deleteDoc
+      // For now, we'll clear all data but keep the document to avoid breaking references
+      await setDoc(layoutRef, {
+        deleted: true,
+        deletedAt: new Date(),
+        userId
+      }, { merge: false });
+      
+      console.log('✅ Layout deleted successfully');
+    } catch (error) {
+      console.error('Error deleting layout:', error);
       throw error;
     }
   }
