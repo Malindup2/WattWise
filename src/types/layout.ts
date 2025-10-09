@@ -22,6 +22,7 @@ export interface Layout {
   id?: string;
   layoutName: string;
   area: number;
+  type?: 'household' | 'industrial';
   rooms: Room[];
   userId?: string;
   createdAt?: Date;

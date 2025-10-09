@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
@@ -27,6 +26,20 @@ import { LayoutService } from '../services/LayoutService';
 import { AlertModal } from '../components/AlertModal';
 import { AddEditDeviceModal } from '../components/modals';
 import { DEVICE_PRESETS, ROOM_ICONS } from '../constants/DeviceTypes';
+import { Room } from '../types/layout';
+
+// Extended layout type to handle both old and new layout structures
+interface ExtendedLayout {
+  id?: string;
+  name?: string; // for blueprint layouts
+  layoutName?: string; // for new layout structure
+  imageUrl?: string;
+  sections?: { name: string; count: number }[];
+  rooms?: Room[];
+  area?: number;
+  type?: string;
+  createdAt?: any;
+}
 import {
   calculateDuration,
   calculatePowerUsage,
@@ -42,10 +55,13 @@ const HomeScreen = () => {
   const navigation = useNavigation();
 
   const [user, setUser] = useState<User | null>(null);
-  const [userLayout, setUserLayout] = useState<any>(null);
+  const [userLayout, setUserLayout] = useState<ExtendedLayout | null>(null);
   const [loadingLayout, setLoadingLayout] = useState(false);
   const [showLayoutModal, setShowLayoutModal] = useState(false);
   const [showSelectionModal, setShowSelectionModal] = useState(false);
+  const [selectedLayoutType, setSelectedLayoutType] = useState<'household' | 'industrial'>(
+    'household'
+  );
   const [editingLayout, setEditingLayout] = useState<any>(null);
   const [newSectionName, setNewSectionName] = useState('');
   const [showAddSection, setShowAddSection] = useState(false);
@@ -53,6 +69,7 @@ const HomeScreen = () => {
   const [alertType, setAlertType] = useState<'success' | 'error' | 'warning' | 'info'>('success');
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
 
   // Device management state
   const [showDeviceModal, setShowDeviceModal] = useState(false);
@@ -97,15 +114,55 @@ const HomeScreen = () => {
     try {
       const currentUser = AuthService.getCurrentUser();
       if (currentUser) {
+        console.log('Loading layout for user:', currentUser.uid);
         // Try the new enhanced layout first
         const enhancedLayout = await LayoutService.getUserLayoutWithRooms(currentUser.uid);
         if (enhancedLayout) {
-          setUserLayout(enhancedLayout);
+          console.log('Enhanced layout loaded:', enhancedLayout);
+
+          // Convert new layout structure to include sections for backward compatibility
+          const layoutWithSections = { ...enhancedLayout } as any;
+
+          console.log('Layout type from Firebase:', enhancedLayout.type);
+          console.log('Layout name from Firebase:', enhancedLayout.layoutName);
+          if (!layoutWithSections.sections && enhancedLayout.rooms) {
+            // Convert rooms back to sections for display
+            const sectionMap = new Map();
+            console.log('Converting rooms to sections. Rooms:', enhancedLayout.rooms);
+
+            enhancedLayout.rooms.forEach((room: any) => {
+              const baseName = room.roomName.replace(/\s+\d+$/, '').trim(); // Remove numbers at end and trim
+              console.log(`Room: "${room.roomName}" -> Base: "${baseName}"`);
+
+              if (sectionMap.has(baseName)) {
+                sectionMap.set(baseName, sectionMap.get(baseName) + 1);
+              } else {
+                sectionMap.set(baseName, 1);
+              }
+            });
+
+            layoutWithSections.sections = Array.from(sectionMap.entries()).map(([name, count]) => ({
+              name,
+              count,
+            }));
+
+            console.log('Converted sections:', layoutWithSections.sections);
+          }
+
+          setUserLayout(layoutWithSections);
+          console.log('Final layout with sections:', {
+            name: layoutWithSections.layoutName,
+            type: layoutWithSections.type,
+            sections: layoutWithSections.sections,
+            hasLayout: !!layoutWithSections,
+            layoutKeys: Object.keys(layoutWithSections),
+          });
         } else {
-          // Fallback to old layout structure
-          const oldLayout = await FirestoreService.getUserLayout(currentUser.uid);
-          setUserLayout(oldLayout);
+          console.log('No enhanced layout found in layouts collection');
+          setUserLayout(null); // Don't fall back to old layout, just show no layout
         }
+      } else {
+        console.log('No current user found');
       }
     } catch (error) {
       console.error('Error loading user layout:', error);
@@ -118,20 +175,50 @@ const HomeScreen = () => {
     if (!editingLayout || !user) return;
 
     try {
+      console.log('💾 Saving layout. EditingLayout:', editingLayout);
+      console.log('💾 EditingLayout keys:', Object.keys(editingLayout));
+      console.log('💾 EditingLayout.name:', editingLayout.name);
+      console.log('💾 EditingLayout.layoutName:', editingLayout.layoutName);
+      console.log('💾 EditingLayout sections:', editingLayout.sections);
+
+      // Convert sections back to rooms for proper storage
+      const rooms: any[] = [];
+      editingLayout.sections.forEach((section: any) => {
+        for (let i = 1; i <= section.count; i++) {
+          const roomId = `${section.name.toLowerCase().replace(/\s+/g, '_')}_${i}`;
+          rooms.push({
+            roomId,
+            roomName: section.count > 1 ? `${section.name} ${i}` : section.name,
+            devices: [],
+          });
+        }
+      });
+
+      console.log('💾 Generated rooms from sections:', rooms);
+
       const updates = {
-        sections: editingLayout.sections,
-        name: editingLayout.name,
+        layoutName: editingLayout.name || editingLayout.layoutName || 'My Layout',
         area: editingLayout.area,
+        type: editingLayout.type || 'household',
+        rooms: rooms,
+        userId: user.uid,
+        createdAt: editingLayout.createdAt || new Date(),
       };
 
-      await FirestoreService.updateUserLayout(editingLayout.id, updates);
-      setUserLayout(editingLayout);
+      console.log('💾 Layout updates to save:', updates);
+
+      // Use the new LayoutService instead of old FirestoreService
+      await LayoutService.updateLayout(user.uid, updates);
+
+      // Reload the layout to get the updated data
+      await loadUserLayout();
+
       setShowLayoutModal(false);
       setEditingLayout(null);
 
       setAlertType('success');
       setAlertTitle('Layout Updated!');
-      setAlertMessage('Your home layout has been updated successfully. ');
+      setAlertMessage('Your home layout has been updated successfully.');
       setAlertVisible(true);
     } catch (error) {
       console.error('Error saving layout:', error);
@@ -194,6 +281,34 @@ const HomeScreen = () => {
       setAlertType('error');
       setAlertTitle('Add Failed');
       setAlertMessage('Failed to add device. Please try again.');
+      setAlertVisible(true);
+    }
+  };
+
+  // Delete layout function
+  const handleDeleteLayout = async () => {
+    if (!userLayout || !user) return;
+    setDeleteConfirmVisible(true);
+  };
+
+  // Confirm delete layout
+  const confirmDeleteLayout = async () => {
+    if (!userLayout || !user) return;
+
+    try {
+      setDeleteConfirmVisible(false);
+      await LayoutService.deleteLayout(user.uid);
+      setUserLayout(null);
+
+      setAlertType('success');
+      setAlertTitle('Layout Deleted!');
+      setAlertMessage('Your home layout has been deleted successfully.');
+      setAlertVisible(true);
+    } catch (error) {
+      console.error('Error deleting layout:', error);
+      setAlertType('error');
+      setAlertTitle('Delete Failed');
+      setAlertMessage('Failed to delete layout. Please try again.');
       setAlertVisible(true);
     }
   };
@@ -355,23 +470,107 @@ const HomeScreen = () => {
         { name: 'Laundry Room', count: 1 },
       ],
     },
+    {
+      id: 'bp_small_factory',
+      name: 'Small Factory',
+      area: 2000,
+      type: 'industrial' as const,
+      sections: [
+        { name: 'Production Area', count: 1 },
+        { name: 'Office', count: 1 },
+        { name: 'Storage', count: 1 },
+        { name: 'Restroom', count: 1 },
+      ],
+    },
+    {
+      id: 'bp_medium_warehouse',
+      name: 'Medium Warehouse',
+      area: 5000,
+      type: 'industrial' as const,
+      sections: [
+        { name: 'Storage Area', count: 2 },
+        { name: 'Loading Dock', count: 1 },
+        { name: 'Office Space', count: 1 },
+        { name: 'Maintenance Room', count: 1 },
+        { name: 'Restroom', count: 2 },
+      ],
+    },
+    {
+      id: 'bp_large_industrial',
+      name: 'Large Industrial Complex',
+      area: 10000,
+      type: 'industrial' as const,
+      sections: [
+        { name: 'Production Floor', count: 3 },
+        { name: 'Storage Warehouse', count: 2 },
+        { name: 'Administrative Office', count: 1 },
+        { name: 'Quality Control Lab', count: 1 },
+        { name: 'Maintenance Workshop', count: 1 },
+        { name: 'Cafeteria', count: 1 },
+        { name: 'Restroom', count: 4 },
+        { name: 'Parking Area', count: 1 },
+      ],
+    },
   ];
 
   const handleSelectBlueprint = async (blueprint: any) => {
     if (!user) return;
 
+    console.log('🔥 Selected blueprint:', blueprint);
+
     try {
+      // Convert sections to rooms for the new layout structure
+      const rooms = blueprint.sections.flatMap((section: any) =>
+        Array.from({ length: section.count }, (_, index) => ({
+          roomId: `${section.name.toLowerCase().replace(/\s+/g, '_')}_${index + 1}`,
+          roomName: section.count > 1 ? `${section.name} ${index + 1}` : section.name,
+          devices: [],
+        }))
+      );
+
+      console.log('🔥 Generated rooms:', rooms);
+
       const layoutData = {
-        source: 'blueprint' as const,
-        blueprintId: blueprint.id,
-        sections: blueprint.sections,
-        type: blueprint.type,
-        name: blueprint.name,
+        layoutName: blueprint.name,
         area: blueprint.area,
+        type: blueprint.type, // Add the type field
+        rooms: rooms,
+        userId: user.uid,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
 
-      await FirestoreService.saveUserLayout(layoutData);
-      await loadUserLayout();
+      console.log('🔥 Saving layout data:', layoutData);
+
+      // Use new LayoutService for proper persistence
+      await LayoutService.updateLayout(user.uid, layoutData);
+
+      // Also clear any old layout data to prevent conflicts
+      try {
+        const oldLayouts = await FirestoreService.getDocumentsByField(
+          'user_layouts',
+          'userId',
+          user.uid
+        );
+        if (oldLayouts.length > 0) {
+          console.log('🔥 Found old layout data, clearing...');
+          // Note: We should add a delete function to clear old data
+        }
+      } catch (error) {
+        console.log('No old layout data to clear');
+      }
+
+      console.log('🔥 Layout saved, now reloading...');
+
+      // Clear any cached data first
+      setUserLayout(null);
+      setLoadingLayout(true);
+
+      // Small delay to ensure Firebase has time to update
+      setTimeout(async () => {
+        await loadUserLayout();
+      }, 2000);
+
       setShowSelectionModal(false);
 
       setAlertType('success');
@@ -655,7 +854,9 @@ const HomeScreen = () => {
 
   const renderLayoutSection = () => (
     <Animatable.View animation="fadeInUp" delay={800} style={styles.layoutSection}>
-      <Text style={styles.sectionTitle}>Home Layout</Text>
+      <Text style={styles.sectionTitle}>
+        {userLayout?.type === 'industrial' ? 'Industrial Layout' : 'Home Layout'}
+      </Text>
 
       {loadingLayout ? (
         <View style={styles.layoutCard}>
@@ -666,7 +867,7 @@ const HomeScreen = () => {
         <View style={styles.layoutCard}>
           <View style={styles.layoutHeader}>
             <View style={styles.layoutInfo}>
-              <Text style={styles.layoutName}>{userLayout.name}</Text>
+              <Text style={styles.layoutName}>{userLayout.name || userLayout.layoutName}</Text>
               <Text style={styles.layoutDetails}>
                 {userLayout.area} sq ft •{' '}
                 {userLayout.type === 'household' ? 'Residential' : 'Industrial'}
@@ -674,40 +875,86 @@ const HomeScreen = () => {
             </View>
             <View style={styles.layoutActions}>
               <TouchableOpacity
-                style={styles.manageButton}
-                onPress={() => {
-                  // TODO: Navigate to LayoutSummaryScreen when navigation is set up
-                  console.log('Navigate to Layout Summary');
-                }}
-              >
-                <Ionicons name="list-outline" size={20} color="#49B02D" />
-                <Text style={styles.manageButtonText}>Manage</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
                 style={styles.editButton}
                 onPress={() => {
+                  console.log('🔧 Opening edit layout modal for:', userLayout);
+                  console.log('🔧 UserLayout keys:', Object.keys(userLayout));
+                  console.log('🔧 UserLayout.name:', userLayout.name);
+                  console.log('🔧 UserLayout.layoutName:', userLayout.layoutName);
+                  console.log('🔧 Layout sections:', userLayout.sections);
+                  console.log('🔧 Layout rooms:', userLayout.rooms);
                   setEditingLayout(userLayout);
                   setShowLayoutModal(true);
                 }}
               >
                 <Ionicons name="settings-outline" size={20} color="#49B02D" />
-                <Text style={styles.editButtonText}>Edit</Text>
+                <Text style={styles.editButtonText}>Edit Structure</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.layoutDeleteButton} onPress={handleDeleteLayout}>
+                <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                <Text style={styles.layoutDeleteButtonText}>Delete</Text>
               </TouchableOpacity>
             </View>
           </View>
 
           <View style={styles.roomsContainer}>
-            <Text style={styles.roomsTitle}>Rooms & Spaces</Text>
+            <Text style={styles.roomsTitle}>
+              {userLayout?.type === 'industrial' ? 'Areas & Spaces' : 'Rooms & Spaces'}
+            </Text>
             <View style={styles.roomsGrid}>
-              {userLayout.sections?.slice(0, 6).map((section: any, index: number) => (
-                <View key={index} style={styles.roomItem}>
-                  <Ionicons name="home-outline" size={16} color="#64748b" />
-                  <Text style={styles.roomText}>
-                    {section.name} ({section.count})
+              {userLayout.sections && userLayout.sections.length > 0 ? (
+                userLayout.sections.slice(0, 6).map((section: any, index: number) => {
+                  // Get appropriate icon based on layout type and section name
+                  const getIconName = (sectionName: string, layoutType: string) => {
+                    if (layoutType === 'industrial') {
+                      if (sectionName.toLowerCase().includes('production'))
+                        return 'construct-outline';
+                      if (sectionName.toLowerCase().includes('storage')) return 'cube-outline';
+                      if (sectionName.toLowerCase().includes('office')) return 'business-outline';
+                      if (sectionName.toLowerCase().includes('loading')) return 'car-outline';
+                      if (sectionName.toLowerCase().includes('maintenance')) return 'build-outline';
+                      if (sectionName.toLowerCase().includes('cafeteria'))
+                        return 'restaurant-outline';
+                      if (sectionName.toLowerCase().includes('parking')) return 'car-sport-outline';
+                      if (sectionName.toLowerCase().includes('lab')) return 'flask-outline';
+                      return 'business-outline';
+                    } else {
+                      if (sectionName.toLowerCase().includes('bedroom')) return 'bed-outline';
+                      if (sectionName.toLowerCase().includes('kitchen'))
+                        return 'restaurant-outline';
+                      if (sectionName.toLowerCase().includes('living')) return 'tv-outline';
+                      if (sectionName.toLowerCase().includes('bathroom')) return 'water-outline';
+                      if (sectionName.toLowerCase().includes('garage')) return 'car-outline';
+                      if (sectionName.toLowerCase().includes('dining')) return 'restaurant-outline';
+                      if (sectionName.toLowerCase().includes('study')) return 'library-outline';
+                      if (sectionName.toLowerCase().includes('laundry')) return 'shirt-outline';
+                      return 'home-outline';
+                    }
+                  };
+
+                  return (
+                    <View key={index} style={styles.roomItem}>
+                      <Ionicons
+                        name={getIconName(section.name, userLayout?.type || 'household')}
+                        size={16}
+                        color="#64748b"
+                      />
+                      <Text style={styles.roomText}>
+                        {section.name} ({section.count})
+                      </Text>
+                    </View>
+                  );
+                })
+              ) : (
+                <View style={styles.roomItem}>
+                  <Text style={styles.noRoomsText}>
+                    {userLayout && userLayout.sections
+                      ? `No ${userLayout?.type === 'industrial' ? 'areas' : 'rooms'} configured yet`
+                      : `Loading ${userLayout?.type === 'industrial' ? 'area' : 'room'} structure...`}
                   </Text>
                 </View>
-              ))}
-              {userLayout.sections?.length > 6 && (
+              )}
+              {userLayout.sections && userLayout.sections.length > 6 && (
                 <View style={styles.roomItem}>
                   <Text style={styles.roomText}>+{userLayout.sections.length - 6} more</Text>
                 </View>
@@ -721,7 +968,7 @@ const HomeScreen = () => {
             <Ionicons name="home-outline" size={48} color="#d1d5db" />
             <Text style={styles.noLayoutTitle}>No Layout Selected</Text>
             <Text style={styles.noLayoutText}>
-              Choose a home layout to get personalized energy insights
+              Choose a layout to get personalized energy insights
             </Text>
             <TouchableOpacity
               style={styles.selectLayoutButton}
@@ -760,9 +1007,15 @@ const HomeScreen = () => {
 
     return (
       <Animatable.View animation="fadeInUp" delay={1000} style={styles.deviceSection}>
-        <Text style={styles.sectionTitle}>Device Management</Text>
+        <Text style={styles.sectionTitle}>
+          {userLayout?.type === 'industrial'
+            ? 'Area & Equipment Management'
+            : 'Room & Device Management'}
+        </Text>
         <Text style={styles.deviceSubtitle}>
-          Add and manage devices in each room to track energy usage
+          {userLayout?.type === 'industrial'
+            ? 'Manage equipment in each area to track energy usage and optimize operations'
+            : 'Manage devices in each room to track energy usage and get personalized insights'}
         </Text>
 
         {rooms.map((room: any) => {
@@ -847,12 +1100,18 @@ const HomeScreen = () => {
                   ) : (
                     <View style={styles.noDevicesContainer}>
                       <Ionicons name="flash-outline" size={32} color="#d1d5db" />
-                      <Text style={styles.noDevicesText}>No devices added yet</Text>
+                      <Text style={styles.noDevicesText}>
+                        {userLayout?.type === 'industrial'
+                          ? 'No equipment added yet'
+                          : 'No devices added yet'}
+                      </Text>
                       <TouchableOpacity
                         style={styles.addFirstDeviceButton}
                         onPress={() => openAddDeviceModal(room)}
                       >
-                        <Text style={styles.addFirstDeviceText}>Add Device</Text>
+                        <Text style={styles.addFirstDeviceText}>
+                          {userLayout?.type === 'industrial' ? 'Add Equipment' : 'Add Device'}
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   )}
@@ -880,42 +1139,93 @@ const HomeScreen = () => {
           >
             <Ionicons name="close" size={24} color="#64748b" />
           </TouchableOpacity>
-          <Text style={styles.modalTitle}>Select Home Layout</Text>
+          <Text style={styles.modalTitle}>Select Layout</Text>
           <View style={{ width: 24 }} />
         </View>
 
-        <ScrollView style={styles.modalContent}>
-          <Text style={styles.modalSubtitle}>Choose a blueprint that matches your home:</Text>
-
-          {BLUEPRINT_LAYOUTS.map(blueprint => (
-            <TouchableOpacity
-              key={blueprint.id}
-              style={styles.blueprintCard}
-              onPress={() => handleSelectBlueprint(blueprint)}
+        <View style={styles.typeSelector}>
+          <TouchableOpacity
+            style={[
+              styles.typeButton,
+              selectedLayoutType === 'household' && styles.typeButtonActive,
+            ]}
+            onPress={() => setSelectedLayoutType('household')}
+          >
+            <Ionicons
+              name="home-outline"
+              size={20}
+              color={selectedLayoutType === 'household' ? '#ffffff' : '#64748b'}
+            />
+            <Text
+              style={[
+                styles.typeButtonText,
+                selectedLayoutType === 'household' && styles.typeButtonTextActive,
+              ]}
             >
-              <View style={styles.blueprintHeader}>
-                <View>
-                  <Text style={styles.blueprintName}>{blueprint.name}</Text>
-                  <Text style={styles.blueprintDetails}>
-                    {blueprint.area} sq ft •{' '}
-                    {blueprint.type === 'household' ? 'Residential' : 'Industrial'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#64748b" />
-              </View>
+              Residential
+            </Text>
+          </TouchableOpacity>
 
-              <View style={styles.blueprintSections}>
-                {blueprint.sections.map((section, index) => (
-                  <View key={index} style={styles.blueprintSection}>
-                    <Ionicons name="home-outline" size={14} color="#64748b" />
-                    <Text style={styles.blueprintSectionText}>
-                      {section.name} ({section.count})
+          <TouchableOpacity
+            style={[
+              styles.typeButton,
+              selectedLayoutType === 'industrial' && styles.typeButtonActive,
+            ]}
+            onPress={() => setSelectedLayoutType('industrial')}
+          >
+            <Ionicons
+              name="business-outline"
+              size={20}
+              color={selectedLayoutType === 'industrial' ? '#ffffff' : '#64748b'}
+            />
+            <Text
+              style={[
+                styles.typeButtonText,
+                selectedLayoutType === 'industrial' && styles.typeButtonTextActive,
+              ]}
+            >
+              Industrial
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView style={styles.modalContent}>
+          <Text style={styles.modalSubtitle}>
+            Choose a {selectedLayoutType === 'household' ? 'residential' : 'industrial'} blueprint
+            that matches your needs:
+          </Text>
+
+          {BLUEPRINT_LAYOUTS.filter(blueprint => blueprint.type === selectedLayoutType).map(
+            blueprint => (
+              <TouchableOpacity
+                key={blueprint.id}
+                style={styles.blueprintCard}
+                onPress={() => handleSelectBlueprint(blueprint)}
+              >
+                <View style={styles.blueprintHeader}>
+                  <View>
+                    <Text style={styles.blueprintName}>{blueprint.name}</Text>
+                    <Text style={styles.blueprintDetails}>
+                      {blueprint.area} sq ft •{' '}
+                      {blueprint.type === 'household' ? 'Residential' : 'Industrial'}
                     </Text>
                   </View>
-                ))}
-              </View>
-            </TouchableOpacity>
-          ))}
+                  <Ionicons name="chevron-forward" size={20} color="#64748b" />
+                </View>
+
+                <View style={styles.blueprintSections}>
+                  {blueprint.sections.map((section, index) => (
+                    <View key={index} style={styles.blueprintSection}>
+                      <Ionicons name="home-outline" size={14} color="#64748b" />
+                      <Text style={styles.blueprintSectionText}>
+                        {section.name} ({section.count})
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </TouchableOpacity>
+            )
+          )}
         </ScrollView>
       </View>
     </Modal>
@@ -952,7 +1262,9 @@ const HomeScreen = () => {
           {editingLayout && (
             <>
               <View style={styles.layoutInfoCard}>
-                <Text style={styles.layoutModalName}>{editingLayout.name}</Text>
+                <Text style={styles.layoutModalName}>
+                  {editingLayout.name || editingLayout.layoutName || 'My Layout'}
+                </Text>
                 <Text style={styles.layoutModalDetails}>
                   {editingLayout.area} sq ft •{' '}
                   {editingLayout.type === 'household' ? 'Residential' : 'Industrial'}
@@ -1065,6 +1377,7 @@ const HomeScreen = () => {
       <AddEditDeviceModal
         visible={showDeviceModal}
         device={editingDevice}
+        layoutType={(userLayout?.type as 'household' | 'industrial') || 'household'}
         onSave={editingDevice ? handleEditDevice : handleAddDevice}
         onClose={() => {
           setShowDeviceModal(false);
@@ -1080,6 +1393,47 @@ const HomeScreen = () => {
         message={alertMessage}
         onClose={() => setAlertVisible(false)}
       />
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={deleteConfirmVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setDeleteConfirmVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.deleteModalContainer}>
+            <View style={styles.deleteModalHeader}>
+              <View style={[styles.deleteIconContainer, { backgroundColor: '#EF4444' }]}>
+                <Ionicons name="trash-outline" size={24} color="#FFFFFF" />
+              </View>
+              <Text style={styles.deleteModalTitle}>Delete Layout</Text>
+            </View>
+
+            <Text style={styles.deleteModalMessage}>
+              Are you sure you want to delete this layout? This action cannot be undone and will
+              remove all rooms and devices.
+            </Text>
+
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity
+                style={[styles.deleteModalButton, styles.cancelButton]}
+                onPress={() => setDeleteConfirmVisible(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.deleteModalButton, styles.confirmDeleteButton]}
+                onPress={confirmDeleteLayout}
+              >
+                <Text style={styles.deleteButtonText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <FloatingChatbot />
     </View>
   );
@@ -1324,22 +1678,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   layoutActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  manageButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(73, 176, 45, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  manageButtonText: {
-    color: '#49B02D',
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 4,
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: 6,
   },
   layoutName: {
     fontSize: 20,
@@ -1351,6 +1692,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748b',
     fontWeight: '500',
+    flexWrap: 'nowrap',
   },
   editButton: {
     flexDirection: 'row',
@@ -1362,6 +1704,20 @@ const styles = StyleSheet.create({
   },
   editButtonText: {
     color: '#49B02D',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  layoutDeleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  layoutDeleteButtonText: {
+    color: '#ef4444',
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 4,
@@ -1395,6 +1751,13 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontWeight: '500',
     marginLeft: 6,
+  },
+  noRoomsText: {
+    fontSize: 13,
+    color: '#9ca3af',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    flex: 1,
   },
   noLayoutContainer: {
     alignItems: 'center',
@@ -1799,6 +2162,131 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '600',
+  },
+
+  // Delete confirmation modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteModalContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 24,
+    margin: 20,
+    maxWidth: 340,
+    width: '90%',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 10.32,
+    elevation: 16,
+  },
+  deleteModalHeader: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  deleteIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  deleteModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1f2937',
+    textAlign: 'center',
+  },
+  deleteModalMessage: {
+    fontSize: 16,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  deleteModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  deleteModalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 40,
+    alignItems: 'center',
+    minHeight: 48,
+  },
+  cancelButton: {
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  confirmDeleteButton: {
+    backgroundColor: '#EF4444',
+  },
+  cancelButtonText: {
+    color: '#374151',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  deleteButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+
+  // Type selector styles
+  typeSelector: {
+    flexDirection: 'row',
+    backgroundColor: '#f1f5f9',
+    marginHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 8,
+    borderRadius: 25,
+    padding: 4,
+    gap: 0,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  typeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 21,
+    gap: 8,
+    backgroundColor: 'transparent',
+  },
+  typeButtonActive: {
+    backgroundColor: Colors.primary,
+    shadowColor: Colors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  typeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  typeButtonTextActive: {
+    color: '#ffffff',
   },
 });
 

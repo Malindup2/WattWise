@@ -9,11 +9,23 @@ export class LayoutService {
    */
   static async getUserLayoutWithRooms(userId: string): Promise<Layout | null> {
     try {
+      console.log('🔍 Looking for layout with userId:', userId);
       // First try the new layouts collection
       const layoutDoc = await getDoc(doc(db, 'layouts', userId));
+      console.log('🔍 Layout doc exists:', layoutDoc.exists());
+
       if (layoutDoc.exists()) {
-        return { id: layoutDoc.id, ...layoutDoc.data() } as Layout;
+        const data = layoutDoc.data();
+        console.log('🔍 Layout data from Firebase:', data);
+
+        // Check if layout is marked as deleted
+        if (data.deleted) {
+          console.log('🔍 Layout is marked as deleted');
+          return null;
+        }
+        return { id: layoutDoc.id, ...data } as Layout;
       }
+      console.log('🔍 No layout document found');
       return null;
     } catch (error) {
       console.error('Error getting user layout:', error);
@@ -28,16 +40,18 @@ export class LayoutService {
     try {
       const layoutRef = doc(db, 'layouts', userId);
 
-      // Use setDoc with merge to create document if it doesn't exist
-      await setDoc(
-        layoutRef,
-        {
-          ...layout,
-          userId,
-          updatedAt: new Date(),
-        },
-        { merge: true }
-      );
+      // Ensure we remove any deletion flags when updating/creating
+      const cleanLayout = {
+        ...layout,
+        userId,
+        updatedAt: new Date(),
+        deleted: false, // Explicitly set to false
+        deletedAt: null, // Clear any deletion timestamp
+      };
+
+      // Use setDoc with merge: false to completely replace the document
+      // This ensures no old deletion flags remain
+      await setDoc(layoutRef, cleanLayout, { merge: false });
 
       console.log('✅ Layout updated/created successfully');
     } catch (error) {
@@ -358,6 +372,32 @@ export class LayoutService {
       }
     } catch (error) {
       console.error('Error deleting device:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete entire layout for a user
+   */
+  static async deleteLayout(userId: string): Promise<void> {
+    try {
+      const layoutRef = doc(db, 'layouts', userId);
+
+      // Mark as deleted instead of actually deleting the document
+      // This allows for potential recovery and maintains references
+      await setDoc(
+        layoutRef,
+        {
+          deleted: true,
+          deletedAt: new Date(),
+          userId,
+        },
+        { merge: true } // Changed to merge: true to preserve other data
+      );
+
+      console.log('✅ Layout deleted successfully');
+    } catch (error) {
+      console.error('Error deleting layout:', error);
       throw error;
     }
   }

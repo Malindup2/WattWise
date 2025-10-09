@@ -13,13 +13,18 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Device } from '../../types/layout';
-import { DEVICE_PRESETS } from '../../constants/DeviceTypes';
+import {
+  DEVICE_PRESETS,
+  HOUSEHOLD_DEVICE_PRESETS,
+  INDUSTRIAL_DEVICE_PRESETS,
+} from '../../constants/DeviceTypes';
 import { formatTime, calculateDuration } from '../../utils/energyCalculations';
 import { Colors } from '../../constants/Colors';
 
 interface AddEditDeviceModalProps {
   visible: boolean;
   device?: Device | null;
+  layoutType?: 'household' | 'industrial';
   onSave: (deviceData: {
     deviceName: string;
     wattage: number;
@@ -32,6 +37,7 @@ interface AddEditDeviceModalProps {
 const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
   visible,
   device,
+  layoutType = 'household',
   onSave,
   onClose,
 }) => {
@@ -45,6 +51,10 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
 
   const isEditing = !!device;
+
+  // Get the appropriate device presets based on layout type
+  const devicePresets =
+    layoutType === 'industrial' ? INDUSTRIAL_DEVICE_PRESETS : HOUSEHOLD_DEVICE_PRESETS;
 
   // Initialize form when modal opens or device changes
   useEffect(() => {
@@ -69,7 +79,9 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
     setSelectedPreset(null);
   };
 
-  const handlePresetSelect = (preset: (typeof DEVICE_PRESETS)[0]) => {
+  const handlePresetSelect = (
+    preset: (typeof HOUSEHOLD_DEVICE_PRESETS | typeof INDUSTRIAL_DEVICE_PRESETS)[0]
+  ) => {
     setDeviceName(preset.name);
     setWattage(preset.wattage.toString());
     setSelectedPreset(preset.name);
@@ -96,8 +108,14 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
     if (!wattage.trim() || isNaN(Number(wattage)) || Number(wattage) <= 0) {
       return 'Please enter a valid wattage';
     }
-    if (Number(wattage) > 10000) {
-      return 'Wattage seems too high. Please check the value.';
+
+    // Different wattage limits based on layout type
+    const maxWattage = layoutType === 'industrial' ? 50000 : 10000;
+    const layoutTypeName =
+      layoutType === 'industrial' ? 'industrial equipment' : 'household devices';
+
+    if (Number(wattage) > maxWattage) {
+      return `Wattage seems too high for ${layoutTypeName}. Maximum allowed: ${maxWattage.toLocaleString()}W`;
     }
     return null;
   };
@@ -158,13 +176,15 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
           {/* Device Presets (only for new devices) */}
           {!isEditing && (
             <View style={styles.presetsContainer}>
-              <Text style={styles.sectionTitle}>Common Devices</Text>
+              <Text style={styles.sectionTitle}>
+                {layoutType === 'industrial' ? 'Industrial Equipment' : 'Common Devices'}
+              </Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.presetsScroll}
               >
-                {DEVICE_PRESETS.slice(0, 10).map(preset => (
+                {devicePresets.slice(0, 10).map(preset => (
                   <TouchableOpacity
                     key={preset.name}
                     style={[
@@ -219,14 +239,16 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
             <Text style={styles.inputLabel}>Power Consumption (Watts)</Text>
             <TextInput
               style={styles.textInput}
-              placeholder="e.g., 100"
+              placeholder={layoutType === 'industrial' ? 'e.g., 15000' : 'e.g., 100'}
               value={wattage}
               onChangeText={setWattage}
               keyboardType="numeric"
-              maxLength={5}
+              maxLength={6}
             />
             <Text style={styles.inputHint}>
-              Check the device label or manual for wattage information
+              {layoutType === 'industrial'
+                ? 'Industrial equipment wattage (max: 50,000W). Check equipment specifications.'
+                : 'Check the device label or manual for wattage information (max: 10,000W)'}
             </Text>
           </View>
 
