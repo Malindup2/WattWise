@@ -59,6 +59,7 @@ const HomeScreen = () => {
   const [loadingLayout, setLoadingLayout] = useState(false);
   const [showLayoutModal, setShowLayoutModal] = useState(false);
   const [showSelectionModal, setShowSelectionModal] = useState(false);
+  const [selectedLayoutType, setSelectedLayoutType] = useState<'household' | 'industrial'>('household');
   const [editingLayout, setEditingLayout] = useState<any>(null);
   const [newSectionName, setNewSectionName] = useState('');
   const [showAddSection, setShowAddSection] = useState(false);
@@ -115,18 +116,21 @@ const HomeScreen = () => {
         // Try the new enhanced layout first
         const enhancedLayout = await LayoutService.getUserLayoutWithRooms(currentUser.uid);
         if (enhancedLayout) {
-          console.log('Enhanced layout loaded:', enhancedLayout);
-
-          // Convert new layout structure to include sections for backward compatibility
-          const layoutWithSections = { ...enhancedLayout } as any;
-
-          if (!layoutWithSections.sections && enhancedLayout.rooms) {
+        console.log('Enhanced layout loaded:', enhancedLayout);
+        
+        // Convert new layout structure to include sections for backward compatibility
+        const layoutWithSections = { ...enhancedLayout } as any;
+        
+        console.log('Layout type from Firebase:', enhancedLayout.type);
+        console.log('Layout name from Firebase:', enhancedLayout.layoutName);          if (!layoutWithSections.sections && enhancedLayout.rooms) {
             // Convert rooms back to sections for display
             const sectionMap = new Map();
             console.log('Converting rooms to sections. Rooms:', enhancedLayout.rooms);
 
             enhancedLayout.rooms.forEach((room: any) => {
-              const baseName = room.roomName.replace(/\s+\d+$/, ''); // Remove numbers at end
+              const baseName = room.roomName.replace(/\s+\d+$/, '').trim(); // Remove numbers at end and trim
+              console.log(`Room: "${room.roomName}" -> Base: "${baseName}"`);
+              
               if (sectionMap.has(baseName)) {
                 sectionMap.set(baseName, sectionMap.get(baseName) + 1);
               } else {
@@ -144,16 +148,15 @@ const HomeScreen = () => {
 
           setUserLayout(layoutWithSections);
           console.log('Final layout with sections:', {
+            name: layoutWithSections.layoutName,
+            type: layoutWithSections.type,
             sections: layoutWithSections.sections,
             hasLayout: !!layoutWithSections,
             layoutKeys: Object.keys(layoutWithSections),
           });
         } else {
-          console.log('No enhanced layout found, trying old layout...');
-          // Fallback to old layout structure
-          const oldLayout = await FirestoreService.getUserLayout(currentUser.uid);
-          console.log('Old layout loaded:', oldLayout);
-          setUserLayout(oldLayout as ExtendedLayout);
+          console.log('No enhanced layout found in layouts collection');
+          setUserLayout(null); // Don't fall back to old layout, just show no layout
         }
       } else {
         console.log('No current user found');
@@ -169,23 +172,50 @@ const HomeScreen = () => {
     if (!editingLayout || !user) return;
 
     try {
+      console.log('💾 Saving layout. EditingLayout:', editingLayout);
+      console.log('💾 EditingLayout keys:', Object.keys(editingLayout));
+      console.log('💾 EditingLayout.name:', editingLayout.name);
+      console.log('💾 EditingLayout.layoutName:', editingLayout.layoutName);
+      console.log('💾 EditingLayout sections:', editingLayout.sections);
+      
+      // Convert sections back to rooms for proper storage
+      const rooms: any[] = [];
+      editingLayout.sections.forEach((section: any) => {
+        for (let i = 1; i <= section.count; i++) {
+          const roomId = `${section.name.toLowerCase().replace(/\s+/g, '_')}_${i}`;
+          rooms.push({
+            roomId,
+            roomName: section.count > 1 ? `${section.name} ${i}` : section.name,
+            devices: [],
+          });
+        }
+      });
+
+      console.log('💾 Generated rooms from sections:', rooms);
+
       const updates = {
-        sections: editingLayout.sections,
-        name: editingLayout.name,
+        layoutName: editingLayout.name || editingLayout.layoutName || 'My Layout',
         area: editingLayout.area,
         type: editingLayout.type || 'household',
+        rooms: rooms,
         userId: user.uid,
+        createdAt: editingLayout.createdAt || new Date(),
       };
+
+      console.log('💾 Layout updates to save:', updates);
 
       // Use the new LayoutService instead of old FirestoreService
       await LayoutService.updateLayout(user.uid, updates);
-      setUserLayout({ ...editingLayout, ...updates });
+      
+      // Reload the layout to get the updated data
+      await loadUserLayout();
+      
       setShowLayoutModal(false);
       setEditingLayout(null);
 
       setAlertType('success');
       setAlertTitle('Layout Updated!');
-      setAlertMessage('Your home layout has been updated successfully. ');
+      setAlertMessage('Your home layout has been updated successfully.');
       setAlertVisible(true);
     } catch (error) {
       console.error('Error saving layout:', error);
@@ -437,25 +467,103 @@ const HomeScreen = () => {
         { name: 'Laundry Room', count: 1 },
       ],
     },
+    {
+      id: 'bp_small_factory',
+      name: 'Small Factory',
+      area: 2000,
+      type: 'industrial' as const,
+      sections: [
+        { name: 'Production Area', count: 1 },
+        { name: 'Office', count: 1 },
+        { name: 'Storage', count: 1 },
+        { name: 'Restroom', count: 1 },
+      ],
+    },
+    {
+      id: 'bp_medium_warehouse',
+      name: 'Medium Warehouse',
+      area: 5000,
+      type: 'industrial' as const,
+      sections: [
+        { name: 'Storage Area', count: 2 },
+        { name: 'Loading Dock', count: 1 },
+        { name: 'Office Space', count: 1 },
+        { name: 'Maintenance Room', count: 1 },
+        { name: 'Restroom', count: 2 },
+      ],
+    },
+    {
+      id: 'bp_large_industrial',
+      name: 'Large Industrial Complex',
+      area: 10000,
+      type: 'industrial' as const,
+      sections: [
+        { name: 'Production Floor', count: 3 },
+        { name: 'Storage Warehouse', count: 2 },
+        { name: 'Administrative Office', count: 1 },
+        { name: 'Quality Control Lab', count: 1 },
+        { name: 'Maintenance Workshop', count: 1 },
+        { name: 'Cafeteria', count: 1 },
+        { name: 'Restroom', count: 4 },
+        { name: 'Parking Area', count: 1 },
+      ],
+    },
   ];
 
   const handleSelectBlueprint = async (blueprint: any) => {
     if (!user) return;
 
+    console.log('🔥 Selected blueprint:', blueprint);
+
     try {
+      // Convert sections to rooms for the new layout structure
+      const rooms = blueprint.sections.flatMap((section: any) =>
+        Array.from({ length: section.count }, (_, index) => ({
+          roomId: `${section.name.toLowerCase().replace(/\s+/g, '_')}_${index + 1}`,
+          roomName: section.count > 1 ? `${section.name} ${index + 1}` : section.name,
+          devices: [],
+        }))
+      );
+
+      console.log('🔥 Generated rooms:', rooms);
+
       const layoutData = {
-        source: 'blueprint' as const,
-        blueprintId: blueprint.id,
-        sections: blueprint.sections,
-        type: blueprint.type,
-        name: blueprint.name,
+        layoutName: blueprint.name,
         area: blueprint.area,
+        type: blueprint.type, // Add the type field
+        rooms: rooms,
         userId: user.uid,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
+
+      console.log('🔥 Saving layout data:', layoutData);
 
       // Use new LayoutService for proper persistence
       await LayoutService.updateLayout(user.uid, layoutData);
-      await loadUserLayout();
+      
+      // Also clear any old layout data to prevent conflicts
+      try {
+        const oldLayouts = await FirestoreService.getDocumentsByField('user_layouts', 'userId', user.uid);
+        if (oldLayouts.length > 0) {
+          console.log('🔥 Found old layout data, clearing...');
+          // Note: We should add a delete function to clear old data
+        }
+      } catch (error) {
+        console.log('No old layout data to clear');
+      }
+      
+      console.log('🔥 Layout saved, now reloading...');
+      
+      // Clear any cached data first
+      setUserLayout(null);
+      setLoadingLayout(true);
+      
+      // Small delay to ensure Firebase has time to update
+      setTimeout(async () => {
+        await loadUserLayout();
+      }, 2000);
+      
       setShowSelectionModal(false);
 
       setAlertType('success');
@@ -739,7 +847,9 @@ const HomeScreen = () => {
 
   const renderLayoutSection = () => (
     <Animatable.View animation="fadeInUp" delay={800} style={styles.layoutSection}>
-      <Text style={styles.sectionTitle}>Home Layout</Text>
+      <Text style={styles.sectionTitle}>
+        {userLayout?.type === 'industrial' ? 'Industrial Layout' : 'Home Layout'}
+      </Text>
 
       {loadingLayout ? (
         <View style={styles.layoutCard}>
@@ -760,6 +870,12 @@ const HomeScreen = () => {
               <TouchableOpacity
                 style={styles.editButton}
                 onPress={() => {
+                  console.log('🔧 Opening edit layout modal for:', userLayout);
+                  console.log('🔧 UserLayout keys:', Object.keys(userLayout));
+                  console.log('🔧 UserLayout.name:', userLayout.name);
+                  console.log('🔧 UserLayout.layoutName:', userLayout.layoutName);
+                  console.log('🔧 Layout sections:', userLayout.sections);
+                  console.log('🔧 Layout rooms:', userLayout.rooms);
                   setEditingLayout(userLayout);
                   setShowLayoutModal(true);
                 }}
@@ -775,23 +891,56 @@ const HomeScreen = () => {
           </View>
 
           <View style={styles.roomsContainer}>
-            <Text style={styles.roomsTitle}>Rooms & Spaces</Text>
+            <Text style={styles.roomsTitle}>
+              {userLayout?.type === 'industrial' ? 'Areas & Spaces' : 'Rooms & Spaces'}
+            </Text>
             <View style={styles.roomsGrid}>
               {userLayout.sections && userLayout.sections.length > 0 ? (
-                userLayout.sections.slice(0, 6).map((section: any, index: number) => (
-                  <View key={index} style={styles.roomItem}>
-                    <Ionicons name="home-outline" size={16} color="#64748b" />
-                    <Text style={styles.roomText}>
-                      {section.name} ({section.count})
-                    </Text>
-                  </View>
-                ))
+                userLayout.sections.slice(0, 6).map((section: any, index: number) => {
+                  // Get appropriate icon based on layout type and section name
+                  const getIconName = (sectionName: string, layoutType: string) => {
+                    if (layoutType === 'industrial') {
+                      if (sectionName.toLowerCase().includes('production')) return 'construct-outline';
+                      if (sectionName.toLowerCase().includes('storage')) return 'cube-outline';
+                      if (sectionName.toLowerCase().includes('office')) return 'business-outline';
+                      if (sectionName.toLowerCase().includes('loading')) return 'car-outline';
+                      if (sectionName.toLowerCase().includes('maintenance')) return 'build-outline';
+                      if (sectionName.toLowerCase().includes('cafeteria')) return 'restaurant-outline';
+                      if (sectionName.toLowerCase().includes('parking')) return 'car-sport-outline';
+                      if (sectionName.toLowerCase().includes('lab')) return 'flask-outline';
+                      return 'business-outline';
+                    } else {
+                      if (sectionName.toLowerCase().includes('bedroom')) return 'bed-outline';
+                      if (sectionName.toLowerCase().includes('kitchen')) return 'restaurant-outline';
+                      if (sectionName.toLowerCase().includes('living')) return 'tv-outline';
+                      if (sectionName.toLowerCase().includes('bathroom')) return 'water-outline';
+                      if (sectionName.toLowerCase().includes('garage')) return 'car-outline';
+                      if (sectionName.toLowerCase().includes('dining')) return 'restaurant-outline';
+                      if (sectionName.toLowerCase().includes('study')) return 'library-outline';
+                      if (sectionName.toLowerCase().includes('laundry')) return 'shirt-outline';
+                      return 'home-outline';
+                    }
+                  };
+
+                  return (
+                    <View key={index} style={styles.roomItem}>
+                      <Ionicons 
+                        name={getIconName(section.name, userLayout?.type || 'household')} 
+                        size={16} 
+                        color="#64748b" 
+                      />
+                      <Text style={styles.roomText}>
+                        {section.name} ({section.count})
+                      </Text>
+                    </View>
+                  );
+                })
               ) : (
                 <View style={styles.roomItem}>
                   <Text style={styles.noRoomsText}>
                     {userLayout && userLayout.sections
-                      ? 'No rooms configured yet'
-                      : 'Loading room structure...'}
+                      ? `No ${userLayout?.type === 'industrial' ? 'areas' : 'rooms'} configured yet`
+                      : `Loading ${userLayout?.type === 'industrial' ? 'area' : 'room'} structure...`}
                   </Text>
                 </View>
               )}
@@ -809,7 +958,7 @@ const HomeScreen = () => {
             <Ionicons name="home-outline" size={48} color="#d1d5db" />
             <Text style={styles.noLayoutTitle}>No Layout Selected</Text>
             <Text style={styles.noLayoutText}>
-              Choose a home layout to get personalized energy insights
+              Choose a layout to get personalized energy insights
             </Text>
             <TouchableOpacity
               style={styles.selectLayoutButton}
@@ -848,9 +997,13 @@ const HomeScreen = () => {
 
     return (
       <Animatable.View animation="fadeInUp" delay={1000} style={styles.deviceSection}>
-        <Text style={styles.sectionTitle}>Room & Device Management</Text>
+        <Text style={styles.sectionTitle}>
+          {userLayout?.type === 'industrial' ? 'Area & Equipment Management' : 'Room & Device Management'}
+        </Text>
         <Text style={styles.deviceSubtitle}>
-          Manage devices in each room to track energy usage and get personalized insights
+          {userLayout?.type === 'industrial' 
+            ? 'Manage equipment in each area to track energy usage and optimize operations'
+            : 'Manage devices in each room to track energy usage and get personalized insights'}
         </Text>
 
         {rooms.map((room: any) => {
@@ -935,12 +1088,16 @@ const HomeScreen = () => {
                   ) : (
                     <View style={styles.noDevicesContainer}>
                       <Ionicons name="flash-outline" size={32} color="#d1d5db" />
-                      <Text style={styles.noDevicesText}>No devices added yet</Text>
+                      <Text style={styles.noDevicesText}>
+                        {userLayout?.type === 'industrial' ? 'No equipment added yet' : 'No devices added yet'}
+                      </Text>
                       <TouchableOpacity
                         style={styles.addFirstDeviceButton}
                         onPress={() => openAddDeviceModal(room)}
                       >
-                        <Text style={styles.addFirstDeviceText}>Add Device</Text>
+                        <Text style={styles.addFirstDeviceText}>
+                          {userLayout?.type === 'industrial' ? 'Add Equipment' : 'Add Device'}
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   )}
@@ -968,14 +1125,50 @@ const HomeScreen = () => {
           >
             <Ionicons name="close" size={24} color="#64748b" />
           </TouchableOpacity>
-          <Text style={styles.modalTitle}>Select Home Layout</Text>
+          <Text style={styles.modalTitle}>Select Layout</Text>
           <View style={{ width: 24 }} />
         </View>
 
-        <ScrollView style={styles.modalContent}>
-          <Text style={styles.modalSubtitle}>Choose a blueprint that matches your home:</Text>
+        <View style={styles.typeSelector}>
+          <TouchableOpacity
+            style={[
+              styles.typeButton,
+              selectedLayoutType === 'household' && styles.typeButtonActive,
+            ]}
+            onPress={() => setSelectedLayoutType('household')}
+          >
+            <Ionicons name="home-outline" size={20} color={selectedLayoutType === 'household' ? '#ffffff' : '#64748b'} />
+            <Text style={[
+              styles.typeButtonText,
+              selectedLayoutType === 'household' && styles.typeButtonTextActive,
+            ]}>
+              Residential
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              styles.typeButton,
+              selectedLayoutType === 'industrial' && styles.typeButtonActive,
+            ]}
+            onPress={() => setSelectedLayoutType('industrial')}
+          >
+            <Ionicons name="business-outline" size={20} color={selectedLayoutType === 'industrial' ? '#ffffff' : '#64748b'} />
+            <Text style={[
+              styles.typeButtonText,
+              selectedLayoutType === 'industrial' && styles.typeButtonTextActive,
+            ]}>
+              Industrial
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-          {BLUEPRINT_LAYOUTS.map(blueprint => (
+        <ScrollView style={styles.modalContent}>
+          <Text style={styles.modalSubtitle}>
+            Choose a {selectedLayoutType === 'household' ? 'residential' : 'industrial'} blueprint that matches your needs:
+          </Text>
+
+          {BLUEPRINT_LAYOUTS.filter(blueprint => blueprint.type === selectedLayoutType).map(blueprint => (
             <TouchableOpacity
               key={blueprint.id}
               style={styles.blueprintCard}
@@ -1040,7 +1233,9 @@ const HomeScreen = () => {
           {editingLayout && (
             <>
               <View style={styles.layoutInfoCard}>
-                <Text style={styles.layoutModalName}>{editingLayout.name}</Text>
+                <Text style={styles.layoutModalName}>
+                  {editingLayout.name || editingLayout.layoutName || 'My Layout'}
+                </Text>
                 <Text style={styles.layoutModalDetails}>
                   {editingLayout.area} sq ft •{' '}
                   {editingLayout.type === 'household' ? 'Residential' : 'Industrial'}
@@ -1153,6 +1348,7 @@ const HomeScreen = () => {
       <AddEditDeviceModal
         visible={showDeviceModal}
         device={editingDevice}
+        layoutType={(userLayout?.type as 'household' | 'industrial') || 'household'}
         onSave={editingDevice ? handleEditDevice : handleAddDevice}
         onClose={() => {
           setShowDeviceModal(false);
@@ -2018,6 +2214,50 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '600',
     fontSize: 16,
+  },
+  
+  // Type selector styles
+  typeSelector: {
+    flexDirection: 'row',
+    backgroundColor: '#f1f5f9',
+    marginHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 8,
+    borderRadius: 25,
+    padding: 4,
+    gap: 0,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  typeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 21,
+    gap: 8,
+    backgroundColor: 'transparent',
+  },
+  typeButtonActive: {
+    backgroundColor: Colors.primary,
+    shadowColor: Colors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  typeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  typeButtonTextActive: {
+    color: '#ffffff',
   },
 });
 
