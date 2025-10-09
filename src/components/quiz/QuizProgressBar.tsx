@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import type { QuizProgress } from '../../types/quiz';
@@ -9,17 +9,17 @@ interface QuizProgressBarProps {
 }
 
 const QuizProgressBar: React.FC<QuizProgressBarProps> = ({ progress, timeLeft = 0 }) => {
-  const progressAnim = new Animated.Value(0);
+  const progressAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const progressPercentage = (progress.currentQuestion / progress.totalQuestions) * 100;
-    
+    const progressPercentage = (progress.currentQuestion / Math.max(progress.totalQuestions, 1)) * 100;
+
     Animated.timing(progressAnim, {
       toValue: progressPercentage,
-      duration: 500,
+      duration: 400,
       useNativeDriver: false,
     }).start();
-  }, [progress.currentQuestion]);
+  }, [progress.currentQuestion, progress.totalQuestions]);
 
   const progressPercentage = (progress.currentQuestion / progress.totalQuestions) * 100;
 

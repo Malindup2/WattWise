@@ -8,7 +8,8 @@ import {
   Animated,
   BackHandler,
   ScrollView,
-  SafeAreaView
+  SafeAreaView,
+  Modal
 } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { QuizService } from '../../services/QuizService';
@@ -42,6 +43,7 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
   const [timeLeft, setTimeLeft] = useState(60); // 60 seconds per question
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
   const [correctCount, setCorrectCount] = useState(0);
+  const [exitConfirmVisible, setExitConfirmVisible] = useState(false);
 
   // Animation values (persist across renders to avoid layout jumps)
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -88,14 +90,7 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
   }, [currentQuestionIndex]);
 
   const handleBackPress = () => {
-    Alert.alert(
-      'Exit Quiz?',
-      'Your progress will be lost if you exit now.',
-      [
-        { text: 'Continue Quiz', style: 'cancel' },
-        { text: 'Exit', style: 'destructive', onPress: onCancel }
-      ]
-    );
+    setExitConfirmVisible(true);
     return true;
   };
 
@@ -352,6 +347,43 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
         correctCount={correctCount}
         onClose={handleResultClose}
       />
+
+      {/* Exit Confirmation Modal aligned with app styling (similar to Delete Layout) */}
+      <Modal
+        visible={exitConfirmVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setExitConfirmVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.confirmModalContainer}>
+            <Text style={styles.confirmModalTitleCentered}>Exit Quiz</Text>
+
+            <Text style={styles.confirmModalMessage}>
+              Are you sure you want to exit? Your progress will be lost.
+            </Text>
+
+            <View style={styles.confirmModalButtons}>
+              <TouchableOpacity
+                style={[styles.confirmModalButton, styles.cancelButton]}
+                onPress={() => setExitConfirmVisible(false)}
+              >
+                <Text style={styles.cancelButtonText}>Continue Quiz</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.confirmModalButton, styles.confirmExitButton]}
+                onPress={() => {
+                  setExitConfirmVisible(false);
+                  onCancel();
+                }}
+              >
+                <Text style={styles.exitButtonText}>Exit</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -493,6 +525,80 @@ const styles = StyleSheet.create({
   streakText: {
     color: Colors.white,
     fontSize: 12,
+    fontWeight: '600',
+  },
+  // Modal styles aligned with Delete Layout dialog
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  confirmModalContainer: {
+    backgroundColor: Colors.white,
+    borderRadius: 24,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400,
+  },
+  confirmModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  confirmIconContainer: {
+    height: 36,
+    width: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  confirmModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  confirmModalTitleCentered: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  confirmModalMessage: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  confirmModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  confirmModalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: Colors.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  confirmExitButton: {
+    backgroundColor: Colors.error,
+  },
+  cancelButtonText: {
+    color: Colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  exitButtonText: {
+    color: Colors.white,
+    fontSize: 16,
     fontWeight: '600',
   },
 });

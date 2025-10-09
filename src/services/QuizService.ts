@@ -23,6 +23,7 @@ import type {
   Badge,
   LeaderboardEntry
 } from '../types/quiz';
+import { GeminiService } from './GeminiService';
 import type { Layout, Device } from '../types/layout';
 
 export class QuizService {
@@ -32,11 +33,40 @@ export class QuizService {
       console.log('🧠 Generating personalized quiz for user profile:', userProfile);
       const currentUser = AuthService.getCurrentUser();
       const recentQuestions = currentUser ? await this.getRecentQuestionTexts(currentUser.uid, 50) : new Set<string>();
-      // Generate questions based on user's devices and consumption (placeholder for Gemini)
-      const generated = this.generateQuestionsFromProfile(userProfile);
+      // Try Gemini first, fallback to local generator
+      const geminiPrompt = this.buildGeminiPrompt(userProfile);
+      const fromGemini = await GeminiService.generateQuestions(geminiPrompt);
+      const normalizedGemini: QuizQuestion[] = (fromGemini || []).map((q, i) => ({
+        id: q.id || `gq_${Date.now()}_${i}`,
+        question: q.question,
+        options: q.options,
+        answer: q.answer,
+        tip: q.tip,
+        category: q.category as QuizQuestion['category'],
+        points: typeof q.points === 'number' ? q.points : 10,
+      }));
+      const generated = normalizedGemini.length > 0 ? normalizedGemini : this.generateQuestionsFromProfile(userProfile);
       // Filter out duplicates shown recently by matching question text
-      const deduped = generated.filter(q => !recentQuestions.has(q.question));
-      console.log('✅ Generated quiz questions:', deduped);
+      let deduped = generated.filter(q => !recentQuestions.has(q.question));
+
+      // Ensure we always return exactly 5 questions
+      if (deduped.length < 5) {
+        const topUp = this.generateFallbackQuestions(userProfile);
+        const seen = new Set(deduped.map(q => q.question));
+        for (const q of topUp) {
+          if (!seen.has(q.question)) {
+            deduped.push(q);
+            seen.add(q.question);
+          }
+          if (deduped.length >= 5) break;
+        }
+      }
+
+      if (deduped.length > 5) {
+        deduped = deduped.slice(0, 5);
+      }
+
+      console.log('✅ Generated quiz questions (final 5):', deduped);
       return deduped;
     } catch (error) {
       console.error('❌ Error generating personalized quiz:', error);
@@ -131,6 +161,71 @@ export class QuizService {
     });
 
     return questions;
+  }
+
+  // Fallback generic questions to top up to 5
+  private static generateFallbackQuestions(profile: UserQuizProfile): QuizQuestion[] {
+    const averageDailyKwh = profile.averageDailyKwh;
+    const firstDeviceName = profile.devices[0]?.name || 'appliance';
+    const highImpact = (averageDailyKwh * 30 * 0.1).toFixed(0);
+
+    const pool: QuizQuestion[] = [
+      {
+        id: `fb1_${Date.now()}`,
+        question: 'Which bulbs save the most energy for the same brightness?',
+        options: ['LED', 'CFL', 'Incandescent', 'Halogen'],
+        answer: 'LED',
+        tip: 'LEDs use up to 80% less energy than incandescent bulbs.',
+        category: 'energy-saving',
+        points: 10,
+      },
+      {
+        id: `fb2_${Date.now()}`,
+        question: 'What is the best practice for idle electronics?',
+        options: ['Leave on', 'Sleep mode', 'Unplug or use smart plug', 'Mute volume'],
+        answer: 'Unplug or use smart plug',
+        tip: 'Standby power can account for 5–10% of home energy use.',
+        category: 'eco-tips',
+        points: 10,
+      },
+      {
+        id: `fb3_${Date.now()}`,
+        question: `Reducing ${firstDeviceName} usage by 1 hour/day affects bills by?`,
+        options: ['No effect', 'Small reduction', 'Moderate reduction', 'Huge increase'],
+        answer: 'Moderate reduction',
+        tip: 'Consistent daily cuts add up across a month.',
+        category: 'device-efficiency',
+        points: 10,
+      },
+      {
+        id: `fb4_${Date.now()}`,
+        question: 'Best AC temperature to reduce energy while staying comfortable?',
+        options: ['16°C', '20–24°C', '28°C', 'Any temperature is same'],
+        answer: '20–24°C',
+        tip: 'Each degree can change HVAC use by 3–5%.',
+        category: 'eco-tips',
+        points: 10,
+      },
+      {
+        id: `fb5_${Date.now()}`,
+        question: `If you cut 10% of daily ${averageDailyKwh} kWh, monthly saving (LKR 50/kWh) is closest to?`,
+        options: ['LKR 50', `LKR ${highImpact}`, 'LKR 5000', 'LKR 0'],
+        answer: `LKR ${highImpact}`,
+        tip: 'Savings = reduced kWh × tariff × days.',
+        category: 'cost-reduction',
+        points: 10,
+      },
+    ];
+
+    return pool;
+  }
+
+  private static buildGeminiPrompt(profile: UserQuizProfile): string {
+    const deviceList = profile.devices
+      .slice(0, 10)
+      .map(d => `${d.name} (${d.watt}W, ${d.hours}h/day)`) // concise
+      .join(', ');
+    return `Create 5 multiple-choice questions (4 options each, exactly one correct) about home energy usage tailored to this user. Use LKR for any currency. Return only JSON.\nUser type: ${profile.userType}\nRooms: ${profile.layout.rooms}, Area: ${profile.layout.area} sqm\nAverage daily kWh: ${profile.averageDailyKwh}\nDevices: ${deviceList}`;
   }
 
   // Fetch recent question texts for a user to avoid repeats
