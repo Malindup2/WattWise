@@ -13,7 +13,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Device } from '../../types/layout';
-import { DEVICE_PRESETS, HOUSEHOLD_DEVICE_PRESETS, INDUSTRIAL_DEVICE_PRESETS } from '../../constants/DeviceTypes';
+import {
+  DEVICE_PRESETS,
+  HOUSEHOLD_DEVICE_PRESETS,
+  INDUSTRIAL_DEVICE_PRESETS,
+} from '../../constants/DeviceTypes';
 import { formatTime, calculateDuration } from '../../utils/energyCalculations';
 import { Colors } from '../../constants/Colors';
 
@@ -49,7 +53,8 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
   const isEditing = !!device;
 
   // Get the appropriate device presets based on layout type
-  const devicePresets = layoutType === 'industrial' ? INDUSTRIAL_DEVICE_PRESETS : HOUSEHOLD_DEVICE_PRESETS;
+  const devicePresets =
+    layoutType === 'industrial' ? INDUSTRIAL_DEVICE_PRESETS : HOUSEHOLD_DEVICE_PRESETS;
 
   // Initialize form when modal opens or device changes
   useEffect(() => {
@@ -74,7 +79,9 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
     setSelectedPreset(null);
   };
 
-  const handlePresetSelect = (preset: (typeof HOUSEHOLD_DEVICE_PRESETS | typeof INDUSTRIAL_DEVICE_PRESETS)[0]) => {
+  const handlePresetSelect = (
+    preset: (typeof HOUSEHOLD_DEVICE_PRESETS | typeof INDUSTRIAL_DEVICE_PRESETS)[0]
+  ) => {
     setDeviceName(preset.name);
     setWattage(preset.wattage.toString());
     setSelectedPreset(preset.name);
@@ -101,11 +108,12 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
     if (!wattage.trim() || isNaN(Number(wattage)) || Number(wattage) <= 0) {
       return 'Please enter a valid wattage';
     }
-    
+
     // Different wattage limits based on layout type
     const maxWattage = layoutType === 'industrial' ? 50000 : 10000;
-    const layoutTypeName = layoutType === 'industrial' ? 'industrial equipment' : 'household devices';
-    
+    const layoutTypeName =
+      layoutType === 'industrial' ? 'industrial equipment' : 'household devices';
+
     if (Number(wattage) > maxWattage) {
       return `Wattage seems too high for ${layoutTypeName}. Maximum allowed: ${maxWattage.toLocaleString()}W`;
     }
@@ -238,8 +246,8 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
               maxLength={6}
             />
             <Text style={styles.inputHint}>
-              {layoutType === 'industrial' 
-                ? 'Industrial equipment wattage (max: 50,000W). Check equipment specifications.' 
+              {layoutType === 'industrial'
+                ? 'Industrial equipment wattage (max: 50,000W). Check equipment specifications.'
                 : 'Check the device label or manual for wattage information (max: 10,000W)'}
             </Text>
           </View>

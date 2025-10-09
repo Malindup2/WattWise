@@ -13,11 +13,11 @@ export class LayoutService {
       // First try the new layouts collection
       const layoutDoc = await getDoc(doc(db, 'layouts', userId));
       console.log('🔍 Layout doc exists:', layoutDoc.exists());
-      
+
       if (layoutDoc.exists()) {
         const data = layoutDoc.data();
         console.log('🔍 Layout data from Firebase:', data);
-        
+
         // Check if layout is marked as deleted
         if (data.deleted) {
           console.log('🔍 Layout is marked as deleted');

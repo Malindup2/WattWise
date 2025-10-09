@@ -59,7 +59,9 @@ const HomeScreen = () => {
   const [loadingLayout, setLoadingLayout] = useState(false);
   const [showLayoutModal, setShowLayoutModal] = useState(false);
   const [showSelectionModal, setShowSelectionModal] = useState(false);
-  const [selectedLayoutType, setSelectedLayoutType] = useState<'household' | 'industrial'>('household');
+  const [selectedLayoutType, setSelectedLayoutType] = useState<'household' | 'industrial'>(
+    'household'
+  );
   const [editingLayout, setEditingLayout] = useState<any>(null);
   const [newSectionName, setNewSectionName] = useState('');
   const [showAddSection, setShowAddSection] = useState(false);
@@ -116,13 +118,14 @@ const HomeScreen = () => {
         // Try the new enhanced layout first
         const enhancedLayout = await LayoutService.getUserLayoutWithRooms(currentUser.uid);
         if (enhancedLayout) {
-        console.log('Enhanced layout loaded:', enhancedLayout);
-        
-        // Convert new layout structure to include sections for backward compatibility
-        const layoutWithSections = { ...enhancedLayout } as any;
-        
-        console.log('Layout type from Firebase:', enhancedLayout.type);
-        console.log('Layout name from Firebase:', enhancedLayout.layoutName);          if (!layoutWithSections.sections && enhancedLayout.rooms) {
+          console.log('Enhanced layout loaded:', enhancedLayout);
+
+          // Convert new layout structure to include sections for backward compatibility
+          const layoutWithSections = { ...enhancedLayout } as any;
+
+          console.log('Layout type from Firebase:', enhancedLayout.type);
+          console.log('Layout name from Firebase:', enhancedLayout.layoutName);
+          if (!layoutWithSections.sections && enhancedLayout.rooms) {
             // Convert rooms back to sections for display
             const sectionMap = new Map();
             console.log('Converting rooms to sections. Rooms:', enhancedLayout.rooms);
@@ -130,7 +133,7 @@ const HomeScreen = () => {
             enhancedLayout.rooms.forEach((room: any) => {
               const baseName = room.roomName.replace(/\s+\d+$/, '').trim(); // Remove numbers at end and trim
               console.log(`Room: "${room.roomName}" -> Base: "${baseName}"`);
-              
+
               if (sectionMap.has(baseName)) {
                 sectionMap.set(baseName, sectionMap.get(baseName) + 1);
               } else {
@@ -177,7 +180,7 @@ const HomeScreen = () => {
       console.log('💾 EditingLayout.name:', editingLayout.name);
       console.log('💾 EditingLayout.layoutName:', editingLayout.layoutName);
       console.log('💾 EditingLayout sections:', editingLayout.sections);
-      
+
       // Convert sections back to rooms for proper storage
       const rooms: any[] = [];
       editingLayout.sections.forEach((section: any) => {
@@ -206,10 +209,10 @@ const HomeScreen = () => {
 
       // Use the new LayoutService instead of old FirestoreService
       await LayoutService.updateLayout(user.uid, updates);
-      
+
       // Reload the layout to get the updated data
       await loadUserLayout();
-      
+
       setShowLayoutModal(false);
       setEditingLayout(null);
 
@@ -541,10 +544,14 @@ const HomeScreen = () => {
 
       // Use new LayoutService for proper persistence
       await LayoutService.updateLayout(user.uid, layoutData);
-      
+
       // Also clear any old layout data to prevent conflicts
       try {
-        const oldLayouts = await FirestoreService.getDocumentsByField('user_layouts', 'userId', user.uid);
+        const oldLayouts = await FirestoreService.getDocumentsByField(
+          'user_layouts',
+          'userId',
+          user.uid
+        );
         if (oldLayouts.length > 0) {
           console.log('🔥 Found old layout data, clearing...');
           // Note: We should add a delete function to clear old data
@@ -552,18 +559,18 @@ const HomeScreen = () => {
       } catch (error) {
         console.log('No old layout data to clear');
       }
-      
+
       console.log('🔥 Layout saved, now reloading...');
-      
+
       // Clear any cached data first
       setUserLayout(null);
       setLoadingLayout(true);
-      
+
       // Small delay to ensure Firebase has time to update
       setTimeout(async () => {
         await loadUserLayout();
       }, 2000);
-      
+
       setShowSelectionModal(false);
 
       setAlertType('success');
@@ -900,18 +907,21 @@ const HomeScreen = () => {
                   // Get appropriate icon based on layout type and section name
                   const getIconName = (sectionName: string, layoutType: string) => {
                     if (layoutType === 'industrial') {
-                      if (sectionName.toLowerCase().includes('production')) return 'construct-outline';
+                      if (sectionName.toLowerCase().includes('production'))
+                        return 'construct-outline';
                       if (sectionName.toLowerCase().includes('storage')) return 'cube-outline';
                       if (sectionName.toLowerCase().includes('office')) return 'business-outline';
                       if (sectionName.toLowerCase().includes('loading')) return 'car-outline';
                       if (sectionName.toLowerCase().includes('maintenance')) return 'build-outline';
-                      if (sectionName.toLowerCase().includes('cafeteria')) return 'restaurant-outline';
+                      if (sectionName.toLowerCase().includes('cafeteria'))
+                        return 'restaurant-outline';
                       if (sectionName.toLowerCase().includes('parking')) return 'car-sport-outline';
                       if (sectionName.toLowerCase().includes('lab')) return 'flask-outline';
                       return 'business-outline';
                     } else {
                       if (sectionName.toLowerCase().includes('bedroom')) return 'bed-outline';
-                      if (sectionName.toLowerCase().includes('kitchen')) return 'restaurant-outline';
+                      if (sectionName.toLowerCase().includes('kitchen'))
+                        return 'restaurant-outline';
                       if (sectionName.toLowerCase().includes('living')) return 'tv-outline';
                       if (sectionName.toLowerCase().includes('bathroom')) return 'water-outline';
                       if (sectionName.toLowerCase().includes('garage')) return 'car-outline';
@@ -924,10 +934,10 @@ const HomeScreen = () => {
 
                   return (
                     <View key={index} style={styles.roomItem}>
-                      <Ionicons 
-                        name={getIconName(section.name, userLayout?.type || 'household')} 
-                        size={16} 
-                        color="#64748b" 
+                      <Ionicons
+                        name={getIconName(section.name, userLayout?.type || 'household')}
+                        size={16}
+                        color="#64748b"
                       />
                       <Text style={styles.roomText}>
                         {section.name} ({section.count})
@@ -998,10 +1008,12 @@ const HomeScreen = () => {
     return (
       <Animatable.View animation="fadeInUp" delay={1000} style={styles.deviceSection}>
         <Text style={styles.sectionTitle}>
-          {userLayout?.type === 'industrial' ? 'Area & Equipment Management' : 'Room & Device Management'}
+          {userLayout?.type === 'industrial'
+            ? 'Area & Equipment Management'
+            : 'Room & Device Management'}
         </Text>
         <Text style={styles.deviceSubtitle}>
-          {userLayout?.type === 'industrial' 
+          {userLayout?.type === 'industrial'
             ? 'Manage equipment in each area to track energy usage and optimize operations'
             : 'Manage devices in each room to track energy usage and get personalized insights'}
         </Text>
@@ -1089,7 +1101,9 @@ const HomeScreen = () => {
                     <View style={styles.noDevicesContainer}>
                       <Ionicons name="flash-outline" size={32} color="#d1d5db" />
                       <Text style={styles.noDevicesText}>
-                        {userLayout?.type === 'industrial' ? 'No equipment added yet' : 'No devices added yet'}
+                        {userLayout?.type === 'industrial'
+                          ? 'No equipment added yet'
+                          : 'No devices added yet'}
                       </Text>
                       <TouchableOpacity
                         style={styles.addFirstDeviceButton}
@@ -1137,15 +1151,21 @@ const HomeScreen = () => {
             ]}
             onPress={() => setSelectedLayoutType('household')}
           >
-            <Ionicons name="home-outline" size={20} color={selectedLayoutType === 'household' ? '#ffffff' : '#64748b'} />
-            <Text style={[
-              styles.typeButtonText,
-              selectedLayoutType === 'household' && styles.typeButtonTextActive,
-            ]}>
+            <Ionicons
+              name="home-outline"
+              size={20}
+              color={selectedLayoutType === 'household' ? '#ffffff' : '#64748b'}
+            />
+            <Text
+              style={[
+                styles.typeButtonText,
+                selectedLayoutType === 'household' && styles.typeButtonTextActive,
+              ]}
+            >
               Residential
             </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={[
               styles.typeButton,
@@ -1153,11 +1173,17 @@ const HomeScreen = () => {
             ]}
             onPress={() => setSelectedLayoutType('industrial')}
           >
-            <Ionicons name="business-outline" size={20} color={selectedLayoutType === 'industrial' ? '#ffffff' : '#64748b'} />
-            <Text style={[
-              styles.typeButtonText,
-              selectedLayoutType === 'industrial' && styles.typeButtonTextActive,
-            ]}>
+            <Ionicons
+              name="business-outline"
+              size={20}
+              color={selectedLayoutType === 'industrial' ? '#ffffff' : '#64748b'}
+            />
+            <Text
+              style={[
+                styles.typeButtonText,
+                selectedLayoutType === 'industrial' && styles.typeButtonTextActive,
+              ]}
+            >
               Industrial
             </Text>
           </TouchableOpacity>
@@ -1165,38 +1191,41 @@ const HomeScreen = () => {
 
         <ScrollView style={styles.modalContent}>
           <Text style={styles.modalSubtitle}>
-            Choose a {selectedLayoutType === 'household' ? 'residential' : 'industrial'} blueprint that matches your needs:
+            Choose a {selectedLayoutType === 'household' ? 'residential' : 'industrial'} blueprint
+            that matches your needs:
           </Text>
 
-          {BLUEPRINT_LAYOUTS.filter(blueprint => blueprint.type === selectedLayoutType).map(blueprint => (
-            <TouchableOpacity
-              key={blueprint.id}
-              style={styles.blueprintCard}
-              onPress={() => handleSelectBlueprint(blueprint)}
-            >
-              <View style={styles.blueprintHeader}>
-                <View>
-                  <Text style={styles.blueprintName}>{blueprint.name}</Text>
-                  <Text style={styles.blueprintDetails}>
-                    {blueprint.area} sq ft •{' '}
-                    {blueprint.type === 'household' ? 'Residential' : 'Industrial'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#64748b" />
-              </View>
-
-              <View style={styles.blueprintSections}>
-                {blueprint.sections.map((section, index) => (
-                  <View key={index} style={styles.blueprintSection}>
-                    <Ionicons name="home-outline" size={14} color="#64748b" />
-                    <Text style={styles.blueprintSectionText}>
-                      {section.name} ({section.count})
+          {BLUEPRINT_LAYOUTS.filter(blueprint => blueprint.type === selectedLayoutType).map(
+            blueprint => (
+              <TouchableOpacity
+                key={blueprint.id}
+                style={styles.blueprintCard}
+                onPress={() => handleSelectBlueprint(blueprint)}
+              >
+                <View style={styles.blueprintHeader}>
+                  <View>
+                    <Text style={styles.blueprintName}>{blueprint.name}</Text>
+                    <Text style={styles.blueprintDetails}>
+                      {blueprint.area} sq ft •{' '}
+                      {blueprint.type === 'household' ? 'Residential' : 'Industrial'}
                     </Text>
                   </View>
-                ))}
-              </View>
-            </TouchableOpacity>
-          ))}
+                  <Ionicons name="chevron-forward" size={20} color="#64748b" />
+                </View>
+
+                <View style={styles.blueprintSections}>
+                  {blueprint.sections.map((section, index) => (
+                    <View key={index} style={styles.blueprintSection}>
+                      <Ionicons name="home-outline" size={14} color="#64748b" />
+                      <Text style={styles.blueprintSectionText}>
+                        {section.name} ({section.count})
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </TouchableOpacity>
+            )
+          )}
         </ScrollView>
       </View>
     </Modal>
@@ -2215,7 +2244,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 16,
   },
-  
+
   // Type selector styles
   typeSelector: {
     flexDirection: 'row',
