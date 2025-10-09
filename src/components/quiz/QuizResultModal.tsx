@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ interface QuizResultModalProps {
   stats: UserQuizStats | null;
   newBadges: Badge[];
   questions: QuizQuestion[];
+  correctCount?: number;
   onClose: () => void;
 }
 
@@ -28,67 +29,25 @@ const QuizResultModal: React.FC<QuizResultModalProps> = ({
   stats,
   newBadges,
   questions,
+  correctCount = 0,
   onClose
 }) => {
-  const fadeAnim = new Animated.Value(0);
-  const scaleAnim = new Animated.Value(0.8);
-  const confettiAnim = new Animated.Value(0);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
   useEffect(() => {
     if (visible) {
-      // Animate modal entrance
       Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          useNativeDriver: true,
-          tension: 80,
-          friction: 8,
-        }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }),
+        Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 100, friction: 10 })
       ]).start();
-
-      // Animate confetti
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(confettiAnim, {
-            toValue: 1,
-            duration: 2000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(confettiAnim, {
-            toValue: 0,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
     }
   }, [visible]);
 
   if (!stats) return null;
 
-  const totalPossiblePoints = questions.reduce((sum, q) => sum + q.points, 0);
-  const scorePercentage = Math.round((stats.totalScore / totalPossiblePoints) * 100);
-  const isHighScore = scorePercentage >= 80;
-
-  const getPerformanceMessage = () => {
-    if (scorePercentage >= 90) return "🌟 Outstanding! You're an energy expert!";
-    if (scorePercentage >= 80) return "⚡ Great job! You know your energy facts!";
-    if (scorePercentage >= 70) return "👍 Good work! Keep learning!";
-    if (scorePercentage >= 60) return "📚 Not bad! Room for improvement!";
-    return "🌱 Keep practicing! Every expert was once a beginner!";
-  };
-
-  const getGradeColor = () => {
-    if (scorePercentage >= 90) return Colors.success;
-    if (scorePercentage >= 80) return Colors.primary;
-    if (scorePercentage >= 70) return Colors.warning;
-    return Colors.error;
-  };
+  const scorePercentage = Math.round(((correctCount || 0) / Math.max(questions.length, 1)) * 100);
+  const getGradeColor = () => (scorePercentage >= 50 ? Colors.success : Colors.primary);
 
   return (
     <Modal
@@ -105,141 +64,16 @@ const QuizResultModal: React.FC<QuizResultModalProps> = ({
           },
         ]}
       >
-        <Animated.View
-          style={[
-            styles.modal,
-            {
-              transform: [{ scale: scaleAnim }],
-            },
-          ]}
-        >
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {/* Confetti Effect */}
-            {isHighScore && (
-              <Animated.View
-                style={[
-                  styles.confetti,
-                  {
-                    transform: [
-                      {
-                        translateY: confettiAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [-50, height],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              >
-                <Text style={styles.confettiText}>🎉 🌟 ⚡ 🎉 🌟 ⚡</Text>
-              </Animated.View>
-            )}
-
-            {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.title}>Quiz Complete! 🎯</Text>
-              <Text style={styles.subtitle}>{getPerformanceMessage()}</Text>
-            </View>
-
-            {/* Score Circle */}
-            <View style={styles.scoreSection}>
-              <View style={[styles.scoreCircle, { borderColor: getGradeColor() }]}>
-                <AnimatedCounter
-                  value={scorePercentage}
-                  style={[styles.scoreValue, { color: getGradeColor() }] as any}
-                  suffix="%"
-                  duration={1500}
-                />
-                <Text style={styles.scoreLabel}>Score</Text>
-              </View>
-            </View>
-
-            {/* Stats Grid */}
-            <View style={styles.statsGrid}>
-              <View style={styles.statCard}>
-                <AnimatedCounter
-                  value={stats.ecoPoints}
-                  style={styles.statValue}
-                  duration={1000}
-                />
-                <Text style={styles.statLabel}>Eco Points</Text>
-              </View>
-              <View style={styles.statCard}>
-                <AnimatedCounter
-                  value={stats.quizzesCompleted}
-                  style={styles.statValue}
-                  duration={1000}
-                />
-                <Text style={styles.statLabel}>Quizzes</Text>
-              </View>
-              <View style={styles.statCard}>
-                <AnimatedCounter
-                  value={stats.rank || 0}
-                  style={styles.statValue}
-                  duration={1000}
-                  prefix="#"
-                />
-                <Text style={styles.statLabel}>Rank</Text>
-              </View>
-              <View style={styles.statCard}>
-                <AnimatedCounter
-                  value={stats.averageScore}
-                  style={styles.statValue}
-                  duration={1000}
-                  suffix="%"
-                />
-                <Text style={styles.statLabel}>Avg Score</Text>
-              </View>
-            </View>
-
-            {/* New Badges */}
-            {newBadges.length > 0 && (
-              <View style={styles.badgesSection}>
-                <Text style={styles.badgesTitle}>🏆 New Badges Earned!</Text>
-                <View style={styles.newBadgesContainer}>
-                  {newBadges.map((badge) => (
-                    <View key={badge.id} style={styles.newBadge}>
-                      <Text style={styles.newBadgeIcon}>{badge.icon}</Text>
-                      <Text style={styles.newBadgeName}>{badge.name}</Text>
-                      <Text style={styles.newBadgeDescription}>{badge.description}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {/* All Badges */}
-            {stats.badges.length > 0 && (
-              <View style={styles.allBadgesSection}>
-                <Text style={styles.allBadgesTitle}>Your Badge Collection</Text>
-                <View style={styles.allBadgesContainer}>
-                  {stats.badges.map((badge) => (
-                    <View key={badge.id} style={styles.badge}>
-                      <Text style={styles.badgeIcon}>{badge.icon}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {/* Motivational Section */}
-            <View style={styles.motivationSection}>
-              <Text style={styles.motivationTitle}>Keep Going! 💚</Text>
-              <Text style={styles.motivationText}>
-                Every quiz makes you a better energy saver. Share your knowledge and help save the planet!
-              </Text>
-            </View>
-
-            {/* Action Buttons */}
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity style={styles.shareButton}>
-                <Text style={styles.shareButtonText}>Share Achievement 📱</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-                <Text style={styles.closeButtonText}>Continue</Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
+        <Animated.View style={[styles.modal, { transform: [{ scale: scaleAnim }] }]}>
+          <View style={styles.simpleHeader}>
+            <Text style={styles.simpleTitle}>Congratulations 🎉</Text>
+            <Text style={styles.simpleSubtitle}>You have scored {scorePercentage}%</Text>
+          </View>
+          <View style={styles.simpleButtonContainer}>
+            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+              <Text style={styles.closeButtonText}>Done</Text>
+            </TouchableOpacity>
+          </View>
         </Animated.View>
       </Animated.View>
     </Modal>
@@ -257,9 +91,27 @@ const styles = StyleSheet.create({
   modal: {
     backgroundColor: Colors.white,
     borderRadius: 24,
-    maxHeight: height * 0.85,
     width: width * 0.9,
     maxWidth: 400,
+  },
+  simpleHeader: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  simpleTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: Colors.success,
+    marginBottom: 6,
+  },
+  simpleSubtitle: {
+    fontSize: 16,
+    color: Colors.textPrimary,
+    textAlign: 'center',
+  },
+  simpleButtonContainer: {
+    paddingHorizontal: 24,
+    paddingBottom: 24,
   },
   confetti: {
     position: 'absolute',
@@ -424,19 +276,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 24,
     gap: 12,
-  },
-  shareButton: {
-    backgroundColor: Colors.backgroundSecondary,
-    padding: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  shareButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.textPrimary,
   },
   closeButton: {
     backgroundColor: Colors.primary,

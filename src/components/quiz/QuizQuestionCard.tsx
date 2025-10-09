@@ -31,7 +31,7 @@ const QuizQuestionCard: React.FC<QuizQuestionCardProps> = ({
 
   // Animation values
   const cardScale = new Animated.Value(1);
-  const optionAnimations = question.options.map(() => new Animated.Value(1));
+  const optionAnimations = (question.options ?? []).map(() => new Animated.Value(1));
 
   useEffect(() => {
     // Reset state when question changes
@@ -165,36 +165,36 @@ const QuizQuestionCard: React.FC<QuizQuestionCardProps> = ({
 
       {/* Options */}
       <View style={styles.optionsContainer}>
-        {question.options.map((option, index) => (
-          <Animated.View
-            key={index}
-            style={[
-              { transform: [{ scale: optionAnimations[index] }] }
-            ]}
-          >
-            <TouchableOpacity
-              style={getOptionStyle(option, index)}
-              onPress={() => handleOptionPress(option, index)}
-              disabled={isAnswered}
-              activeOpacity={0.8}
+          {question.options?.map((option, index) => (
+            <Animated.View
+              key={index}
+              style={[
+                { transform: [{ scale: optionAnimations[index] }] }
+              ]}
             >
-              <View style={styles.optionContent}>
-                <View style={styles.optionLetter}>
-                  <Text style={styles.optionLetterText}>
-                    {String.fromCharCode(65 + index)}
-                  </Text>
+              <TouchableOpacity
+                style={getOptionStyle(option, index)}
+                onPress={() => handleOptionPress(option, index)}
+                disabled={isAnswered}
+                activeOpacity={0.8}
+              >
+                <View style={styles.optionContent}>
+                  <View style={styles.optionLetter}>
+                    <Text style={styles.optionLetterText}>
+                      {String.fromCharCode(65 + index)}
+                    </Text>
+                  </View>
+                  <Text style={getOptionTextStyle(option)}>{option}</Text>
+                  {isAnswered && option === question.answer && (
+                    <Text style={styles.checkmark}>✓</Text>
+                  )}
+                  {isAnswered && option === selectedOption && option !== question.answer && (
+                    <Text style={styles.crossmark}>✗</Text>
+                  )}
                 </View>
-                <Text style={getOptionTextStyle(option)}>{option}</Text>
-                {isAnswered && option === question.answer && (
-                  <Text style={styles.checkmark}>✓</Text>
-                )}
-                {isAnswered && option === selectedOption && option !== question.answer && (
-                  <Text style={styles.crossmark}>✗</Text>
-                )}
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
-        ))}
+              </TouchableOpacity>
+            </Animated.View>
+          ))}
       </View>
 
       {/* Feedback Tip */}
@@ -210,7 +210,6 @@ const QuizQuestionCard: React.FC<QuizQuestionCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: Colors.white,
     borderRadius: 20,
     margin: 16,
@@ -220,8 +219,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 8,
-    width: width - 32, // Ensure full width minus margins
-    alignSelf: 'center',
+    alignSelf: 'stretch',
   },
   header: {
     flexDirection: 'row',

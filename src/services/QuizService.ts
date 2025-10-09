@@ -30,13 +30,14 @@ export class QuizService {
   static async generatePersonalizedQuiz(userProfile: UserQuizProfile): Promise<QuizQuestion[]> {
     try {
       console.log('🧠 Generating personalized quiz for user profile:', userProfile);
-      
-      // For now, we'll generate questions based on user's devices and consumption
-      // In a real implementation, you'd call Gemini AI API here
-      const questions = this.generateQuestionsFromProfile(userProfile);
-      
-      console.log('✅ Generated quiz questions:', questions);
-      return questions;
+      const currentUser = AuthService.getCurrentUser();
+      const recentQuestions = currentUser ? await this.getRecentQuestionTexts(currentUser.uid, 50) : new Set<string>();
+      // Generate questions based on user's devices and consumption (placeholder for Gemini)
+      const generated = this.generateQuestionsFromProfile(userProfile);
+      // Filter out duplicates shown recently by matching question text
+      const deduped = generated.filter(q => !recentQuestions.has(q.question));
+      console.log('✅ Generated quiz questions:', deduped);
+      return deduped;
     } catch (error) {
       console.error('❌ Error generating personalized quiz:', error);
       throw error;
@@ -53,7 +54,7 @@ export class QuizService {
     if (highWattageDevice) {
       questions.push({
         id: `q1_${Date.now()}`,
-        question: `How much energy could you save by reducing your ${highWattageDevice.name} usage by 2 hours daily?`,
+        question: `How much energy could you save by using your ${highWattageDevice.name} 2 fewer hours daily?`,
         options: [
           `${((highWattageDevice.watt * 2) / 1000).toFixed(2)} kWh`,
           `${((highWattageDevice.watt * 1) / 1000).toFixed(2)} kWh`,
@@ -70,9 +71,9 @@ export class QuizService {
     // Question 2: Cost calculation
     questions.push({
       id: `q2_${Date.now()}`,
-      question: `If electricity costs $0.12 per kWh, how much would you save monthly by reducing your daily consumption by 1 kWh?`,
-      options: ['$3.60', '$1.20', '$7.20', '$2.40'],
-      answer: '$3.60',
+      question: `If electricity costs LKR 50 per kWh, how much would you save monthly by reducing your daily consumption by 1 kWh?`,
+      options: ['LKR 1,500', 'LKR 3,000', 'LKR 750', 'LKR 5,000'],
+      answer: 'LKR 1,500',
       tip: 'Small daily savings compound into meaningful monthly reductions!',
       category: 'cost-reduction',
       points: 10
@@ -130,6 +131,30 @@ export class QuizService {
     });
 
     return questions;
+  }
+
+  // Fetch recent question texts for a user to avoid repeats
+  private static async getRecentQuestionTexts(userId: string, limitCount: number): Promise<Set<string>> {
+    try {
+      const qSessions = query(
+        collection(db, 'quiz_sessions'),
+        where('userId', '==', userId),
+        orderBy('startedAt', 'desc'),
+        limit(limitCount)
+      );
+      const snapshot = await getDocs(qSessions);
+      const texts = new Set<string>();
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data() as QuizSession;
+        (data.questions || []).forEach(q => {
+          if (q?.question) texts.add(q.question);
+        });
+      });
+      return texts;
+    } catch (e) {
+      console.warn('Failed to get recent question texts', e);
+      return new Set<string>();
+    }
   }
 
   // Start a new quiz session
@@ -209,6 +234,8 @@ export class QuizService {
       throw error;
     }
   }
+
+  // removed text comparison (MCQ only)
 
   // Complete quiz session and update user stats
   static async completeQuizSession(sessionId: string): Promise<{ userStats: UserQuizStats; newBadges: Badge[] }> {

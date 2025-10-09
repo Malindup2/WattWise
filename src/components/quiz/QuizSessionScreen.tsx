@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,9 @@ import {
   TouchableOpacity,
   Alert,
   Animated,
-  BackHandler
+  BackHandler,
+  ScrollView,
+  SafeAreaView
 } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { QuizService } from '../../services/QuizService';
@@ -39,10 +41,11 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
   const [startTime] = useState(Date.now());
   const [timeLeft, setTimeLeft] = useState(60); // 60 seconds per question
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
+  const [correctCount, setCorrectCount] = useState(0);
 
-  // Animation values
-  const fadeAnim = new Animated.Value(1);
-  const slideAnim = new Animated.Value(0);
+  // Animation values (persist across renders to avoid layout jumps)
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     initializeQuiz();
@@ -173,6 +176,9 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
       };
 
       setProgress(newProgress);
+      if (result.isCorrect) {
+        setCorrectCount(prev => prev + 1);
+      }
 
       // Show feedback with animation
       await showAnswerFeedback(result.isCorrect);
@@ -288,7 +294,7 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
   const currentQuestion = questions[currentQuestionIndex];
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
@@ -304,7 +310,7 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
       <QuizProgressBar progress={progress} timeLeft={timeLeft} />
 
       {/* Question Card */}
-      <View style={styles.questionWrapper}>
+      <ScrollView style={styles.questionWrapper} contentContainerStyle={styles.questionScrollContent}>
         <Animated.View 
           style={[
             styles.questionContainer,
@@ -328,7 +334,7 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
             totalQuestions={questions.length}
           />
         </Animated.View>
-      </View>
+      </ScrollView>
 
       {/* Streak Indicator */}
       {progress.streak > 1 && (
@@ -343,9 +349,10 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
         stats={finalStats}
         newBadges={newBadges}
         questions={questions}
+        correctCount={correctCount}
         onClose={handleResultClose}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -425,7 +432,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    paddingTop: 48,
+    paddingTop: 16,
     backgroundColor: Colors.white,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
@@ -461,6 +468,9 @@ const styles = StyleSheet.create({
   },
   questionWrapper: {
     flex: 1,
+  },
+  questionScrollContent: {
+    flexGrow: 1,
   },
   questionContainer: {
     flex: 1,
