@@ -6,7 +6,7 @@ import {
   Modal,
   TouchableOpacity,
   ScrollView,
-  Dimensions
+  Dimensions,
 } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import type { LeaderboardEntry } from '../../types/quiz';
@@ -19,11 +19,7 @@ interface LeaderboardModalProps {
 
 const { width, height } = Dimensions.get('window');
 
-const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
-  visible,
-  leaderboard,
-  onClose
-}) => {
+const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ visible, leaderboard, onClose }) => {
   const getRankColor = (rank: number) => {
     switch (rank) {
       case 1:
@@ -54,7 +50,7 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
     try {
       // Handle different date formats
       let dateObj: Date;
-      
+
       if (date instanceof Date) {
         dateObj = date;
       } else if (date && typeof date === 'object' && date.seconds) {
@@ -77,7 +73,7 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
       const now = new Date();
       const diffTime = Math.abs(now.getTime() - dateObj.getTime());
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-      
+
       if (diffDays === 0) return 'Today';
       if (diffDays === 1) return 'Yesterday';
       if (diffDays < 7) return `${diffDays} days ago`;
@@ -89,12 +85,7 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.modal}>
           {/* Header */}
@@ -147,7 +138,7 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
           {/* Full Leaderboard */}
           <ScrollView style={styles.leaderboardList} showsVerticalScrollIndicator={false}>
             <Text style={styles.listTitle}>All Rankings</Text>
-            {leaderboard.map((entry) => (
+            {leaderboard.map(entry => (
               <View key={entry.userId} style={styles.leaderboardItem}>
                 <View style={styles.rankSection}>
                   <Text style={styles.rankIcon}>{getRankIcon(entry.rank)}</Text>
@@ -158,9 +149,7 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
 
                 <View style={styles.userSection}>
                   <Text style={styles.userName}>{entry.name}</Text>
-                  <Text style={styles.userActivity}>
-                    {formatLastActivity(entry.lastActivity)}
-                  </Text>
+                  <Text style={styles.userActivity}>{formatLastActivity(entry.lastActivity)}</Text>
                 </View>
 
                 <View style={styles.scoreSection}>
@@ -195,9 +184,7 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
 
           {/* Footer */}
           <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              Complete more quizzes to climb the rankings! 🌱
-            </Text>
+            <Text style={styles.footerText}>Complete more quizzes to climb the rankings! 🌱</Text>
           </View>
         </View>
       </View>

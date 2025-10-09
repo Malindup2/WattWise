@@ -7,7 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
 } from 'react-native';
 import { Colors } from '../constants/Colors';
 import { QuizService } from '../services/QuizService';
@@ -36,7 +36,7 @@ const QuizzesScreen: React.FC = () => {
     try {
       setIsLoading(true);
       const currentUser = AuthService.getCurrentUser();
-      
+
       if (!currentUser) {
         Alert.alert('Error', 'Please log in to access quizzes');
         return;
@@ -72,10 +72,10 @@ const QuizzesScreen: React.FC = () => {
 
       // Get user's layout data for personalization
       const layoutData = await FirestoreService.getEnhancedUserLayout(currentUser.uid);
-      
+
       if (!layoutData || !layoutData.rooms || layoutData.rooms.length === 0) {
         Alert.alert(
-          'Setup Required', 
+          'Setup Required',
           'Please set up your home layout first to get personalized quiz questions!',
           [{ text: 'OK' }]
         );
@@ -92,13 +92,13 @@ const QuizzesScreen: React.FC = () => {
   const onQuizComplete = (newStats: UserQuizStats, newBadges?: Badge[]) => {
     setUserStats(newStats);
     setShowQuizSession(false);
-    
+
     // Show badge unlock alert if there are new badges
     if (newBadges && newBadges.length > 0) {
       setNewBadge(newBadges[0]); // Show the first badge
       setShowBadgeAlert(true);
     }
-    
+
     loadUserData(); // Refresh leaderboard
   };
 
@@ -113,48 +113,44 @@ const QuizzesScreen: React.FC = () => {
 
   if (showQuizSession) {
     return (
-      <QuizSessionScreen
-        onComplete={onQuizComplete}
-        onCancel={() => setShowQuizSession(false)}
-      />
+      <QuizSessionScreen onComplete={onQuizComplete} onCancel={() => setShowQuizSession(false)} />
     );
   }
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
-      
+
       {/* Green Header */}
       <View style={styles.greenHeader}>
         <Text style={styles.headerTitle}>WattWise Quiz ⚡</Text>
         <Text style={styles.headerSubtitle}>Test your energy knowledge and earn eco points!</Text>
       </View>
-      
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
 
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* User Stats Card */}
         {userStats && (
           <View style={styles.statsCard}>
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
-                <AnimatedCounter 
-                  value={userStats.ecoPoints} 
+                <AnimatedCounter
+                  value={userStats.ecoPoints}
                   style={styles.statValue}
                   duration={1000}
                 />
                 <Text style={styles.statLabel}>Eco Points</Text>
               </View>
               <View style={styles.statItem}>
-                <AnimatedCounter 
-                  value={userStats.quizzesCompleted} 
+                <AnimatedCounter
+                  value={userStats.quizzesCompleted}
                   style={styles.statValue}
                   duration={1000}
                 />
                 <Text style={styles.statLabel}>Quizzes</Text>
               </View>
               <View style={styles.statItem}>
-                <AnimatedCounter 
-                  value={userStats.averageScore} 
+                <AnimatedCounter
+                  value={userStats.averageScore}
                   style={styles.statValue}
                   duration={1000}
                   suffix="%"
@@ -166,31 +162,45 @@ const QuizzesScreen: React.FC = () => {
             {/* Badges */}
             <View style={styles.badgesSection}>
               <Text style={styles.badgesTitle}>Your Badges</Text>
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false} 
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
                 style={styles.badgesScrollView}
                 contentContainerStyle={styles.badgesScrollContent}
               >
-                {userStats.badges.map((badge) => (
+                {userStats.badges.map(badge => (
                   <View key={badge.id} style={styles.badgeItem}>
                     <View style={styles.badgeCircle}>
                       <Text style={styles.badgeEmoji}>
-                        {badge.type === 'quiz_master' ? '🎯' : 
-                         badge.type === 'speed_demon' ? '⚡' : 
-                         badge.type === 'knowledge_seeker' ? '🧠' : 
-                         badge.type === 'streak_warrior' ? '🔥' : 
-                         badge.type === 'energy_expert' ? '💡' : 
-                         badge.type === 'eco_champion' ? '🌱' : '🏆'}
+                        {badge.type === 'quiz_master'
+                          ? '🎯'
+                          : badge.type === 'speed_demon'
+                            ? '⚡'
+                            : badge.type === 'knowledge_seeker'
+                              ? '🧠'
+                              : badge.type === 'streak_warrior'
+                                ? '🔥'
+                                : badge.type === 'energy_expert'
+                                  ? '💡'
+                                  : badge.type === 'eco_champion'
+                                    ? '🌱'
+                                    : '🏆'}
                       </Text>
                     </View>
                     <Text style={styles.badgeName}>
-                      {badge.type === 'quiz_master' ? 'Quiz Master' : 
-                       badge.type === 'speed_demon' ? 'Speed Pro' : 
-                       badge.type === 'knowledge_seeker' ? 'Brain Box' : 
-                       badge.type === 'streak_warrior' ? 'Fire Streak' : 
-                       badge.type === 'energy_expert' ? 'Eco Pro' : 
-                       badge.type === 'eco_champion' ? 'Green Hero' : 'Champion'}
+                      {badge.type === 'quiz_master'
+                        ? 'Quiz Master'
+                        : badge.type === 'speed_demon'
+                          ? 'Speed Pro'
+                          : badge.type === 'knowledge_seeker'
+                            ? 'Brain Box'
+                            : badge.type === 'streak_warrior'
+                              ? 'Fire Streak'
+                              : badge.type === 'energy_expert'
+                                ? 'Eco Pro'
+                                : badge.type === 'eco_champion'
+                                  ? 'Green Hero'
+                                  : 'Champion'}
                     </Text>
                     {(badge.count || 1) > 1 && (
                       <View style={styles.badgeCountContainer}>
@@ -226,7 +236,7 @@ const QuizzesScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
 
-          {leaderboard.slice(0, 3).map((entry) => (
+          {leaderboard.slice(0, 3).map(entry => (
             <View key={entry.userId} style={styles.leaderboardItem}>
               <View style={styles.rankContainer}>
                 <Text style={styles.rankMedal}>
@@ -284,7 +294,11 @@ const QuizzesScreen: React.FC = () => {
         visible={showBadgeAlert}
         type="success"
         title="🎉 Congratulations!"
-        message={newBadge ? `You've unlocked a new badge: ${newBadge.name}! ${newBadge.description}` : 'You earned a new badge!'}
+        message={
+          newBadge
+            ? `You've unlocked a new badge: ${newBadge.name}! ${newBadge.description}`
+            : 'You earned a new badge!'
+        }
         onClose={() => {
           setShowBadgeAlert(false);
           setNewBadge(null);

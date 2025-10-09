@@ -12,7 +12,8 @@ const QuizProgressBar: React.FC<QuizProgressBarProps> = ({ progress, timeLeft = 
   const progressAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const progressPercentage = (progress.currentQuestion / Math.max(progress.totalQuestions, 1)) * 100;
+    const progressPercentage =
+      (progress.currentQuestion / Math.max(progress.totalQuestions, 1)) * 100;
 
     Animated.timing(progressAnim, {
       toValue: progressPercentage,
@@ -49,9 +50,7 @@ const QuizProgressBar: React.FC<QuizProgressBarProps> = ({ progress, timeLeft = 
             ]}
           />
         </View>
-        <Text style={styles.progressPercentage}>
-          {Math.round(progressPercentage)}%
-        </Text>
+        <Text style={styles.progressPercentage}>{Math.round(progressPercentage)}%</Text>
       </View>
 
       {/* Additional Stats */}
@@ -70,7 +69,7 @@ const QuizProgressBar: React.FC<QuizProgressBarProps> = ({ progress, timeLeft = 
             <Text style={styles.streakText}>{progress.streak}</Text>
           </View>
         )}
-        
+
         <View style={styles.timeContainer}>
           <Text style={styles.timeIcon}>⏱️</Text>
           <Text style={styles.timeText}>

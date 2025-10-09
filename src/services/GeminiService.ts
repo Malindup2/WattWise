@@ -14,7 +14,10 @@ type GeminiQuestion = {
 export class GeminiService {
   static get apiKey(): string | undefined {
     // Prefer env provided via Expo extra
-    return (Constants as any)?.expoConfig?.extra?.EXPO_PUBLIC_GEMINI_API_KEY || process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+    return (
+      (Constants as any)?.expoConfig?.extra?.EXPO_PUBLIC_GEMINI_API_KEY ||
+      process.env.EXPO_PUBLIC_GEMINI_API_KEY
+    );
   }
 
   static async generateQuestions(prompt: string): Promise<GeminiQuestion[]> {
@@ -25,25 +28,27 @@ export class GeminiService {
 
     // Minimal REST call to Gemini text generation
     // Replace with official SDK if available in project
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + this.apiKey;
+    const url =
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' +
+      this.apiKey;
 
     const body = {
       contents: [
         {
           parts: [
             {
-              text: `${prompt}\nReturn JSON array with fields: id, question, options[4], answer, tip, category(one of energy-saving|device-efficiency|cost-reduction|eco-tips), points(number). Ensure multiple-choice only and use LKR for costs.`
-            }
-          ]
-        }
-      ]
+              text: `${prompt}\nReturn JSON array with fields: id, question, options[4], answer, tip, category(one of energy-saving|device-efficiency|cost-reduction|eco-tips), points(number). Ensure multiple-choice only and use LKR for costs.`,
+            },
+          ],
+        },
+      ],
     };
 
     try {
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
@@ -56,5 +61,3 @@ export class GeminiService {
     }
   }
 }
-
-

@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Animated,
-  Dimensions
+  Dimensions,
 } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import type { UserQuizStats, Badge, QuizQuestion } from '../../types/quiz';
@@ -30,7 +30,7 @@ const QuizResultModal: React.FC<QuizResultModalProps> = ({
   newBadges,
   questions,
   correctCount = 0,
-  onClose
+  onClose,
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
@@ -39,7 +39,12 @@ const QuizResultModal: React.FC<QuizResultModalProps> = ({
     if (visible) {
       Animated.parallel([
         Animated.timing(fadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }),
-        Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 100, friction: 10 })
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 10,
+        }),
       ]).start();
     }
   }, [visible]);
@@ -50,12 +55,7 @@ const QuizResultModal: React.FC<QuizResultModalProps> = ({
   const getGradeColor = () => (scorePercentage >= 50 ? Colors.success : Colors.primary);
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <Animated.View
         style={[
           styles.overlay,

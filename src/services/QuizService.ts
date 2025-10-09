@@ -11,7 +11,7 @@ import {
   limit,
   where,
   serverTimestamp,
-  Timestamp
+  Timestamp,
 } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 import { AuthService } from './firebase';
@@ -21,7 +21,7 @@ import type {
   QuizSession,
   UserQuizStats,
   Badge,
-  LeaderboardEntry
+  LeaderboardEntry,
 } from '../types/quiz';
 import { GeminiService } from './GeminiService';
 import type { Layout, Device } from '../types/layout';
@@ -32,7 +32,9 @@ export class QuizService {
     try {
       console.log('🧠 Generating personalized quiz for user profile:', userProfile);
       const currentUser = AuthService.getCurrentUser();
-      const recentQuestions = currentUser ? await this.getRecentQuestionTexts(currentUser.uid, 100) : new Set<string>();
+      const recentQuestions = currentUser
+        ? await this.getRecentQuestionTexts(currentUser.uid, 100)
+        : new Set<string>();
       // Build avoid list for the model (cap to keep prompt small)
       const avoidList = Array.from(recentQuestions).slice(0, 25);
       // Try Gemini first, fallback to local generator
@@ -47,9 +49,16 @@ export class QuizService {
         category: q.category as QuizQuestion['category'],
         points: typeof q.points === 'number' ? q.points : 10,
       }));
-      const generated = normalizedGemini.length > 0 ? normalizedGemini : this.generateQuestionsFromProfile(userProfile);
+      const generated =
+        normalizedGemini.length > 0
+          ? normalizedGemini
+          : this.generateQuestionsFromProfile(userProfile);
       // Strong de-duplication: normalized comparison to avoid paraphrased repeats
-      const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '').trim();
+      const normalize = (s: string) =>
+        s
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '')
+          .trim();
       const recentNormalized = new Set(Array.from(recentQuestions).map(normalize));
       let deduped = generated.filter(q => !recentNormalized.has(normalize(q.question)));
 
@@ -93,12 +102,12 @@ export class QuizService {
           `${((highWattageDevice.watt * 2) / 1000).toFixed(2)} kWh`,
           `${((highWattageDevice.watt * 1) / 1000).toFixed(2)} kWh`,
           `${((highWattageDevice.watt * 3) / 1000).toFixed(2)} kWh`,
-          `${((highWattageDevice.watt * 0.5) / 1000).toFixed(2)} kWh`
+          `${((highWattageDevice.watt * 0.5) / 1000).toFixed(2)} kWh`,
         ],
         answer: `${((highWattageDevice.watt * 2) / 1000).toFixed(2)} kWh`,
         tip: `Even small reductions in high-wattage device usage can lead to significant monthly savings!`,
         category: 'energy-saving',
-        points: 10
+        points: 10,
       });
     }
 
@@ -110,7 +119,7 @@ export class QuizService {
       answer: 'LKR 1,500',
       tip: 'Small daily savings compound into meaningful monthly reductions!',
       category: 'cost-reduction',
-      points: 10
+      points: 10,
     });
 
     // Question 3: Device efficiency comparison
@@ -123,12 +132,12 @@ export class QuizService {
           devices_sorted[0].name,
           devices_sorted[1].name,
           'They consume the same',
-          'Cannot be determined'
+          'Cannot be determined',
         ],
         answer: devices_sorted[0].name,
         tip: `${devices_sorted[0].name} uses ${devices_sorted[0].watt}W vs ${devices_sorted[1].name} at ${devices_sorted[1].watt}W!`,
         category: 'device-efficiency',
-        points: 15
+        points: 15,
       });
     }
 
@@ -140,12 +149,12 @@ export class QuizService {
         `${(averageDailyKwh * 0.9).toFixed(1)} kWh`,
         `${(averageDailyKwh * 0.8).toFixed(1)} kWh`,
         `${(averageDailyKwh * 0.95).toFixed(1)} kWh`,
-        `${(averageDailyKwh * 0.7).toFixed(1)} kWh`
+        `${(averageDailyKwh * 0.7).toFixed(1)} kWh`,
       ],
       answer: `${(averageDailyKwh * 0.9).toFixed(1)} kWh`,
       tip: 'Start with small, achievable goals - 10% reduction is a great first step!',
       category: 'energy-saving',
-      points: 10
+      points: 10,
     });
 
     // Question 5: General eco tip
@@ -156,12 +165,12 @@ export class QuizService {
         'Using LED bulbs instead of incandescent',
         'Unplugging devices when not in use',
         'Setting AC/heating to efficient temperatures',
-        'All of the above have similar impact'
+        'All of the above have similar impact',
       ],
       answer: 'Setting AC/heating to efficient temperatures',
       tip: 'HVAC systems typically account for 40-50% of home energy use - small temperature adjustments make big differences!',
       category: 'eco-tips',
-      points: 15
+      points: 15,
     });
 
     return questions;
@@ -248,7 +257,10 @@ ${avoidBlock}`;
   }
 
   // Fetch recent question texts for a user to avoid repeats
-  private static async getRecentQuestionTexts(userId: string, limitCount: number): Promise<Set<string>> {
+  private static async getRecentQuestionTexts(
+    userId: string,
+    limitCount: number
+  ): Promise<Set<string>> {
     try {
       const qSessions = query(
         collection(db, 'quiz_sessions'),
@@ -285,12 +297,12 @@ ${avoidBlock}`;
         answers: [],
         score: 0,
         totalPoints: questions.reduce((sum, q) => sum + q.points, 0),
-        startedAt: new Date()
+        startedAt: new Date(),
       };
 
       const sessionRef = await addDoc(collection(db, 'quiz_sessions'), {
         ...session,
-        startedAt: serverTimestamp()
+        startedAt: serverTimestamp(),
       });
 
       console.log('✅ Quiz session started:', sessionRef.id);
@@ -311,14 +323,14 @@ ${avoidBlock}`;
     try {
       const sessionRef = doc(db, 'quiz_sessions', sessionId);
       const sessionDoc = await getDoc(sessionRef);
-      
+
       if (!sessionDoc.exists()) {
         throw new Error('Quiz session not found');
       }
 
       const sessionData = sessionDoc.data() as QuizSession;
       const question = sessionData.questions.find(q => q.id === questionId);
-      
+
       if (!question) {
         throw new Error('Question not found in session');
       }
@@ -333,13 +345,13 @@ ${avoidBlock}`;
           questionId,
           selectedAnswer,
           isCorrect,
-          timeSpent
-        }
+          timeSpent,
+        },
       ];
 
       await updateDoc(sessionRef, {
         answers: updatedAnswers,
-        score: sessionData.score + points
+        score: sessionData.score + points,
       });
 
       return { isCorrect, points };
@@ -352,7 +364,9 @@ ${avoidBlock}`;
   // removed text comparison (MCQ only)
 
   // Complete quiz session and update user stats
-  static async completeQuizSession(sessionId: string): Promise<{ userStats: UserQuizStats; newBadges: Badge[] }> {
+  static async completeQuizSession(
+    sessionId: string
+  ): Promise<{ userStats: UserQuizStats; newBadges: Badge[] }> {
     try {
       const currentUser = AuthService.getCurrentUser();
       if (!currentUser) {
@@ -362,7 +376,7 @@ ${avoidBlock}`;
       // Get session data
       const sessionRef = doc(db, 'quiz_sessions', sessionId);
       const sessionDoc = await getDoc(sessionRef);
-      
+
       if (!sessionDoc.exists()) {
         throw new Error('Quiz session not found');
       }
@@ -371,12 +385,12 @@ ${avoidBlock}`;
 
       // Mark session as completed
       await updateDoc(sessionRef, {
-        completedAt: serverTimestamp()
+        completedAt: serverTimestamp(),
       });
 
       // Update user stats
       const userStats = await this.updateUserStats(currentUser.uid, sessionData);
-      
+
       // Award badges if applicable
       const newBadges = await this.checkAndAwardBadges(currentUser.uid, userStats);
 
@@ -388,7 +402,10 @@ ${avoidBlock}`;
   }
 
   // Update user quiz statistics
-  private static async updateUserStats(userId: string, sessionData: QuizSession): Promise<UserQuizStats> {
+  private static async updateUserStats(
+    userId: string,
+    sessionData: QuizSession
+  ): Promise<UserQuizStats> {
     try {
       const currentUser = AuthService.getCurrentUser();
       const userStatsRef = doc(db, 'user_quiz_stats', userId);
@@ -401,14 +418,15 @@ ${avoidBlock}`;
         quizzesCompleted: 0,
         averageScore: 0,
         badges: [],
-        ecoPoints: 0
+        ecoPoints: 0,
       };
 
       if (userStatsDoc.exists()) {
         currentStats = userStatsDoc.data() as UserQuizStats;
         // Update name if it wasn't set before
         if (!currentStats.name) {
-          currentStats.name = currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Energy User';
+          currentStats.name =
+            currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Energy User';
         }
       }
 
@@ -419,17 +437,17 @@ ${avoidBlock}`;
       const newEcoPoints = (currentStats.ecoPoints || 0) + sessionData.score;
 
       const updatedStats: UserQuizStats = {
-        ...currentStats as UserQuizStats,
+        ...(currentStats as UserQuizStats),
         totalScore: newTotalScore,
         quizzesCompleted: newQuizzesCompleted,
         averageScore: newAverageScore,
         ecoPoints: newEcoPoints,
-        lastUpdated: new Date()
+        lastUpdated: new Date(),
       };
 
       await setDoc(userStatsRef, {
         ...updatedStats,
-        lastUpdated: serverTimestamp()
+        lastUpdated: serverTimestamp(),
       });
 
       // Update rank in leaderboard
@@ -456,7 +474,7 @@ ${avoidBlock}`;
         icon: '🌱',
         type: 'eco_champion',
         earnedAt: new Date(),
-        category: 'beginner'
+        category: 'beginner',
       });
     }
 
@@ -469,12 +487,16 @@ ${avoidBlock}`;
         icon: '🧠',
         type: 'quiz_master',
         earnedAt: new Date(),
-        category: 'intermediate'
+        category: 'intermediate',
       });
     }
 
     // High Scorer Badge
-    if (stats.quizzesCompleted >= 5 && stats.averageScore >= 80 && !existingBadgeIds.includes('high_scorer')) {
+    if (
+      stats.quizzesCompleted >= 5 &&
+      stats.averageScore >= 80 &&
+      !existingBadgeIds.includes('high_scorer')
+    ) {
       newBadges.push({
         id: 'high_scorer',
         name: 'Energy Expert',
@@ -482,7 +504,7 @@ ${avoidBlock}`;
         icon: '⚡',
         type: 'energy_expert',
         earnedAt: new Date(),
-        category: 'expert'
+        category: 'expert',
       });
     }
 
@@ -495,7 +517,7 @@ ${avoidBlock}`;
         icon: '⚡',
         type: 'speed_demon',
         earnedAt: new Date(),
-        category: 'special'
+        category: 'special',
       });
     }
 
@@ -508,7 +530,7 @@ ${avoidBlock}`;
         icon: '🔥',
         type: 'streak_warrior',
         earnedAt: new Date(),
-        category: 'intermediate'
+        category: 'intermediate',
       });
     }
 
@@ -521,7 +543,7 @@ ${avoidBlock}`;
         icon: '🧠',
         type: 'knowledge_seeker',
         earnedAt: new Date(),
-        category: 'intermediate'
+        category: 'intermediate',
       });
     }
 
@@ -531,7 +553,7 @@ ${avoidBlock}`;
       const userStatsRef = doc(db, 'user_quiz_stats', userId);
       await updateDoc(userStatsRef, {
         badges: updatedBadges,
-        lastUpdated: serverTimestamp()
+        lastUpdated: serverTimestamp(),
       });
     }
 
@@ -550,13 +572,13 @@ ${avoidBlock}`;
         score: stats.totalScore,
         badges: stats.badges,
         ecoPoints: stats.ecoPoints,
-        lastActivity: new Date()
+        lastActivity: new Date(),
       };
 
       const leaderboardRef = doc(db, 'leaderboard', userId);
       await setDoc(leaderboardRef, {
         ...leaderboardEntry,
-        lastActivity: serverTimestamp()
+        lastActivity: serverTimestamp(),
       });
 
       console.log('✅ Leaderboard updated for user:', userId);
@@ -579,7 +601,7 @@ ${avoidBlock}`;
 
       querySnapshot.docs.forEach((doc, index) => {
         const data = doc.data();
-        
+
         // Ensure lastActivity is properly handled
         let lastActivity = new Date();
         if (data.lastActivity) {
@@ -594,9 +616,9 @@ ${avoidBlock}`;
         }
 
         leaderboard.push({
-          ...data as Omit<LeaderboardEntry, 'rank' | 'lastActivity'>,
+          ...(data as Omit<LeaderboardEntry, 'rank' | 'lastActivity'>),
           lastActivity,
-          rank: index + 1
+          rank: index + 1,
         });
       });
 
@@ -618,7 +640,7 @@ ${avoidBlock}`;
       }
 
       const data = userStatsDoc.data();
-      
+
       // Handle date fields properly
       let lastUpdated = new Date();
       if (data.lastUpdated) {
@@ -632,15 +654,15 @@ ${avoidBlock}`;
       // Handle badges with proper date conversion
       const badges = (data.badges || []).map((badge: any) => ({
         ...badge,
-        earnedAt: badge.earnedAt?.seconds 
+        earnedAt: badge.earnedAt?.seconds
           ? new Date(badge.earnedAt.seconds * 1000)
-          : new Date(badge.earnedAt || Date.now())
+          : new Date(badge.earnedAt || Date.now()),
       }));
 
       return {
-        ...data as UserQuizStats,
+        ...(data as UserQuizStats),
         lastUpdated,
-        badges
+        badges,
       };
     } catch (error) {
       console.error('❌ Error getting user stats:', error);
@@ -665,7 +687,7 @@ ${avoidBlock}`;
           name: device.deviceName,
           watt: device.wattage,
           hours: dailyHours,
-          category: this.categorizeDevice(device.deviceName)
+          category: this.categorizeDevice(device.deviceName),
         });
       });
     });
@@ -680,25 +702,27 @@ ${avoidBlock}`;
         area: layout.area,
         sections: layout.rooms.map(room => ({
           name: room.roomName,
-          count: room.devices.length
-        }))
+          count: room.devices.length,
+        })),
       },
       devices,
-      averageDailyKwh
+      averageDailyKwh,
     };
   }
 
   // Categorize device for better quiz questions
   private static categorizeDevice(deviceName: string): string {
     const name = deviceName.toLowerCase();
-    
+
     if (name.includes('fridge') || name.includes('refrigerator')) return 'appliance';
     if (name.includes('tv') || name.includes('television')) return 'entertainment';
     if (name.includes('fan') || name.includes('ac') || name.includes('air')) return 'climate';
     if (name.includes('light') || name.includes('lamp') || name.includes('bulb')) return 'lighting';
-    if (name.includes('washer') || name.includes('dryer') || name.includes('dishwasher')) return 'laundry';
-    if (name.includes('computer') || name.includes('laptop') || name.includes('printer')) return 'electronics';
-    
+    if (name.includes('washer') || name.includes('dryer') || name.includes('dishwasher'))
+      return 'laundry';
+    if (name.includes('computer') || name.includes('laptop') || name.includes('printer'))
+      return 'electronics';
+
     return 'other';
   }
 }

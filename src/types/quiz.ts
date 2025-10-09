@@ -57,7 +57,14 @@ export interface Badge {
   name: string;
   description: string;
   icon: string;
-  type: 'quiz_master' | 'speed_demon' | 'knowledge_seeker' | 'streak_warrior' | 'energy_expert' | 'eco_champion' | 'general';
+  type:
+    | 'quiz_master'
+    | 'speed_demon'
+    | 'knowledge_seeker'
+    | 'streak_warrior'
+    | 'energy_expert'
+    | 'eco_champion'
+    | 'general';
   count?: number;
   earnedAt: Date;
   category: 'beginner' | 'intermediate' | 'expert' | 'special';

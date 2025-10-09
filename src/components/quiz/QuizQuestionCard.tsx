@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Animated,
-  Dimensions
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import type { QuizQuestion } from '../../types/quiz';
 
@@ -23,7 +16,7 @@ const QuizQuestionCard: React.FC<QuizQuestionCardProps> = ({
   question,
   onAnswer,
   questionNumber,
-  totalQuestions
+  totalQuestions,
 }) => {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -44,7 +37,7 @@ const QuizQuestionCard: React.FC<QuizQuestionCardProps> = ({
       toValue: 1,
       useNativeDriver: true,
       tension: 80,
-      friction: 8
+      friction: 8,
     }).start();
   }, [question.id]);
 
@@ -59,13 +52,13 @@ const QuizQuestionCard: React.FC<QuizQuestionCardProps> = ({
       Animated.timing(optionAnimations[index], {
         toValue: 0.95,
         duration: 100,
-        useNativeDriver: true
+        useNativeDriver: true,
       }),
       Animated.timing(optionAnimations[index], {
         toValue: 1,
         duration: 200,
-        useNativeDriver: true
-      })
+        useNativeDriver: true,
+      }),
     ]).start();
 
     // Show feedback and then submit answer
@@ -150,7 +143,9 @@ const QuizQuestionCard: React.FC<QuizQuestionCardProps> = ({
             {questionNumber} / {totalQuestions}
           </Text>
         </View>
-        <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor(question.category) }]}>
+        <View
+          style={[styles.categoryBadge, { backgroundColor: getCategoryColor(question.category) }]}
+        >
           <Text style={styles.categoryText}>{getCategoryName(question.category)}</Text>
         </View>
       </View>
@@ -165,36 +160,29 @@ const QuizQuestionCard: React.FC<QuizQuestionCardProps> = ({
 
       {/* Options */}
       <View style={styles.optionsContainer}>
-          {question.options?.map((option, index) => (
-            <Animated.View
-              key={index}
-              style={[
-                { transform: [{ scale: optionAnimations[index] }] }
-              ]}
+        {question.options?.map((option, index) => (
+          <Animated.View key={index} style={[{ transform: [{ scale: optionAnimations[index] }] }]}>
+            <TouchableOpacity
+              style={getOptionStyle(option, index)}
+              onPress={() => handleOptionPress(option, index)}
+              disabled={isAnswered}
+              activeOpacity={0.8}
             >
-              <TouchableOpacity
-                style={getOptionStyle(option, index)}
-                onPress={() => handleOptionPress(option, index)}
-                disabled={isAnswered}
-                activeOpacity={0.8}
-              >
-                <View style={styles.optionContent}>
-                  <View style={styles.optionLetter}>
-                    <Text style={styles.optionLetterText}>
-                      {String.fromCharCode(65 + index)}
-                    </Text>
-                  </View>
-                  <Text style={getOptionTextStyle(option)}>{option}</Text>
-                  {isAnswered && option === question.answer && (
-                    <Text style={styles.checkmark}>✓</Text>
-                  )}
-                  {isAnswered && option === selectedOption && option !== question.answer && (
-                    <Text style={styles.crossmark}>✗</Text>
-                  )}
+              <View style={styles.optionContent}>
+                <View style={styles.optionLetter}>
+                  <Text style={styles.optionLetterText}>{String.fromCharCode(65 + index)}</Text>
                 </View>
-              </TouchableOpacity>
-            </Animated.View>
-          ))}
+                <Text style={getOptionTextStyle(option)}>{option}</Text>
+                {isAnswered && option === question.answer && (
+                  <Text style={styles.checkmark}>✓</Text>
+                )}
+                {isAnswered && option === selectedOption && option !== question.answer && (
+                  <Text style={styles.crossmark}>✗</Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        ))}
       </View>
 
       {/* Feedback Tip */}

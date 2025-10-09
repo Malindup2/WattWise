@@ -9,7 +9,7 @@ import {
   BackHandler,
   ScrollView,
   SafeAreaView,
-  Modal
+  Modal,
 } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { QuizService } from '../../services/QuizService';
@@ -33,7 +33,7 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
     totalQuestions: 0,
     score: 0,
     timeElapsed: 0,
-    streak: 0
+    streak: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [showResult, setShowResult] = useState(false);
@@ -51,7 +51,7 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
 
   useEffect(() => {
     initializeQuiz();
-    
+
     // Handle back button on Android
     const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
     return () => {
@@ -66,7 +66,7 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
   useEffect(() => {
     if (!isLoading && questions.length > 0 && timeLeft > 0 && !showResult) {
       const interval = setInterval(() => {
-        setTimeLeft((prev) => {
+        setTimeLeft(prev => {
           if (prev <= 1) {
             // Time's up - auto submit with no answer
             handleAnswer('');
@@ -75,9 +75,9 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
           return prev - 1;
         });
       }, 1000);
-      
+
       setTimerInterval(interval);
-      
+
       return () => {
         clearInterval(interval);
       };
@@ -98,7 +98,7 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
     try {
       setIsLoading(true);
       const currentUser = AuthService.getCurrentUser();
-      
+
       if (!currentUser) {
         Alert.alert('Error', 'Please log in to start quiz');
         onCancel();
@@ -107,7 +107,7 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
 
       // Get user's layout data
       const layoutData = await FirestoreService.getEnhancedUserLayout(currentUser.uid);
-      
+
       if (!layoutData) {
         Alert.alert('Error', 'Unable to load your layout data');
         onCancel();
@@ -128,7 +128,7 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
         totalQuestions: quizQuestions.length,
         score: 0,
         timeElapsed: 0,
-        streak: 0
+        streak: 0,
       });
 
       // Only set loading to false after everything is ready
@@ -138,9 +138,8 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
       Animated.timing(slideAnim, {
         toValue: 1,
         duration: 500,
-        useNativeDriver: true
+        useNativeDriver: true,
       }).start();
-
     } catch (error) {
       console.error('Error initializing quiz:', error);
       Alert.alert('Error', 'Failed to load quiz questions');
@@ -167,7 +166,7 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
         ...progress,
         score: progress.score + result.points,
         streak: newStreak,
-        timeElapsed: timeSpent
+        timeElapsed: timeSpent,
       };
 
       setProgress(newProgress);
@@ -183,16 +182,15 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
         setCurrentQuestionIndex(currentQuestionIndex + 1);
         setProgress({
           ...newProgress,
-          currentQuestion: currentQuestionIndex + 2
+          currentQuestion: currentQuestionIndex + 2,
         });
-        
+
         // Animate to next question
         await animateToNextQuestion();
       } else {
         // Complete quiz
         await completeQuiz();
       }
-
     } catch (error) {
       console.error('Error submitting answer:', error);
       Alert.alert('Error', 'Failed to submit answer');
@@ -200,19 +198,19 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
   };
 
   const showAnswerFeedback = (isCorrect: boolean): Promise<void> => {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       // Fade animation for feedback
       Animated.sequence([
         Animated.timing(fadeAnim, {
           toValue: 0.3,
           duration: 200,
-          useNativeDriver: true
+          useNativeDriver: true,
         }),
         Animated.timing(fadeAnim, {
           toValue: 1,
           duration: 300,
-          useNativeDriver: true
-        })
+          useNativeDriver: true,
+        }),
       ]).start(() => {
         setTimeout(resolve, 500);
       });
@@ -220,18 +218,18 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
   };
 
   const animateToNextQuestion = (): Promise<void> => {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       Animated.sequence([
         Animated.timing(slideAnim, {
           toValue: 0,
           duration: 200,
-          useNativeDriver: true
+          useNativeDriver: true,
         }),
         Animated.timing(slideAnim, {
           toValue: 1,
           duration: 300,
-          useNativeDriver: true
-        })
+          useNativeDriver: true,
+        }),
       ]).start(() => resolve());
     });
   };
@@ -240,7 +238,7 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
     try {
       const result = await QuizService.completeQuizSession(sessionId);
       setFinalStats(result.userStats);
-      
+
       // Check for new badges
       if (result.newBadges && result.newBadges.length > 0) {
         setNewBadges(result.newBadges);
@@ -266,7 +264,9 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
         <View style={styles.loadingContent}>
           <Text style={styles.loadingEmoji}>🧠</Text>
           <Text style={styles.loadingTitle}>Preparing Your Quiz</Text>
-          <Text style={styles.loadingText}>Generating personalized questions based on your energy usage...</Text>
+          <Text style={styles.loadingText}>
+            Generating personalized questions based on your energy usage...
+          </Text>
           <View style={styles.loadingProgress}>
             <View style={styles.loadingBar} />
           </View>
@@ -305,8 +305,11 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
       <QuizProgressBar progress={progress} timeLeft={timeLeft} />
 
       {/* Question Card */}
-      <ScrollView style={styles.questionWrapper} contentContainerStyle={styles.questionScrollContent}>
-        <Animated.View 
+      <ScrollView
+        style={styles.questionWrapper}
+        contentContainerStyle={styles.questionScrollContent}
+      >
+        <Animated.View
           style={[
             styles.questionContainer,
             {
@@ -315,11 +318,11 @@ const QuizSessionScreen: React.FC<QuizSessionScreenProps> = ({ onComplete, onCan
                 {
                   translateX: slideAnim.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [300, 0]
-                  })
-                }
-              ]
-            }
+                    outputRange: [300, 0],
+                  }),
+                },
+              ],
+            },
           ]}
         >
           <QuizQuestionCard
