@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { styles } from '../../../styles/CommunityForum.styles';
 import {
   View,
   Text,
@@ -15,7 +16,7 @@ import {
   Alert,
   Image,
 } from 'react-native';
-import { Colors } from '../constants/Colors';
+import { Colors } from '../../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import {
   collection,
@@ -34,7 +35,7 @@ import {
   getDoc,
   setDoc,
 } from 'firebase/firestore';
-import { auth, db, storage } from '../../config/firebase';
+import { auth, db, storage } from '../../../config/firebase';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
@@ -680,204 +681,5 @@ const CommunityForum: React.FC = () => {
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.backgroundSecondary },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
-    backgroundColor: Colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: Colors.textPrimary },
-  searchBarContainer: {
-    backgroundColor: Colors.white,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
-  searchInputWrap: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: Colors.backgroundSecondary,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: 10,
-    height: 40,
-  },
-  searchInput: { flex: 1, color: Colors.textPrimary, padding: 0 },
-  filterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderWidth: 1,
-    borderColor: Colors.primary,
-    borderRadius: 16,
-    height: 32,
-    paddingHorizontal: 10,
-    backgroundColor: Colors.white,
-  },
-  filterChipText: { color: Colors.primary, fontWeight: '600' },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.primary,
-    borderRadius: 24,
-    paddingHorizontal: 14,
-    height: 40,
-    gap: 8,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.12,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  addButtonText: { color: Colors.textOnPrimary, fontWeight: '600' },
-
-  listContent: { padding: 16, paddingBottom: 110 },
-  loadingWrap: { padding: 24, alignItems: 'center', justifyContent: 'center' },
-  emptyWrap: { alignItems: 'center', justifyContent: 'center', padding: 24 },
-  emptyText: { color: Colors.textSecondary, marginTop: 8 },
-
-  card: {
-    backgroundColor: Colors.white,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 1,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  postTitle: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
-  postHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  postMeta: { fontSize: 12, color: Colors.textLight, marginBottom: 8 },
-  postContent: { fontSize: 14, color: Colors.textSecondary },
-  postImage: {
-    height: 180,
-    borderRadius: 10,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  postActions: { flexDirection: 'row', gap: 16, marginTop: 12 },
-  iconButton: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  iconButtonText: { color: Colors.primary, fontWeight: '600' },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    justifyContent: 'flex-end',
-  },
-  modalCard: {
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: Colors.textPrimary, marginBottom: 12 },
-  input: {
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: Colors.textPrimary,
-    marginBottom: 12,
-  },
-  textarea: { height: 120, textAlignVertical: 'top' },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 4 },
-  secondaryBtn: {
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 24,
-    height: 44,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  secondaryBtnText: { color: Colors.textPrimary, fontWeight: '600' },
-  primaryBtn: {
-    backgroundColor: Colors.primary,
-    borderRadius: 24,
-    height: 44,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryBtnSm: {
-    backgroundColor: Colors.primary,
-    borderRadius: 20,
-    height: 40,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  disabledBtn: { opacity: 0.6 },
-  primaryBtnText: { color: Colors.textOnPrimary, fontWeight: '700' },
-
-  commentsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  postPreview: { marginBottom: 8 },
-  commentsListWrap: { flex: 1, minHeight: 160 },
-  commentCard: {
-    backgroundColor: Colors.backgroundSecondary,
-    borderRadius: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: 8,
-  },
-  commentHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  commentAuthor: { fontWeight: '700', color: Colors.textPrimary },
-  commentDate: { color: Colors.textLight, fontSize: 12 },
-  commentBody: { color: Colors.textSecondary, fontSize: 14 },
-  commentComposer: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  commentInput: { flex: 1 },
-  mediaRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
-  mediaPreview: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  menuOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.2)', justifyContent: 'flex-end' },
-  menuCard: {
-    backgroundColor: Colors.white,
-    padding: 12,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
-  menuItemText: { color: Colors.textPrimary, fontSize: 16 },
-  menuCancel: { marginTop: 4, alignItems: 'center', paddingVertical: 10 },
-  menuCancelText: { color: Colors.textSecondary, fontWeight: '600' },
-});
 
 export default CommunityForum;
