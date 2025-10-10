@@ -66,20 +66,25 @@ export const AlertModal: React.FC<AlertModalProps> = ({
 
       console.log(`Starting entrance animations for alert type: ${type}`);
 
-      // Start entrance animations
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          friction: 8,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      // On iOS, add a tiny delay to ensure smooth modal presentation
+      const animationDelay = Platform.OS === 'ios' ? 50 : 0;
+      
+      setTimeout(() => {
+        // Start entrance animations
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.spring(scaleAnim, {
+            toValue: 1,
+            friction: 8,
+            tension: 40,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }, animationDelay);
 
       // Special animation for success type
       if (type === 'success') {
@@ -98,7 +103,7 @@ export const AlertModal: React.FC<AlertModalProps> = ({
               useNativeDriver: true,
             }),
           ]).start();
-        }, 200);
+        }, 200 + (Platform.OS === 'ios' ? 50 : 0)); // Add the iOS delay to success animation timing
       }
 
       // Setup auto-close timer

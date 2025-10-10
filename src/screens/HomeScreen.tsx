@@ -14,6 +14,7 @@ import {
   Animated,
   Easing,
   Image,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
@@ -26,6 +27,7 @@ import { Colors } from '../constants/Colors';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { AuthService } from '../services/firebase';
 import { User } from 'firebase/auth';
+import { updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { FirestoreService } from '../services/firebase';
 import { LayoutService } from '../services/LayoutService';
 import { DailyUsageService, UsageStats } from '../services/DailyUsageService';
@@ -107,6 +109,19 @@ const HomeScreen = () => {
   // Sidebar state
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [sidebarModalVisible, setSidebarModalVisible] = useState(false);
+
+  // Profile management state
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showAboutModal, setShowAboutModal] = useState(false);
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [updatingProfile, setUpdatingProfile] = useState(false);
+  const [updatingPassword, setUpdatingPassword] = useState(false);
 
   const [energyData, setEnergyData] = useState({
     totalConsumption: 0,
@@ -688,8 +703,14 @@ const HomeScreen = () => {
 
   useEffect(() => {
     loadEnergyData();
-    setUser(AuthService.getCurrentUser());
+    const currentUser = AuthService.getCurrentUser();
+    setUser(currentUser);
     loadUserLayout();
+    
+    // Initialize username for editing
+    if (currentUser?.displayName) {
+      setNewUsername(currentUser.displayName);
+    }
   }, []);
 
   // Effect to trigger animation when usageStats changes
@@ -712,32 +733,189 @@ const HomeScreen = () => {
     return 'Good evening';
   };
 
-  const toggleSidebar = () => {
-    const isOpening = !sidebarVisible;
-
-    if (isOpening) {
+  const toggleSidebar = (callback?: () => void) => {
+    if (!sidebarModalVisible) {
       // Opening: show modal first, then animate in
       setSidebarModalVisible(true);
+      setSidebarVisible(true);
+      
+      // Set initial position
       sidebarAnimation.setValue(-width * 0.8);
-      Animated.spring(sidebarAnimation, {
-        toValue: 0,
-        friction: 8,
-        tension: 100,
-        useNativeDriver: false,
-      }).start(() => {
-        setSidebarVisible(true);
+      
+      // Use requestAnimationFrame for better iOS compatibility
+      requestAnimationFrame(() => {
+        Animated.spring(sidebarAnimation, {
+          toValue: 0,
+          friction: 7,
+          tension: 65,
+          useNativeDriver: true, // Change to true for better iOS performance
+        }).start(() => {
+          // Execute callback after animation completes, with type check
+          if (callback && typeof callback === 'function') {
+            callback();
+          }
+        });
       });
     } else {
       // Closing: animate out, then hide modal
       Animated.spring(sidebarAnimation, {
         toValue: -width * 0.8,
-        friction: 8,
-        tension: 100,
-        useNativeDriver: false,
+        friction: 7,
+        tension: 65,
+        useNativeDriver: true, // Change to true for better iOS performance
       }).start(() => {
         setSidebarVisible(false);
         setSidebarModalVisible(false);
+        
+        // Execute callback after animation completes, with type check
+        if (callback && typeof callback === 'function') {
+          callback();
+        }
       });
+    }
+  };
+
+  // Profile management functions
+  const handleEditProfile = () => {
+    setNewUsername(user?.displayName || user?.email?.split('@')[0] || '');
+    setShowEditProfileModal(true);
+  };
+
+  const handleUpdateProfile = async () => {
+    try {
+      console.log('🔧 Starting profile update...');
+      setUpdatingProfile(true);
+      const currentUser = AuthService.getCurrentUser();
+      if (currentUser && newUsername.trim()) {
+        console.log('🔧 Current user found:', currentUser.uid);
+        console.log('🔧 New username:', newUsername.trim());
+        
+        // Use createOrUpdateUserDocument to handle missing user documents
+        await FirestoreService.createOrUpdateUserDocument(currentUser.uid, {
+          displayName: newUsername.trim(),
+          email: currentUser.email,
+          uid: currentUser.uid,
+        });
+        
+        // Update local user state
+        setUser({ ...currentUser, displayName: newUsername.trim() });
+        
+        console.log('✅ Profile update successful!');
+        
+        // Close the profile modal first
+        setShowEditProfileModal(false);
+        
+        // On iOS, add a delay before showing alert to prevent modal conflicts
+        setTimeout(() => {
+          setAlertType('success');
+          setAlertTitle('Profile Updated');
+          setAlertMessage('Your profile has been updated successfully!');
+          setAlertVisible(true);
+        }, Platform.OS === 'ios' ? 500 : 100);
+      }
+    } catch (error) {
+      console.error('❌ Error updating profile:', error);
+      console.log('🔧 Profile update failed, showing error alert');
+      
+      // Close the profile modal first even on error
+      setShowEditProfileModal(false);
+      
+      // On iOS, add a delay before showing alert to prevent modal conflicts
+      setTimeout(() => {
+        setAlertType('error');
+        setAlertTitle('Update Failed');
+        setAlertMessage('Failed to update profile. Please try again.');
+        setAlertVisible(true);
+      }, Platform.OS === 'ios' ? 500 : 100);
+    } finally {
+      setUpdatingProfile(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    console.log('🔧 Password change function called');
+    
+    // Validate current password is provided
+    if (!currentPassword.trim()) {
+      console.log('❌ Current password missing');
+      setAlertType('error');
+      setAlertTitle('Current Password Required');
+      setAlertMessage('Please enter your current password.');
+      setAlertVisible(true);
+      return;
+    }
+
+    // Validate new password and confirmation match
+    if (newPassword !== confirmPassword) {
+      console.log('❌ Password mismatch');
+      setAlertType('error');
+      setAlertTitle('Password Mismatch');
+      setAlertMessage('New password and confirm password do not match.');
+      setAlertVisible(true);
+      return;
+    }
+
+    // Validate new password length
+    if (newPassword.length < 6) {
+      console.log('❌ Password too short');
+      setAlertType('error');
+      setAlertTitle('Password Too Short');
+      setAlertMessage('Password must be at least 6 characters long.');
+      setAlertVisible(true);
+      return;
+    }
+
+    // Ensure new password is different from current
+    if (currentPassword === newPassword) {
+      console.log('❌ Same password');
+      setAlertType('error');
+      setAlertTitle('Same Password');
+      setAlertMessage('New password must be different from your current password.');
+      setAlertVisible(true);
+      return;
+    }
+
+    try {
+      console.log('🔧 Starting password change...');
+      setUpdatingPassword(true);
+      
+      // Pass both current and new password for reauthentication
+      await AuthService.updatePassword(currentPassword, newPassword);
+      
+      console.log('✅ Password change successful!');
+      
+      // Close the password modal first
+      setShowChangePasswordModal(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      
+      // On iOS, add a delay before showing alert to prevent modal conflicts
+      setTimeout(() => {
+        setAlertType('success');
+        setAlertTitle('Password Updated');
+        setAlertMessage('Your password has been changed successfully!');
+        setAlertVisible(true);
+      }, Platform.OS === 'ios' ? 500 : 100);
+    } catch (error: any) {
+      console.error('❌ Error changing password:', error);
+      console.log('🔧 Password change failed, showing error alert');
+      
+      // Close the password modal first even on error
+      setShowChangePasswordModal(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      
+      // On iOS, add a delay before showing alert to prevent modal conflicts
+      setTimeout(() => {
+        setAlertType('error');
+        setAlertTitle('Password Change Failed');
+        setAlertMessage(error.message || 'Failed to change password. Please try again.');
+        setAlertVisible(true);
+      }, Platform.OS === 'ios' ? 500 : 100);
+    } finally {
+      setUpdatingPassword(false);
     }
   };
 
@@ -753,7 +931,7 @@ const HomeScreen = () => {
           <View style={styles.headerLeft}>
             <TouchableOpacity
               style={styles.hamburgerButton}
-              onPress={toggleSidebar}
+              onPress={() => toggleSidebar()}
             >
               <Ionicons name="menu" size={24} color="#fff" />
             </TouchableOpacity>
@@ -809,13 +987,14 @@ const HomeScreen = () => {
       visible={sidebarModalVisible}
       animationType="none"
       transparent={true}
-      onRequestClose={toggleSidebar}
+      onRequestClose={() => toggleSidebar()}
+      statusBarTranslucent={true}
     >
       <View style={styles.sidebarOverlay}>
         <TouchableOpacity
           style={styles.sidebarBackdrop}
           activeOpacity={1}
-          onPress={toggleSidebar}
+          onPress={() => toggleSidebar()} 
         />
         <Animated.View
           style={[
@@ -828,7 +1007,7 @@ const HomeScreen = () => {
           <View style={styles.sidebarHeader}>
             <TouchableOpacity
               style={styles.closeButton}
-              onPress={toggleSidebar}
+              onPress={() => toggleSidebar()}
             >
               <Ionicons name="close" size={24} color="#64748b" />
             </TouchableOpacity>
@@ -836,52 +1015,123 @@ const HomeScreen = () => {
 
           <View style={styles.sidebarContent}>
             <View style={styles.sidebarProfile}>
-              {user?.photoURL ? (
-                <Image
-                  source={{ uri: user.photoURL }}
-                  style={styles.sidebarProfileImage}
-                />
-              ) : (
-                <View style={styles.sidebarProfilePlaceholder}>
-                  <Text style={styles.sidebarProfileInitial}>
-                    {(user?.email?.split('@')[0] || user?.displayName || 'U').charAt(0).toUpperCase()}
-                  </Text>
+              <TouchableOpacity 
+                style={styles.profileImageContainer}
+                onPress={() => {
+                  toggleSidebar(() => {
+                    setTimeout(() => setShowProfileModal(true), 100);
+                  });
+                }}
+              >
+                {user?.photoURL ? (
+                  <Image
+                    source={{ uri: user.photoURL }}
+                    style={styles.sidebarProfileImage}
+                  />
+                ) : (
+                  <View style={styles.sidebarProfilePlaceholder}>
+                    <Text style={styles.sidebarProfileInitial}>
+                      {(user?.displayName || user?.email?.split('@')[0] || 'U').charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.editProfileBadge}>
+                  <Ionicons name="camera" size={12} color="#fff" />
                 </View>
-              )}
+              </TouchableOpacity>
               <View style={styles.sidebarProfileInfo}>
-                <Text style={styles.sidebarProfileName}>
-                  {user?.email?.split('@')[0] || user?.displayName || 'User'}
-                </Text>
+                <TouchableOpacity onPress={() => {
+                  toggleSidebar(() => {
+                    setTimeout(() => setShowProfileModal(true), 100);
+                  });
+                }}>
+                  <Text style={styles.sidebarProfileName}>
+                    {user?.displayName || user?.email?.split('@')[0] || 'User'}
+                  </Text>
+                </TouchableOpacity>
                 <Text style={styles.sidebarProfileEmail}>
                   {user?.email || ''}
                 </Text>
               </View>
             </View>
 
+            <View style={styles.sidebarDivider} />
+
             <View style={styles.sidebarMenu}>
-              <TouchableOpacity style={styles.sidebarMenuItem}>
-                <Ionicons name="home-outline" size={24} color="#64748b" />
+              <TouchableOpacity 
+                style={styles.sidebarMenuItem}
+                onPress={() => {
+                  toggleSidebar();
+                  // Navigate to Home if needed
+                }}
+              >
+                <View style={styles.menuItemIcon}>
+                  <Ionicons name="home-outline" size={22} color={Colors.primary} />
+                </View>
                 <Text style={styles.sidebarMenuText}>Home</Text>
+                <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.sidebarMenuItem}>
-                <Ionicons name="analytics-outline" size={24} color="#64748b" />
-                <Text style={styles.sidebarMenuText}>Analytics</Text>
+              <TouchableOpacity 
+                style={styles.sidebarMenuItem}
+                onPress={() => {
+                  toggleSidebar(() => {
+                    setTimeout(() => setShowProfileModal(true), 100);
+                  });
+                }}
+              >
+                <View style={styles.menuItemIcon}>
+                  <Ionicons name="person-outline" size={22} color={Colors.primary} />
+                </View>
+                <Text style={styles.sidebarMenuText}>Edit Profile</Text>
+                <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.sidebarMenuItem}>
-                <Ionicons name="settings-outline" size={24} color="#64748b" />
-                <Text style={styles.sidebarMenuText}>Settings</Text>
+              <TouchableOpacity 
+                style={styles.sidebarMenuItem}
+                onPress={() => {
+                  toggleSidebar(() => {
+                    setTimeout(() => setShowChangePasswordModal(true), 100);
+                  });
+                }}
+              >
+                <View style={styles.menuItemIcon}>
+                  <Ionicons name="lock-closed-outline" size={22} color={Colors.primary} />
+                </View>
+                <Text style={styles.sidebarMenuText}>Change Password</Text>
+                <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.sidebarMenuItem}>
-                <Ionicons name="help-circle-outline" size={24} color="#64748b" />
+              <View style={styles.sidebarDivider} />
+
+              <TouchableOpacity 
+                style={styles.sidebarMenuItem}
+                onPress={() => {
+                  toggleSidebar(() => {
+                    setTimeout(() => setShowHelpModal(true), 100);
+                  });
+                }}
+              >
+                <View style={styles.menuItemIcon}>
+                  <Ionicons name="help-circle-outline" size={22} color={Colors.primary} />
+                </View>
                 <Text style={styles.sidebarMenuText}>Help & Support</Text>
+                <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.sidebarMenuItem}>
-                <Ionicons name="information-circle-outline" size={24} color="#64748b" />
+              <TouchableOpacity 
+                style={styles.sidebarMenuItem}
+                onPress={() => {
+                  toggleSidebar(() => {
+                    setTimeout(() => setShowAboutModal(true), 100);
+                  });
+                }}
+              >
+                <View style={styles.menuItemIcon}>
+                  <Ionicons name="information-circle-outline" size={22} color={Colors.primary} />
+                </View>
                 <Text style={styles.sidebarMenuText}>About</Text>
+                <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
               </TouchableOpacity>
             </View>
 
@@ -889,8 +1139,9 @@ const HomeScreen = () => {
               <TouchableOpacity
                 style={styles.sidebarLogoutButton}
                 onPress={() => {
-                  AuthService.signOut();
-                  toggleSidebar();
+                  toggleSidebar(() => {
+                    AuthService.signOut();
+                  });
                 }}
               >
                 <Ionicons name="log-out-outline" size={20} color="#dc2626" />
@@ -1861,6 +2112,239 @@ const HomeScreen = () => {
       <FloatingChatbot />
 
       {renderSidebar()}
+
+      {/* Profile Edit Modal */}
+      <Modal
+        visible={showProfileModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity 
+              onPress={() => {
+                setShowProfileModal(false);
+                setNewUsername('');
+              }}
+              style={styles.modalCloseButton}
+            >
+              <Ionicons name="close" size={24} color={Colors.textPrimary} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Edit Profile</Text>
+            <View style={styles.modalPlaceholder} />
+          </View>
+          
+          <View style={styles.modalContent}>
+            <View style={styles.profileEditSection}>
+              <Text style={styles.inputLabel}>Username</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder={user?.displayName || user?.email?.split('@')[0] || 'Enter username'}
+                value={newUsername}
+                onChangeText={setNewUsername}
+                autoCapitalize="none"
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.updateButton, !newUsername.trim() && styles.updateButtonDisabled]}
+              onPress={handleUpdateProfile}
+              disabled={updatingProfile || !newUsername.trim()}
+            >
+              {updatingProfile ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.updateButtonText}>Update Username</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Password Change Modal */}
+      <Modal
+        visible={showChangePasswordModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity 
+              onPress={() => {
+                setShowChangePasswordModal(false);
+                setCurrentPassword('');
+                setNewPassword('');
+                setConfirmPassword('');
+              }}
+              style={styles.modalCloseButton}
+            >
+              <Ionicons name="close" size={24} color={Colors.textPrimary} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Change Password</Text>
+            <View style={styles.modalPlaceholder} />
+          </View>
+          
+          <View style={styles.modalContent}>
+            <View style={styles.profileEditSection}>
+              <Text style={styles.inputLabel}>Current Password</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Enter current password"
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                secureTextEntry
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.profileEditSection}>
+              <Text style={styles.inputLabel}>New Password</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Enter new password (min 6 characters)"
+                value={newPassword}
+                onChangeText={setNewPassword}
+                secureTextEntry
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.profileEditSection}>
+              <Text style={styles.inputLabel}>Confirm New Password</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Confirm new password"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+                autoCapitalize="none"
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.updateButton, 
+                (!currentPassword || !newPassword || !confirmPassword) && styles.updateButtonDisabled
+              ]}
+              onPress={handleChangePassword}
+              disabled={updatingPassword || !currentPassword || !newPassword || !confirmPassword}
+            >
+              {updatingPassword ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.updateButtonText}>Update Password</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Help & Support Modal */}
+      <Modal
+        visible={showHelpModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity 
+              onPress={() => setShowHelpModal(false)}
+              style={styles.modalCloseButton}
+            >
+              <Ionicons name="close" size={24} color={Colors.textPrimary} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Help & Support</Text>
+            <View style={styles.modalPlaceholder} />
+          </View>
+          
+          <ScrollView style={styles.modalContent}>
+            <View style={styles.helpSection}>
+              <View style={styles.helpItem}>
+                <Ionicons name="mail-outline" size={24} color={Colors.primary} />
+                <View style={styles.helpText}>
+                  <Text style={styles.helpTitle}>Email Support</Text>
+                  <Text style={styles.helpDescription}>support@wattwise.com</Text>
+                </View>
+              </View>
+
+              <View style={styles.helpItem}>
+                <Ionicons name="call-outline" size={24} color={Colors.primary} />
+                <View style={styles.helpText}>
+                  <Text style={styles.helpTitle}>Phone Support</Text>
+                  <Text style={styles.helpDescription}>+1 (555) 123-4567</Text>
+                </View>
+              </View>
+
+              <View style={styles.helpItem}>
+                <Ionicons name="chatbubbles-outline" size={24} color={Colors.primary} />
+                <View style={styles.helpText}>
+                  <Text style={styles.helpTitle}>Live Chat</Text>
+                  <Text style={styles.helpDescription}>Available 24/7</Text>
+                </View>
+              </View>
+
+              <View style={styles.helpItem}>
+                <Ionicons name="document-text-outline" size={24} color={Colors.primary} />
+                <View style={styles.helpText}>
+                  <Text style={styles.helpTitle}>User Guide</Text>
+                  <Text style={styles.helpDescription}>Complete app documentation</Text>
+                </View>
+              </View>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* About Modal */}
+      <Modal
+        visible={showAboutModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity 
+              onPress={() => setShowAboutModal(false)}
+              style={styles.modalCloseButton}
+            >
+              <Ionicons name="close" size={24} color={Colors.textPrimary} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>About WattWise</Text>
+            <View style={styles.modalPlaceholder} />
+          </View>
+          
+          <ScrollView style={styles.modalContent}>
+            <View style={styles.aboutSection}>
+              <View style={styles.appLogo}>
+                <Ionicons name="flash" size={48} color={Colors.primary} />
+                <Text style={styles.appName}>WattWise</Text>
+                <Text style={styles.appVersion}>Version 1.0.0</Text>
+              </View>
+
+              <Text style={styles.aboutDescription}>
+                WattWise is your intelligent energy management companion. 
+                Monitor, analyze, and optimize your energy consumption with 
+                advanced AI-powered insights and recommendations.
+              </Text>
+
+              <View style={styles.aboutItem}>
+                <Text style={styles.aboutLabel}>Developer</Text>
+                <Text style={styles.aboutValue}>WattWise Team</Text>
+              </View>
+
+              <View style={styles.aboutItem}>
+                <Text style={styles.aboutLabel}>Copyright</Text>
+                <Text style={styles.aboutValue}>© 2025 WattWise. All rights reserved.</Text>
+              </View>
+
+              <View style={styles.aboutItem}>
+                <Text style={styles.aboutLabel}>License</Text>
+                <Text style={styles.aboutValue}>MIT License</Text>
+              </View>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -2955,7 +3439,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   sidebarBackdrop: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   sidebar: {
     position: 'absolute',
@@ -2973,11 +3461,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+    zIndex: 1000,
   },
   sidebarHeader: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    padding: 16,
+    paddingTop: 60,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
   },
@@ -3036,13 +3527,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     paddingHorizontal: 8,
-    borderRadius: 8,
+    borderRadius: 12,
     marginBottom: 4,
+    backgroundColor: 'transparent',
   },
   sidebarMenuText: {
     fontSize: 16,
     color: Colors.textPrimary,
-    marginLeft: 16,
+    flex: 1,
     fontWeight: '500',
   },
   sidebarFooter: {
@@ -3062,6 +3554,140 @@ const styles = StyleSheet.create({
     color: '#dc2626',
     marginLeft: 16,
     fontWeight: '500',
+  },
+  // Profile management styles
+  profileImageContainer: {
+    position: 'relative',
+  },
+  editProfileBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+  },
+  sidebarDivider: {
+    height: 1,
+    backgroundColor: '#e2e8f0',
+    marginVertical: 16,
+  },
+  menuItemIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: `${Colors.primary}15`,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  // Additional modal styles
+  profileEditSection: {
+    marginBottom: 24,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.textPrimary,
+    marginBottom: 8,
+  },
+  modalInput: {
+    height: 50,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    backgroundColor: '#f8fafc',
+  },
+  updateButton: {
+    height: 50,
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  updateButtonDisabled: {
+    backgroundColor: '#94a3b8',
+  },
+  updateButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  // Help section styles
+  helpSection: {
+    padding: 20,
+  },
+  helpItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  helpText: {
+    marginLeft: 16,
+    flex: 1,
+  },
+  helpTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  helpDescription: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  // About section styles
+  aboutSection: {
+    padding: 20,
+  },
+  appLogo: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  appName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.textPrimary,
+    marginTop: 12,
+  },
+  appVersion: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginTop: 4,
+  },
+  aboutDescription: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: Colors.textSecondary,
+    marginBottom: 32,
+    textAlign: 'center',
+  },
+  aboutItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  aboutLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.textPrimary,
+  },
+  aboutValue: {
+    fontSize: 16,
+    color: Colors.textSecondary,
   },
 });
 
