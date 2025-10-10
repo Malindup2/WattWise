@@ -4,6 +4,8 @@
  * @param end - End time in "HH:MM" format
  * @returns Duration in hours (decimal)
  */
+import { Task } from '../types/actionPlanner';
+
 export const calculateDuration = (start: string, end: string): number => {
   const [startHour, startMin] = start.split(':').map(Number);
   const [endHour, endMin] = end.split(':').map(Number);
@@ -74,4 +76,8 @@ export const formatTime = (time: string): string => {
  */
 export const generateId = (): string => {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
+};
+
+export const calculateImpactScore = (task: Task) => {
+  return (task.energySaved || 0) * 0.6 + (task.moneySaved || 0) * 0.4;
 };
