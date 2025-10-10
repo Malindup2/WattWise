@@ -810,20 +810,25 @@ const HomeScreen = () => {
     try {
       console.log('🔧 Starting profile update...');
       setUpdatingProfile(true);
+      
       const currentUser = AuthService.getCurrentUser();
       if (currentUser && newUsername.trim()) {
+        // Save the username value before clearing form
+        const usernameToUpdate = newUsername.trim();
+        
         console.log('🔧 Current user found:', currentUser.uid);
-        console.log('🔧 New username:', newUsername.trim());
+        console.log('🔧 New username:', usernameToUpdate);
         
         // Update the existing user document by finding it with the uid field
         await FirestoreService.updateUserDocumentByUid(currentUser.uid, {
-          username: newUsername.trim(),
+          username: usernameToUpdate,
         });
         
         console.log('✅ Profile update successful!');
         
-        // Close the profile modal first
-        setShowEditProfileModal(false);
+        // Close the profile modal first (AFTER API call succeeds, like password update)
+        setShowProfileModal(false);
+        setNewUsername(''); // Clear form field
         
         // Use requestAnimationFrame for better iOS compatibility instead of setTimeout
         requestAnimationFrame(() => {
@@ -833,20 +838,20 @@ const HomeScreen = () => {
             setAlertTitle('Profile Updated');
             setAlertMessage('Your profile has been updated successfully!');
             setAlertVisible(true);
-            
-            // Update local user state after showing alert to avoid render interference
-            setUser({ ...currentUser, displayName: newUsername.trim() });
-            // Reload user profile to get updated data from Firestore
-            loadUserProfile();
           });
         });
+        
+        // Update local user state and reload profile data after alert timing
+        setUser({ ...currentUser, displayName: usernameToUpdate });
+        loadUserProfile();
       }
     } catch (error) {
       console.error('❌ Error updating profile:', error);
       console.log('🔧 Profile update failed, showing error alert');
       
-      // Close the profile modal first even on error
-      setShowEditProfileModal(false);
+      // Close the profile modal first even on error (like password update)
+      setShowProfileModal(false);
+      setNewUsername(''); // Clear form field
       
       // Use requestAnimationFrame for better iOS compatibility instead of setTimeout
       requestAnimationFrame(() => {
