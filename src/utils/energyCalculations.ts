@@ -36,8 +36,19 @@ export const calculatePowerUsage = (wattage: number, totalHours: number): number
  * @returns Total energy consumption in kWh
  */
 export const calculateRoomEnergyConsumption = (devices: any[]): number => {
+  if (!devices || !Array.isArray(devices)) {
+    return 0;
+  }
+  
   return devices.reduce((total, device) => {
+    if (!device || !device.usage || !Array.isArray(device.usage)) {
+      return total;
+    }
+    
     const deviceTotal = device.usage.reduce((deviceSum: number, usage: any) => {
+      if (!usage || typeof usage.totalHours !== 'number' || typeof device.wattage !== 'number') {
+        return deviceSum;
+      }
       return deviceSum + calculatePowerUsage(device.wattage, usage.totalHours);
     }, 0);
     return total + deviceTotal;
@@ -50,7 +61,14 @@ export const calculateRoomEnergyConsumption = (devices: any[]): number => {
  * @returns Total energy consumption in kWh
  */
 export const calculateLayoutEnergyConsumption = (rooms: any[]): number => {
+  if (!rooms || !Array.isArray(rooms)) {
+    return 0;
+  }
+  
   return rooms.reduce((total, room) => {
+    if (!room) {
+      return total;
+    }
     return total + calculateRoomEnergyConsumption(room.devices || []);
   }, 0);
 };

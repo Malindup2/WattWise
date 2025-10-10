@@ -198,26 +198,14 @@ export class LayoutService {
     deviceData: {
       deviceName: string;
       wattage: number;
-      startTime: string;
-      endTime: string;
     }
   ): Promise<Device> {
     try {
-      const totalHours = calculateDuration(deviceData.startTime, deviceData.endTime);
-      const totalPowerUsed = calculatePowerUsage(deviceData.wattage, totalHours);
-
       const newDevice: Device = {
         deviceId: generateId(),
         deviceName: deviceData.deviceName,
         wattage: deviceData.wattage,
-        usage: [
-          {
-            start: deviceData.startTime,
-            end: deviceData.endTime,
-            totalHours,
-          },
-        ],
-        totalPowerUsed,
+        // Usage schedule is handled in Energy Usage section, not here
       };
 
       const layoutRef = doc(db, 'layouts', userId);
@@ -278,8 +266,6 @@ export class LayoutService {
     updates: {
       deviceName?: string;
       wattage?: number;
-      startTime?: string;
-      endTime?: string;
     }
   ): Promise<void> {
     try {
@@ -296,25 +282,6 @@ export class LayoutService {
 
                 if (updates.deviceName) updatedDevice.deviceName = updates.deviceName;
                 if (updates.wattage) updatedDevice.wattage = updates.wattage;
-
-                if (updates.startTime || updates.endTime) {
-                  const startTime = updates.startTime || device.usage[0]?.start || '00:00';
-                  const endTime = updates.endTime || device.usage[0]?.end || '00:00';
-                  const totalHours = calculateDuration(startTime, endTime);
-
-                  updatedDevice.usage = [
-                    {
-                      start: startTime,
-                      end: endTime,
-                      totalHours,
-                    },
-                  ];
-
-                  updatedDevice.totalPowerUsed = calculatePowerUsage(
-                    updatedDevice.wattage,
-                    totalHours
-                  );
-                }
 
                 return updatedDevice;
               }
