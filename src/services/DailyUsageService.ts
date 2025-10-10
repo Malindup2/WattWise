@@ -1,4 +1,16 @@
-import { doc, collection, addDoc, getDocs, query, where, orderBy, updateDoc, deleteDoc, getDoc, setDoc } from 'firebase/firestore';
+import {
+  doc,
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  updateDoc,
+  deleteDoc,
+  getDoc,
+  setDoc,
+} from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { generateId, calculateDuration, calculatePowerUsage } from '../utils/energyCalculations';
 
@@ -80,10 +92,10 @@ export class DailyUsageService {
       if (dailyDoc.exists()) {
         // Update existing daily summary
         const dailyData = dailyDoc.data() as DailyUsageSummary;
-        
+
         // Find or create room entry
         const roomIndex = dailyData.rooms.findIndex(room => room.roomId === roomId);
-        
+
         if (roomIndex >= 0) {
           // Add entry to existing room
           dailyData.rooms[roomIndex].entries.push(newEntry);
@@ -108,12 +120,14 @@ export class DailyUsageService {
         const newDailySummary: DailyUsageSummary = {
           date,
           userId,
-          rooms: [{
-            roomId,
-            roomName,
-            entries: [newEntry],
-            totalPowerUsed: powerUsed,
-          }],
+          rooms: [
+            {
+              roomId,
+              roomName,
+              entries: [newEntry],
+              totalPowerUsed: powerUsed,
+            },
+          ],
           totalDailyUsage: powerUsed,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -151,8 +165,8 @@ export class DailyUsageService {
    * Get usage data for a date range - simplified approach
    */
   static async getUsageRange(
-    userId: string, 
-    startDate: string, 
+    userId: string,
+    startDate: string,
     endDate: string
   ): Promise<DailyUsageSummary[]> {
     try {
@@ -160,20 +174,19 @@ export class DailyUsageService {
       const dates = [];
       const start = new Date(startDate);
       const end = new Date(endDate);
-      
+
       for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
         dates.push(date.toISOString().split('T')[0]);
       }
-      
+
       // Fetch each date individually to avoid composite index requirement
       const promises = dates.map(date => this.getDailyUsage(userId, date));
       const results = await Promise.all(promises);
-      
+
       // Filter out null results and return sorted array
       return results
         .filter((result): result is DailyUsageSummary => result !== null)
         .sort((a, b) => a.date.localeCompare(b.date));
-        
     } catch (error) {
       console.error('Error getting usage range:', error);
       return []; // Return empty array instead of throwing
@@ -191,7 +204,7 @@ export class DailyUsageService {
       // Get today's and yesterday's usage directly
       const [todayUsage, yesterdayUsage] = await Promise.all([
         this.getDailyUsage(userId, today),
-        this.getDailyUsage(userId, yesterday)
+        this.getDailyUsage(userId, yesterday),
       ]);
 
       const todayTotal = todayUsage?.totalDailyUsage || 0;
@@ -211,11 +224,11 @@ export class DailyUsageService {
           const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
           weekDates.push(date);
         }
-        
+
         const weekPromises = weekDates.map(date => this.getDailyUsage(userId, date));
         const weekResults = await Promise.all(weekPromises);
         const weeklyData = weekResults.filter(result => result !== null);
-        
+
         if (weeklyData.length > 0) {
           const weeklyTotal = weeklyData.reduce((sum, day) => sum + day.totalDailyUsage, 0);
           weeklyAverage = weeklyTotal / weeklyData.length;
@@ -272,7 +285,7 @@ export class DailyUsageService {
       // Fetch each date individually
       const promises = dates.map(date => this.getDailyUsage(userId, date));
       const results = await Promise.all(promises);
-      
+
       // Convert results to usage values (0 if no data)
       return results.map(result => result?.totalDailyUsage || 0);
     } catch (error) {
@@ -325,29 +338,29 @@ export class DailyUsageService {
 
       if (dailyDoc.exists()) {
         const dailyData = dailyDoc.data() as DailyUsageSummary;
-        
+
         // Find room and remove entry
         const roomIndex = dailyData.rooms.findIndex(room => room.roomId === roomId);
         if (roomIndex >= 0) {
           const entryIndex = dailyData.rooms[roomIndex].entries.findIndex(
             entry => entry.entryId === entryId
           );
-          
+
           if (entryIndex >= 0) {
             const removedEntry = dailyData.rooms[roomIndex].entries[entryIndex];
-            
+
             // Remove entry and update totals
             dailyData.rooms[roomIndex].entries.splice(entryIndex, 1);
             dailyData.rooms[roomIndex].totalPowerUsed -= removedEntry.powerUsed;
             dailyData.totalDailyUsage -= removedEntry.powerUsed;
-            
+
             // Remove room if no entries left
             if (dailyData.rooms[roomIndex].entries.length === 0) {
               dailyData.rooms.splice(roomIndex, 1);
             }
-            
+
             dailyData.updatedAt = new Date();
-            
+
             // Update or delete document
             if (dailyData.rooms.length === 0) {
               await deleteDoc(dailySummaryRef);
@@ -368,45 +381,70 @@ export class DailyUsageService {
   /**
    * Get category breakdown for energy insights
    */
-  static async getCategoryBreakdown(userId: string, days: number = 7): Promise<{ [key: string]: number }> {
+  static async getCategoryBreakdown(
+    userId: string,
+    days: number = 7
+  ): Promise<{ [key: string]: number }> {
     try {
       const endDate = new Date().toISOString().split('T')[0];
-      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      
+      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split('T')[0];
+
       let usageData: DailyUsageSummary[] = [];
       try {
         usageData = await this.getUsageRange(userId, startDate, endDate);
       } catch (error) {
         console.warn('Could not get category breakdown data, returning default values');
         return {
-          'Lighting': 20,
-          'Appliances': 40,
-          'Electronics': 25,
-          'HVAC': 10,
-          'Other': 5,
+          Lighting: 20,
+          Appliances: 40,
+          Electronics: 25,
+          HVAC: 10,
+          Other: 5,
         };
       }
-      
+
       const categories: { [key: string]: number } = {
-        'Lighting': 0,
-        'Appliances': 0,
-        'Electronics': 0,
-        'HVAC': 0,
-        'Other': 0,
+        Lighting: 0,
+        Appliances: 0,
+        Electronics: 0,
+        HVAC: 0,
+        Other: 0,
       };
 
       usageData.forEach(day => {
         day.rooms.forEach(room => {
           room.entries.forEach(entry => {
             const deviceName = entry.deviceName.toLowerCase();
-            
-            if (deviceName.includes('light') || deviceName.includes('lamp') || deviceName.includes('cfl') || deviceName.includes('led')) {
+
+            if (
+              deviceName.includes('light') ||
+              deviceName.includes('lamp') ||
+              deviceName.includes('cfl') ||
+              deviceName.includes('led')
+            ) {
               categories['Lighting'] += entry.powerUsed;
-            } else if (deviceName.includes('fridge') || deviceName.includes('washing') || deviceName.includes('microwave') || deviceName.includes('oven')) {
+            } else if (
+              deviceName.includes('fridge') ||
+              deviceName.includes('washing') ||
+              deviceName.includes('microwave') ||
+              deviceName.includes('oven')
+            ) {
               categories['Appliances'] += entry.powerUsed;
-            } else if (deviceName.includes('tv') || deviceName.includes('computer') || deviceName.includes('laptop') || deviceName.includes('phone')) {
+            } else if (
+              deviceName.includes('tv') ||
+              deviceName.includes('computer') ||
+              deviceName.includes('laptop') ||
+              deviceName.includes('phone')
+            ) {
               categories['Electronics'] += entry.powerUsed;
-            } else if (deviceName.includes('ac') || deviceName.includes('heater') || deviceName.includes('fan') || deviceName.includes('hvac')) {
+            } else if (
+              deviceName.includes('ac') ||
+              deviceName.includes('heater') ||
+              deviceName.includes('fan') ||
+              deviceName.includes('hvac')
+            ) {
               categories['HVAC'] += entry.powerUsed;
             } else {
               categories['Other'] += entry.powerUsed;
@@ -424,11 +462,11 @@ export class DailyUsageService {
       } else {
         // Return default percentages if no data
         return {
-          'Lighting': 20,
-          'Appliances': 40,
-          'Electronics': 25,
-          'HVAC': 10,
-          'Other': 5,
+          Lighting: 20,
+          Appliances: 40,
+          Electronics: 25,
+          HVAC: 10,
+          Other: 5,
         };
       }
 
@@ -436,11 +474,11 @@ export class DailyUsageService {
     } catch (error) {
       console.error('Error getting category breakdown:', error);
       return {
-        'Lighting': 20,
-        'Appliances': 40,
-        'Electronics': 25,
-        'HVAC': 10,
-        'Other': 5,
+        Lighting: 20,
+        Appliances: 40,
+        Electronics: 25,
+        HVAC: 10,
+        Other: 5,
       };
     }
   }
