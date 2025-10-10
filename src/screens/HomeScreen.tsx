@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
@@ -94,6 +95,10 @@ const HomeScreen = () => {
   const [weeklyTrend, setWeeklyTrend] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
   const [categoryBreakdown, setCategoryBreakdown] = useState<{ [key: string]: number }>({});
 
+  // Animation values for circular progress
+  const progressAnimation = useRef(new Animated.Value(0)).current;
+  const percentageAnimation = useRef(new Animated.Value(0)).current;
+
   const [energyData, setEnergyData] = useState({
     totalConsumption: 0,
     currentUsage: 0,
@@ -111,6 +116,27 @@ const HomeScreen = () => {
 
   const [refreshing, setRefreshing] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('Week');
+
+  // Function to animate circular progress
+  const animateProgress = (targetPercentage: number) => {
+    // Reset animations
+    progressAnimation.setValue(0);
+    percentageAnimation.setValue(0);
+
+    // Animate progress arc
+    Animated.timing(progressAnimation, {
+      toValue: targetPercentage / 100,
+      duration: 1500,
+      useNativeDriver: false,
+    }).start();
+
+    // Animate percentage counter
+    Animated.timing(percentageAnimation, {
+      toValue: targetPercentage,
+      duration: 1500,
+      useNativeDriver: false,
+    }).start();
+  };
 
   const loadEnergyData = async () => {
     try {
@@ -144,6 +170,16 @@ const HomeScreen = () => {
             'Other': categories['Other'] || 0,
           },
         }));
+
+        // Calculate efficiency percentage and trigger animation
+        const efficiencyPercentage = stats.weeklyAverage > 0 
+          ? Math.max(0, Math.min(100, ((stats.weeklyAverage - stats.today) / stats.weeklyAverage) * 100))
+          : 75;
+        
+        // Trigger circular progress animation with real data
+        setTimeout(() => {
+          animateProgress(Math.round(efficiencyPercentage));
+        }, 500); // Small delay to ensure UI is ready
       }
     } catch (error) {
       console.error('Error loading energy data:', error);
@@ -647,6 +683,19 @@ const HomeScreen = () => {
     loadUserLayout();
   }, []);
 
+  // Effect to trigger animation when usageStats changes
+  useEffect(() => {
+    if (usageStats.today !== 0 || usageStats.weeklyAverage !== 0) {
+      const efficiencyPercentage = usageStats.weeklyAverage > 0 
+        ? Math.max(0, Math.min(100, ((usageStats.weeklyAverage - usageStats.today) / usageStats.weeklyAverage) * 100))
+        : 75;
+      
+      setTimeout(() => {
+        animateProgress(Math.round(efficiencyPercentage));
+      }, 800); // Delay for smooth entrance
+    }
+  }, [usageStats.today, usageStats.weeklyAverage]);
+
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
@@ -770,50 +819,133 @@ const HomeScreen = () => {
     </Animatable.View>
   );
 
-  const renderDailyUsageSection = () => (
-    <Animatable.View animation="fadeInUp" delay={500} style={styles.dailyUsageSection}>
-      <View style={styles.dailyUsageHeader}>
-        <Text style={styles.sectionTitle}>Today's Energy Usage</Text>
-        <TouchableOpacity 
-          style={styles.addUsageButton}
-          onPress={() => setShowUsageInput(true)}
-        >
-          <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
-          <Text style={styles.addUsageText}>Log Usage</Text>
-        </TouchableOpacity>
-      </View>
+  const renderDailyUsageSection = () => {
+    // Calculate efficiency percentage based on comparison with weekly average
+    const efficiencyPercentage = usageStats.weeklyAverage > 0 
+      ? Math.max(0, Math.min(100, ((usageStats.weeklyAverage - usageStats.today) / usageStats.weeklyAverage) * 100))
+      : 75;
 
-      <View style={styles.todayStatsCard}>
-        <View style={styles.todayStatsRow}>
-          <View style={styles.todayStat}>
-            <Ionicons name="flash" size={20} color={Colors.primary} />
-            <Text style={styles.todayStatValue}>{usageStats.today.toFixed(2)} kWh</Text>
-            <Text style={styles.todayStatLabel}>Today</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.todayStat}>
-            <Ionicons name="calendar-outline" size={20} color={Colors.gray} />
-            <Text style={styles.todayStatValue}>{usageStats.yesterday.toFixed(2)} kWh</Text>
-            <Text style={styles.todayStatLabel}>Yesterday</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.todayStat}>
-            <Ionicons name="analytics-outline" size={20} color={Colors.primaryLight} />
-            <Text style={styles.todayStatValue}>{usageStats.weeklyAverage.toFixed(2)} kWh</Text>
-            <Text style={styles.todayStatLabel}>Weekly Avg</Text>
-          </View>
+    const isHighConsume = usageStats.today > usageStats.weeklyAverage;
+    const displayPercentage = Math.round(efficiencyPercentage);
+
+    // Animated rotation values
+    const highConsumeRotation = progressAnimation.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', `${isHighConsume ? (100 - displayPercentage) * 1.8 : 0}deg`]
+    });
+
+    const economyRotation = progressAnimation.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', `${!isHighConsume ? displayPercentage * 1.8 : 0}deg`]
+    });
+
+    // Animated percentage display
+    const animatedPercentage = percentageAnimation.interpolate({
+      inputRange: [0, 100],
+      outputRange: [0, displayPercentage],
+      extrapolate: 'clamp'
+    });
+    
+    return (
+      <Animatable.View animation="fadeInUp" delay={500} style={styles.dailyUsageSection}>
+        <View style={styles.dailyUsageHeader}>
+          <Text style={styles.sectionTitle}>Today Usage</Text>
+          <TouchableOpacity 
+            style={styles.addUsageButton}
+            onPress={() => setShowUsageInput(true)}
+          >
+            <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
+            <Text style={styles.addUsageText}>Log Usage</Text>
+          </TouchableOpacity>
         </View>
 
-        <TouchableOpacity 
-          style={styles.viewDetailsButton}
-          onPress={() => setShowDailyUsage(true)}
-        >
-          <Text style={styles.viewDetailsText}>View Detailed Usage</Text>
-          <Ionicons name="chevron-forward" size={16} color={Colors.primary} />
-        </TouchableOpacity>
-      </View>
-    </Animatable.View>
-  );
+        <View style={styles.todayStatsCard}>
+          {/* Circular Progress Indicator */}
+          <View style={styles.circularProgressContainer}>
+            <View style={styles.circularProgress}>
+              {/* Background Circle */}
+              <View style={styles.progressBackground} />
+              
+              {/* Progress Arc - High Consume (Red) */}
+              <Animated.View style={[
+                styles.progressArc, 
+                styles.progressHigh,
+                { 
+                  transform: [{ rotate: highConsumeRotation }] 
+                }
+              ]} />
+              
+              {/* Progress Arc - Economy (Green) */}
+              <Animated.View style={[
+                styles.progressArc, 
+                styles.progressEconomy,
+                { 
+                  transform: [{ rotate: economyRotation }] 
+                }
+              ]} />
+              
+              {/* Center Circle with Lightning Icon and Percentage */}
+              <View style={styles.progressCenter}>
+                <Ionicons name="flash" size={24} color={Colors.textPrimary} />
+                <Text style={styles.progressPercentage}>
+                  {displayPercentage}%
+                </Text>
+                <Text style={styles.progressLabel}>
+                  {isHighConsume ? 'High Usage' : 'Efficient'}
+                </Text>
+              </View>
+            </View>
+            
+            {/* Legend */}
+            <View style={styles.progressLegend}>
+              <View style={styles.legendRow}>
+                <View style={styles.legendItemProgress}>
+                  <View style={[styles.legendDot, { backgroundColor: '#ef4444' }]} />
+                  <Text style={styles.legendTextProgress}>High consume</Text>
+                </View>
+                <View style={styles.legendItemProgress}>
+                  <View style={[styles.legendDot, { backgroundColor: Colors.primary }]} />
+                  <Text style={styles.legendTextProgress}>Economy</Text>
+                </View>
+              </View>
+              <Text style={styles.progressSummary}>
+                {displayPercentage}% electricity {isHighConsume ? 'above average' : 'saved'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Original 3 Stats Row */}
+          <View style={styles.todayStatsRow}>
+            <View style={styles.todayStat}>
+              <Ionicons name="flash" size={20} color={Colors.primary} />
+              <Text style={styles.todayStatValue}>{usageStats.today.toFixed(2)} kWh</Text>
+              <Text style={styles.todayStatLabel}>Today</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.todayStat}>
+              <Ionicons name="calendar-outline" size={20} color={Colors.gray} />
+              <Text style={styles.todayStatValue}>{usageStats.yesterday.toFixed(2)} kWh</Text>
+              <Text style={styles.todayStatLabel}>Yesterday</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.todayStat}>
+              <Ionicons name="analytics-outline" size={20} color={Colors.primaryLight} />
+              <Text style={styles.todayStatValue}>{usageStats.weeklyAverage.toFixed(2)} kWh</Text>
+              <Text style={styles.todayStatLabel}>Weekly Avg</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity 
+            style={styles.viewDetailsButton}
+            onPress={() => setShowDailyUsage(true)}
+          >
+            <Text style={styles.viewDetailsText}>View Detailed Usage</Text>
+            <Ionicons name="chevron-forward" size={16} color={Colors.primary} />
+          </TouchableOpacity>
+        </View>
+      </Animatable.View>
+    );
+  };
 
   const renderCharts = () => (
     <Animatable.View animation="fadeInUp" delay={600} style={styles.chartsContainer}>
@@ -2450,6 +2582,98 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  
+  // Circular Progress Styles
+  circularProgressContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  circularProgress: {
+    width: 160,
+    height: 160,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    marginBottom: 16,
+  },
+  progressBackground: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    borderWidth: 8,
+    borderColor: '#F3F4F6',
+  },
+  progressArc: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    borderWidth: 8,
+    borderColor: 'transparent',
+    borderTopColor: '#ef4444',
+    transform: [{ rotate: '-90deg' }],
+  },
+  progressHigh: {
+    borderTopColor: '#ef4444',
+  },
+  progressEconomy: {
+    borderTopColor: Colors.primary,
+  },
+  progressCenter: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 10,
+  },
+  progressPercentage: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.textPrimary,
+    marginTop: 4,
+  },
+  progressLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+  },
+  progressLegend: {
+    alignItems: 'center',
+  },
+  legendRow: {
+    flexDirection: 'row',
+    gap: 24,
+    marginBottom: 8,
+  },
+  legendItemProgress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  legendTextProgress: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  progressSummary: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    textAlign: 'center',
+  },
+  
   todayStatsRow: {
     flexDirection: 'row',
     alignItems: 'center',
