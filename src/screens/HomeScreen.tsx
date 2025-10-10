@@ -17,12 +17,15 @@ import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Animatable from 'react-native-animatable';
 import AnimatedCounter from '../components/AnimatedCounter';
+import DailyUsageInput from '../components/DailyUsageInput';
+import DailyUsageDisplay from '../components/DailyUsageDisplay';
 import { Colors } from '../constants/Colors';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { AuthService } from '../services/firebase';
 import { User } from 'firebase/auth';
 import { FirestoreService } from '../services/firebase';
 import { LayoutService } from '../services/LayoutService';
+import { DailyUsageService, UsageStats } from '../services/DailyUsageService';
 import { AlertModal } from '../components/AlertModal';
 import { AddEditDeviceModal } from '../components/modals';
 import { DEVICE_PRESETS, ROOM_ICONS } from '../constants/DeviceTypes';
@@ -77,18 +80,32 @@ const HomeScreen = () => {
   const [editingDevice, setEditingDevice] = useState<any>(null);
   const [expandedRoom, setExpandedRoom] = useState<string | null>(null);
 
+  // Daily usage tracking state
+  const [showUsageInput, setShowUsageInput] = useState(false);
+  const [showDailyUsage, setShowDailyUsage] = useState(false);
+  const [usageStats, setUsageStats] = useState<UsageStats>({
+    today: 0,
+    yesterday: 0,
+    weeklyAverage: 0,
+    monthlyTotal: 0,
+    trend: 'stable',
+    trendPercentage: 0,
+  });
+  const [weeklyTrend, setWeeklyTrend] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
+  const [categoryBreakdown, setCategoryBreakdown] = useState<{ [key: string]: number }>({});
+
   const [energyData, setEnergyData] = useState({
-    totalConsumption: 2847,
-    currentUsage: 3.2,
-    monthlyBill: 284.5,
-    efficiency: 87,
-    predictions: [2.1, 2.8, 3.2, 2.9, 3.5, 4.1, 3.8],
+    totalConsumption: 0,
+    currentUsage: 0,
+    monthlyBill: 0,
+    efficiency: 0,
+    predictions: [0, 0, 0, 0, 0, 0, 0],
     categories: {
-      'Heat/Cool': 45,
-      Appliances: 23,
-      Lighting: 12,
-      Electronics: 15,
-      Other: 5,
+      'Lighting': 0,
+      'Appliances': 0,
+      'Electronics': 0,
+      'HVAC': 0,
+      'Other': 0,
     },
   });
 
@@ -97,15 +114,40 @@ const HomeScreen = () => {
 
   const loadEnergyData = async () => {
     try {
-      setTimeout(() => {
+      const user = AuthService.getCurrentUser();
+      if (user) {
+        // Load real usage statistics
+        const stats = await DailyUsageService.getUsageStats(user.uid);
+        setUsageStats(stats);
+
+        // Load weekly trend for charts
+        const trend = await DailyUsageService.getWeeklyTrend(user.uid);
+        setWeeklyTrend(trend);
+
+        // Load category breakdown
+        const categories = await DailyUsageService.getCategoryBreakdown(user.uid, 7);
+        setCategoryBreakdown(categories);
+
+        // Update energy data with real values
         setEnergyData(prev => ({
           ...prev,
-          currentUsage: Math.random() * 5 + 2,
-          efficiency: Math.floor(Math.random() * 15 + 80),
+          totalConsumption: stats.monthlyTotal,
+          currentUsage: stats.today,
+          monthlyBill: stats.monthlyTotal * 0.1, // Assuming 0.1 LKR per kWh
+          efficiency: Math.min(100, Math.max(0, 100 - (stats.trendPercentage || 0))),
+          predictions: trend,
+          categories: {
+            'Lighting': categories['Lighting'] || 0,
+            'Appliances': categories['Appliances'] || 0,
+            'Electronics': categories['Electronics'] || 0,
+            'HVAC': categories['HVAC'] || 0,
+            'Other': categories['Other'] || 0,
+          },
         }));
-      }, 1000);
+      }
     } catch (error) {
       console.error('Error loading energy data:', error);
+      // Keep default values on error
     }
   };
 
@@ -258,8 +300,6 @@ const HomeScreen = () => {
   const handleAddDevice = async (deviceData: {
     deviceName: string;
     wattage: number;
-    startTime: string;
-    endTime: string;
   }) => {
     if (!selectedRoom || !user) return;
 
@@ -316,8 +356,6 @@ const HomeScreen = () => {
   const handleEditDevice = async (deviceData: {
     deviceName: string;
     wattage: number;
-    startTime: string;
-    endTime: string;
   }) => {
     if (!editingDevice || !selectedRoom || !user) return;
 
@@ -598,6 +636,11 @@ const HomeScreen = () => {
     setRefreshing(false);
   };
 
+  const handleUsageAdded = async () => {
+    // Refresh data when new usage is added
+    await loadEnergyData();
+  };
+
   useEffect(() => {
     loadEnergyData();
     setUser(AuthService.getCurrentUser());
@@ -657,15 +700,24 @@ const HomeScreen = () => {
             <Ionicons name="speedometer-outline" size={24} color="#3b82f6" />
           </View>
           <AnimatedCounter
-            value={energyData.currentUsage}
+            value={usageStats.today}
             style={styles.metricValue}
-            suffix=" kW"
-            decimals={1}
+            suffix=" kWh"
+            decimals={2}
           />
-          <Text style={styles.metricLabel}>Current Usage</Text>
+          <Text style={styles.metricLabel}>Today's Usage</Text>
           <View style={styles.metricChange}>
-            <Ionicons name="trending-up" size={12} color="#ef4444" />
-            <Text style={[styles.changeText, { color: '#ef4444' }]}>+5.2%</Text>
+            <Ionicons 
+              name={usageStats.trend === 'up' ? 'trending-up' : usageStats.trend === 'down' ? 'trending-down' : 'remove'} 
+              size={12} 
+              color={usageStats.trend === 'up' ? '#ef4444' : usageStats.trend === 'down' ? '#22c55e' : '#6b7280'} 
+            />
+            <Text style={[
+              styles.changeText, 
+              { color: usageStats.trend === 'up' ? '#ef4444' : usageStats.trend === 'down' ? '#22c55e' : '#6b7280' }
+            ]}>
+              {usageStats.trend === 'stable' ? 'Stable' : `${usageStats.trendPercentage.toFixed(1)}%`}
+            </Text>
           </View>
         </View>
 
@@ -674,14 +726,15 @@ const HomeScreen = () => {
             <Ionicons name="calendar-outline" size={24} color="#a855f7" />
           </View>
           <AnimatedCounter
-            value={energyData.totalConsumption}
+            value={usageStats.monthlyTotal}
             style={styles.metricValue}
             suffix=" kWh"
+            decimals={1}
           />
           <Text style={styles.metricLabel}>Monthly Total</Text>
           <View style={styles.metricChange}>
             <Ionicons name="trending-down" size={12} color="#22c55e" />
-            <Text style={[styles.changeText, { color: '#22c55e' }]}>-8.1%</Text>
+            <Text style={[styles.changeText, { color: '#22c55e' }]}>This month</Text>
           </View>
         </View>
 
@@ -690,15 +743,15 @@ const HomeScreen = () => {
             <Ionicons name="card-outline" size={24} color="#f97316" />
           </View>
           <AnimatedCounter
-            value={energyData.monthlyBill}
+            value={usageStats.monthlyTotal * 0.1}
             style={styles.metricValue}
             prefix="LKR"
             decimals={2}
           />
           <Text style={styles.metricLabel}>Est. Bill</Text>
           <View style={styles.metricChange}>
-            <Ionicons name="trending-down" size={12} color="#22c55e" />
-            <Text style={[styles.changeText, { color: '#22c55e' }]}>-12.3%</Text>
+            <Ionicons name="calendar-outline" size={12} color="#22c55e" />
+            <Text style={[styles.changeText, { color: '#22c55e' }]}>This month</Text>
           </View>
         </View>
 
@@ -713,6 +766,51 @@ const HomeScreen = () => {
             <Text style={[styles.changeText, { color: '#22c55e' }]}>+24.1%</Text>
           </View>
         </View>
+      </View>
+    </Animatable.View>
+  );
+
+  const renderDailyUsageSection = () => (
+    <Animatable.View animation="fadeInUp" delay={500} style={styles.dailyUsageSection}>
+      <View style={styles.dailyUsageHeader}>
+        <Text style={styles.sectionTitle}>Today's Energy Usage</Text>
+        <TouchableOpacity 
+          style={styles.addUsageButton}
+          onPress={() => setShowUsageInput(true)}
+        >
+          <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
+          <Text style={styles.addUsageText}>Log Usage</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.todayStatsCard}>
+        <View style={styles.todayStatsRow}>
+          <View style={styles.todayStat}>
+            <Ionicons name="flash" size={20} color={Colors.primary} />
+            <Text style={styles.todayStatValue}>{usageStats.today.toFixed(2)} kWh</Text>
+            <Text style={styles.todayStatLabel}>Today</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.todayStat}>
+            <Ionicons name="calendar-outline" size={20} color={Colors.gray} />
+            <Text style={styles.todayStatValue}>{usageStats.yesterday.toFixed(2)} kWh</Text>
+            <Text style={styles.todayStatLabel}>Yesterday</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.todayStat}>
+            <Ionicons name="analytics-outline" size={20} color={Colors.primaryLight} />
+            <Text style={styles.todayStatValue}>{usageStats.weeklyAverage.toFixed(2)} kWh</Text>
+            <Text style={styles.todayStatLabel}>Weekly Avg</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity 
+          style={styles.viewDetailsButton}
+          onPress={() => setShowDailyUsage(true)}
+        >
+          <Text style={styles.viewDetailsText}>View Detailed Usage</Text>
+          <Ionicons name="chevron-forward" size={16} color={Colors.primary} />
+        </TouchableOpacity>
       </View>
     </Animatable.View>
   );
@@ -753,7 +851,7 @@ const HomeScreen = () => {
               {
                 data:
                   selectedPeriod === 'Week'
-                    ? energyData.predictions
+                    ? weeklyTrend.length > 0 ? weeklyTrend : [0, 0, 0, 0, 0, 0, 0]
                     : selectedPeriod === 'Month'
                       ? [45, 52, 48, 55]
                       : [320, 280, 350, 290, 380, 320],
@@ -792,12 +890,14 @@ const HomeScreen = () => {
             labels: ['', '', '', '', ''], // Empty labels since we have custom legend
             datasets: [
               {
-                data: Object.values(energyData.categories),
+                data: Object.values(energyData.categories).length > 0 
+                  ? Object.values(energyData.categories)
+                  : [20, 30, 25, 15, 10],
                 colors: [
                   () => '#ef4444', // Bright Red
                   () => '#f97316', // Bright Orange
                   () => '#3b82f6', // Bright Blue
-                  () => '#a855f7', // Purple (undo green for this square)
+                  () => '#a855f7', // Purple
                   () => '#06b6d4', // Teal
                 ],
               },
@@ -1070,9 +1170,6 @@ const HomeScreen = () => {
                             <Text style={styles.deviceName}>{device.deviceName}</Text>
                             <Text style={styles.deviceDetails}>
                               {device.wattage}W
-                              {device.usage &&
-                                device.usage.length > 0 &&
-                                ` • ${formatTime(device.usage[0].start)} - ${formatTime(device.usage[0].end)}`}
                             </Text>
                             {device.totalPowerUsed && (
                               <Text style={styles.deviceEnergy}>
@@ -1365,6 +1462,7 @@ const HomeScreen = () => {
       >
         {renderHeader()}
         {renderMetricsGrid()}
+        {renderDailyUsageSection()}
         {renderCharts()}
         {renderLayoutSection()}
         {renderDeviceManagement()}
@@ -1431,6 +1529,37 @@ const HomeScreen = () => {
               </TouchableOpacity>
             </View>
           </View>
+        </View>
+      </Modal>
+
+      {/* Daily Usage Input Modal */}
+      <DailyUsageInput
+        visible={showUsageInput}
+        onClose={() => setShowUsageInput(false)}
+        onUsageAdded={handleUsageAdded}
+      />
+
+      {/* Daily Usage Display Modal */}
+      <Modal
+        visible={showDailyUsage}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.container}>
+          <View style={styles.dailyModalHeader}>
+            <TouchableOpacity 
+              onPress={() => setShowDailyUsage(false)}
+              style={styles.dailyModalCloseButton}
+            >
+              <Ionicons name="close" size={24} color={Colors.textPrimary} />
+            </TouchableOpacity>
+            <Text style={styles.dailyModalTitle}>Daily Usage Details</Text>
+            <View style={styles.modalPlaceholder} />
+          </View>
+          <DailyUsageDisplay onAddUsage={() => {
+            setShowDailyUsage(false);
+            setShowUsageInput(true);
+          }} />
         </View>
       </Modal>
 
@@ -2287,6 +2416,101 @@ const styles = StyleSheet.create({
   },
   typeButtonTextActive: {
     color: '#ffffff',
+  },
+  
+  // Daily Usage Section Styles
+  dailyUsageSection: {
+    marginHorizontal: 20,
+    marginBottom: 24,
+  },
+  dailyUsageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  addUsageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: Colors.lightGray,
+    borderRadius: 8,
+    gap: 4,
+  },
+  addUsageText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.primary,
+  },
+  todayStatsCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  todayStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  todayStat: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: Colors.border,
+    marginHorizontal: 16,
+  },
+  todayStatValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+  },
+  todayStatLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  viewDetailsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    backgroundColor: Colors.lightGray,
+    borderRadius: 8,
+    gap: 4,
+  },
+  viewDetailsText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.primary,
+  },
+  
+  // Daily Usage Modal Styles
+  dailyModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  dailyModalCloseButton: {
+    padding: 8,
+  },
+  dailyModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+  },
+  modalPlaceholder: {
+    width: 40,
   },
 });
 
