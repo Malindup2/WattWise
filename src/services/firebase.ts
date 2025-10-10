@@ -201,6 +201,44 @@ export class FirestoreService {
     }
   }
 
+  static async getUserDocument(userId: string): Promise<DocumentData | null> {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
+      if (userDoc.exists()) {
+        return { id: userDoc.id, ...userDoc.data() };
+      }
+      return null;
+    } catch (error) {
+      console.error('❌ Error getting user document:', error);
+      throw error;
+    }
+  }
+
+  static async updateUserDocumentByUid(uid: string, data: any): Promise<void> {
+    try {
+      // Find user document by uid field
+      const q = query(collection(db, 'users'), where('uid', '==', uid));
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        throw new Error(`No user document found with uid: ${uid}`);
+      }
+      
+      // Update the first (should be only) document found
+      const userDoc = querySnapshot.docs[0];
+      await updateDoc(userDoc.ref, {
+        ...data,
+        updatedAt: new Date(),
+      });
+      
+      console.log(`✅ User document updated successfully for uid: ${uid}`);
+    } catch (error) {
+      console.error('❌ Error updating user document by uid:', error);
+      throw error;
+    }
+  }
+
   static async getDocumentsByField(
     collectionName: string,
     field: string,

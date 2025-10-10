@@ -63,6 +63,7 @@ const HomeScreen = () => {
   const navigation = useNavigation();
 
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null); // Firestore user data
   const [userLayout, setUserLayout] = useState<ExtendedLayout | null>(null);
   const [loadingLayout, setLoadingLayout] = useState(false);
   const [showLayoutModal, setShowLayoutModal] = useState(false);
@@ -701,17 +702,40 @@ const HomeScreen = () => {
     await loadEnergyData();
   };
 
+  const loadUserProfile = async () => {
+    try {
+      const currentUser = AuthService.getCurrentUser();
+      if (currentUser) {
+        const userDoc = await FirestoreService.getUserDocument(currentUser.uid);
+        setUserProfile(userDoc);
+        console.log('👤 User profile loaded:', userDoc);
+      }
+    } catch (error) {
+      console.error('❌ Error loading user profile:', error);
+    }
+  };
+
   useEffect(() => {
     loadEnergyData();
     const currentUser = AuthService.getCurrentUser();
     setUser(currentUser);
     loadUserLayout();
+    loadUserProfile();
     
-    // Initialize username for editing
-    if (currentUser?.displayName) {
-      setNewUsername(currentUser.displayName);
+    // Initialize username for editing - prioritize Firestore username over Auth displayName
+    if (currentUser) {
+      // We'll set the username after userProfile loads
     }
   }, []);
+
+  // Effect to initialize username when userProfile loads
+  useEffect(() => {
+    if (userProfile) {
+      setNewUsername(userProfile.username || userProfile.displayName || user?.email?.split('@')[0] || '');
+    } else if (user?.displayName) {
+      setNewUsername(user.displayName);
+    }
+  }, [userProfile, user]);
 
   // Effect to trigger animation when usageStats changes
   useEffect(() => {
@@ -777,7 +801,8 @@ const HomeScreen = () => {
 
   // Profile management functions
   const handleEditProfile = () => {
-    setNewUsername(user?.displayName || user?.email?.split('@')[0] || '');
+    // Prioritize userProfile.username from Firestore over Auth displayName
+    setNewUsername(userProfile?.username || user?.displayName || user?.email?.split('@')[0] || '');
     setShowEditProfileModal(true);
   };
 
@@ -790,28 +815,31 @@ const HomeScreen = () => {
         console.log('🔧 Current user found:', currentUser.uid);
         console.log('🔧 New username:', newUsername.trim());
         
-        // Use createOrUpdateUserDocument to handle missing user documents
-        await FirestoreService.createOrUpdateUserDocument(currentUser.uid, {
-          displayName: newUsername.trim(),
-          email: currentUser.email,
-          uid: currentUser.uid,
+        // Update the existing user document by finding it with the uid field
+        await FirestoreService.updateUserDocumentByUid(currentUser.uid, {
+          username: newUsername.trim(),
         });
-        
-        // Update local user state
-        setUser({ ...currentUser, displayName: newUsername.trim() });
         
         console.log('✅ Profile update successful!');
         
         // Close the profile modal first
         setShowEditProfileModal(false);
         
-        // On iOS, add a delay before showing alert to prevent modal conflicts
-        setTimeout(() => {
-          setAlertType('success');
-          setAlertTitle('Profile Updated');
-          setAlertMessage('Your profile has been updated successfully!');
-          setAlertVisible(true);
-        }, Platform.OS === 'ios' ? 500 : 100);
+        // Use requestAnimationFrame for better iOS compatibility instead of setTimeout
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            console.log('🔧 Setting alert visible for profile update success');
+            setAlertType('success');
+            setAlertTitle('Profile Updated');
+            setAlertMessage('Your profile has been updated successfully!');
+            setAlertVisible(true);
+            
+            // Update local user state after showing alert to avoid render interference
+            setUser({ ...currentUser, displayName: newUsername.trim() });
+            // Reload user profile to get updated data from Firestore
+            loadUserProfile();
+          });
+        });
       }
     } catch (error) {
       console.error('❌ Error updating profile:', error);
@@ -820,13 +848,16 @@ const HomeScreen = () => {
       // Close the profile modal first even on error
       setShowEditProfileModal(false);
       
-      // On iOS, add a delay before showing alert to prevent modal conflicts
-      setTimeout(() => {
-        setAlertType('error');
-        setAlertTitle('Update Failed');
-        setAlertMessage('Failed to update profile. Please try again.');
-        setAlertVisible(true);
-      }, Platform.OS === 'ios' ? 500 : 100);
+      // Use requestAnimationFrame for better iOS compatibility instead of setTimeout
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          console.log('🔧 Setting alert visible for profile update error');
+          setAlertType('error');
+          setAlertTitle('Update Failed');
+          setAlertMessage('Failed to update profile. Please try again.');
+          setAlertVisible(true);
+        });
+      });
     } finally {
       setUpdatingProfile(false);
     }
@@ -890,13 +921,16 @@ const HomeScreen = () => {
       setNewPassword('');
       setConfirmPassword('');
       
-      // On iOS, add a delay before showing alert to prevent modal conflicts
-      setTimeout(() => {
-        setAlertType('success');
-        setAlertTitle('Password Updated');
-        setAlertMessage('Your password has been changed successfully!');
-        setAlertVisible(true);
-      }, Platform.OS === 'ios' ? 500 : 100);
+      // Use requestAnimationFrame for better iOS compatibility instead of setTimeout
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          console.log('🔧 Setting alert visible for password change success');
+          setAlertType('success');
+          setAlertTitle('Password Updated');
+          setAlertMessage('Your password has been changed successfully!');
+          setAlertVisible(true);
+        });
+      });
     } catch (error: any) {
       console.error('❌ Error changing password:', error);
       console.log('🔧 Password change failed, showing error alert');
@@ -907,13 +941,16 @@ const HomeScreen = () => {
       setNewPassword('');
       setConfirmPassword('');
       
-      // On iOS, add a delay before showing alert to prevent modal conflicts
-      setTimeout(() => {
-        setAlertType('error');
-        setAlertTitle('Password Change Failed');
-        setAlertMessage(error.message || 'Failed to change password. Please try again.');
-        setAlertVisible(true);
-      }, Platform.OS === 'ios' ? 500 : 100);
+      // Use requestAnimationFrame for better iOS compatibility instead of setTimeout
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          console.log('🔧 Setting alert visible for password change error');
+          setAlertType('error');
+          setAlertTitle('Password Change Failed');
+          setAlertMessage(error.message || 'Failed to change password. Please try again.');
+          setAlertVisible(true);
+        });
+      });
     } finally {
       setUpdatingPassword(false);
     }
@@ -938,7 +975,7 @@ const HomeScreen = () => {
             <View style={styles.greetingContainer}>
               <Text style={styles.welcomeText}>{getGreeting()}!</Text>
               <Text style={styles.userNameText}>
-                {user?.email?.split('@')[0] || user?.displayName || 'User'}
+                {userProfile?.username || userProfile?.displayName || user?.displayName || user?.email?.split('@')[0] || 'User'}
               </Text>
             </View>
           </View>
@@ -957,7 +994,7 @@ const HomeScreen = () => {
                 ) : (
                   <View style={styles.profilePlaceholder}>
                     <Text style={styles.profileInitial}>
-                      {(user?.email?.split('@')[0] || user?.displayName || 'U').charAt(0).toUpperCase()}
+                      {(userProfile?.username || userProfile?.displayName || user?.displayName || user?.email?.split('@')[0] || 'U').charAt(0).toUpperCase()}
                     </Text>
                   </View>
                 )}
@@ -1031,7 +1068,7 @@ const HomeScreen = () => {
                 ) : (
                   <View style={styles.sidebarProfilePlaceholder}>
                     <Text style={styles.sidebarProfileInitial}>
-                      {(user?.displayName || user?.email?.split('@')[0] || 'U').charAt(0).toUpperCase()}
+                      {(userProfile?.username || userProfile?.displayName || user?.displayName || user?.email?.split('@')[0] || 'U').charAt(0).toUpperCase()}
                     </Text>
                   </View>
                 )}
@@ -1046,7 +1083,7 @@ const HomeScreen = () => {
                   });
                 }}>
                   <Text style={styles.sidebarProfileName}>
-                    {user?.displayName || user?.email?.split('@')[0] || 'User'}
+                    {userProfile?.username || userProfile?.displayName || user?.displayName || user?.email?.split('@')[0] || 'User'}
                   </Text>
                 </TouchableOpacity>
                 <Text style={styles.sidebarProfileEmail}>
@@ -2139,7 +2176,7 @@ const HomeScreen = () => {
               <Text style={styles.inputLabel}>Username</Text>
               <TextInput
                 style={styles.modalInput}
-                placeholder={user?.displayName || user?.email?.split('@')[0] || 'Enter username'}
+                placeholder={userProfile?.username || userProfile?.displayName || user?.displayName || user?.email?.split('@')[0] || 'Enter username'}
                 value={newUsername}
                 onChangeText={setNewUsername}
                 autoCapitalize="none"
