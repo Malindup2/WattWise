@@ -10,7 +10,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
-import { DailyUsageService, DailyUsageSummary, DailyDeviceEntry } from '../services/DailyUsageService';
+import {
+  DailyUsageService,
+  DailyUsageSummary,
+  DailyDeviceEntry,
+} from '../services/DailyUsageService';
 import { AuthService } from '../services/firebase';
 import { formatTime } from '../utils/energyCalculations';
 import AnimatedCounter from './AnimatedCounter';
@@ -20,9 +24,9 @@ interface DailyUsageDisplayProps {
   onAddUsage?: () => void;
 }
 
-const DailyUsageDisplay: React.FC<DailyUsageDisplayProps> = ({ 
+const DailyUsageDisplay: React.FC<DailyUsageDisplayProps> = ({
   date = new Date().toISOString().split('T')[0],
-  onAddUsage 
+  onAddUsage,
 }) => {
   const [dailyUsage, setDailyUsage] = useState<DailyUsageSummary | null>(null);
   const [loading, setLoading] = useState(false);
@@ -54,29 +58,25 @@ const DailyUsageDisplay: React.FC<DailyUsageDisplayProps> = ({
   };
 
   const handleDeleteEntry = async (roomId: string, entryId: string) => {
-    Alert.alert(
-      'Delete Entry',
-      'Are you sure you want to delete this usage entry?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const user = AuthService.getCurrentUser();
-              if (user) {
-                await DailyUsageService.deleteUsageEntry(user.uid, date, roomId, entryId);
-                await loadDailyUsage();
-              }
-            } catch (error) {
-              console.error('Error deleting entry:', error);
-              Alert.alert('Error', 'Failed to delete entry. Please try again.');
+    Alert.alert('Delete Entry', 'Are you sure you want to delete this usage entry?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const user = AuthService.getCurrentUser();
+            if (user) {
+              await DailyUsageService.deleteUsageEntry(user.uid, date, roomId, entryId);
+              await loadDailyUsage();
             }
-          },
+          } catch (error) {
+            console.error('Error deleting entry:', error);
+            Alert.alert('Error', 'Failed to delete entry. Please try again.');
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const formatDate = (dateString: string) => {
@@ -90,10 +90,10 @@ const DailyUsageDisplay: React.FC<DailyUsageDisplayProps> = ({
     } else if (dateString === yesterday.toISOString().split('T')[0]) {
       return 'Yesterday';
     } else {
-      return date.toLocaleDateString('en-US', { 
-        weekday: 'short', 
-        month: 'short', 
-        day: 'numeric' 
+      return date.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
       });
     }
   };
@@ -105,30 +105,26 @@ const DailyUsageDisplay: React.FC<DailyUsageDisplayProps> = ({
           <Text style={styles.deviceName}>{entry.deviceName}</Text>
           <Text style={styles.deviceWattage}>{entry.wattage}W</Text>
         </View>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.deleteButton}
           onPress={() => handleDeleteEntry(roomId, entry.entryId)}
         >
           <Ionicons name="trash-outline" size={16} color={Colors.error} />
         </TouchableOpacity>
       </View>
-      
+
       <View style={styles.entryDetails}>
         <View style={styles.timeRange}>
           <Ionicons name="time-outline" size={14} color={Colors.textSecondary} />
           <Text style={styles.timeText}>
             {formatTime(entry.startTime)} - {formatTime(entry.endTime)}
           </Text>
-          <Text style={styles.durationText}>
-            ({entry.duration.toFixed(1)}h)
-          </Text>
+          <Text style={styles.durationText}>({entry.duration.toFixed(1)}h)</Text>
         </View>
-        
+
         <View style={styles.powerUsage}>
           <Ionicons name="flash-outline" size={14} color={Colors.primary} />
-          <Text style={styles.powerText}>
-            {entry.powerUsed.toFixed(2)} kWh
-          </Text>
+          <Text style={styles.powerText}>{entry.powerUsed.toFixed(2)} kWh</Text>
         </View>
       </View>
     </View>
@@ -142,16 +138,12 @@ const DailyUsageDisplay: React.FC<DailyUsageDisplayProps> = ({
           <Text style={styles.roomName}>{room.roomName}</Text>
         </View>
         <View style={styles.roomTotal}>
-          <Text style={styles.roomTotalText}>
-            {room.totalPowerUsed.toFixed(2)} kWh
-          </Text>
+          <Text style={styles.roomTotalText}>{room.totalPowerUsed.toFixed(2)} kWh</Text>
         </View>
       </View>
-      
+
       <View style={styles.entriesContainer}>
-        {room.entries.map((entry: DailyDeviceEntry) => 
-          renderUsageEntry(entry, room.roomId)
-        )}
+        {room.entries.map((entry: DailyDeviceEntry) => renderUsageEntry(entry, room.roomId))}
       </View>
     </View>
   );
@@ -165,11 +157,9 @@ const DailyUsageDisplay: React.FC<DailyUsageDisplayProps> = ({
   }
 
   return (
-    <ScrollView 
+    <ScrollView
       style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <View style={styles.header}>
         <Text style={styles.dateTitle}>{formatDate(date)}</Text>

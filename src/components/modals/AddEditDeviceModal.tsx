@@ -24,10 +24,7 @@ interface AddEditDeviceModalProps {
   visible: boolean;
   device?: Device | null;
   layoutType?: 'household' | 'industrial';
-  onSave: (deviceData: {
-    deviceName: string;
-    wattage: number;
-  }) => Promise<void>;
+  onSave: (deviceData: { deviceName: string; wattage: number }) => Promise<void>;
   onClose: () => void;
 }
 
@@ -221,7 +218,6 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
                 : 'Check the device label or manual for wattage information (max: 10,000W)'}
             </Text>
           </View>
-
         </ScrollView>
       </View>
     </Modal>

@@ -61,14 +61,14 @@ export class AuthService {
 
       // Create credential with current password for reauthentication
       const credential = EmailAuthProvider.credential(user.email, currentPassword);
-      
+
       // Reauthenticate user
       await reauthenticateWithCredential(user, credential);
-      
+
       // Update password after successful reauthentication
       const { updatePassword } = await import('firebase/auth');
       await updatePassword(user, newPassword);
-      
+
       console.log('✅ Password updated successfully');
     } catch (error: any) {
       console.error('❌ Error updating password:', error);
@@ -190,10 +190,14 @@ export class FirestoreService {
     try {
       const userRef = doc(db, 'users', userId);
       // Use setDoc with merge option to create or update the document
-      await setDoc(userRef, {
-        ...data,
-        updatedAt: new Date(),
-      }, { merge: true });
+      await setDoc(
+        userRef,
+        {
+          ...data,
+          updatedAt: new Date(),
+        },
+        { merge: true }
+      );
       console.log(`✅ User document created/updated successfully for ${userId}`);
     } catch (error) {
       console.error('❌ Error creating/updating user document:', error);
@@ -220,18 +224,18 @@ export class FirestoreService {
       // Find user document by uid field
       const q = query(collection(db, 'users'), where('uid', '==', uid));
       const querySnapshot = await getDocs(q);
-      
+
       if (querySnapshot.empty) {
         throw new Error(`No user document found with uid: ${uid}`);
       }
-      
+
       // Update the first (should be only) document found
       const userDoc = querySnapshot.docs[0];
       await updateDoc(userDoc.ref, {
         ...data,
         updatedAt: new Date(),
       });
-      
+
       console.log(`✅ User document updated successfully for uid: ${uid}`);
     } catch (error) {
       console.error('❌ Error updating user document by uid:', error);
