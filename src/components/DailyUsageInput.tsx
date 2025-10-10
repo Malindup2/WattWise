@@ -34,7 +34,13 @@ interface TimePickerProps {
   title: string;
 }
 
-const TimePicker: React.FC<TimePickerProps> = ({ visible, initialTime, onConfirm, onCancel, title }) => {
+const TimePicker: React.FC<TimePickerProps> = ({
+  visible,
+  initialTime,
+  onConfirm,
+  onCancel,
+  title,
+}) => {
   const [selectedHour, setSelectedHour] = useState('08');
   const [selectedMinute, setSelectedMinute] = useState('00');
 
@@ -54,7 +60,7 @@ const TimePicker: React.FC<TimePickerProps> = ({ visible, initialTime, onConfirm
       <View style={styles.timePickerOverlay}>
         <View style={styles.timePickerContainer}>
           <Text style={styles.timePickerTitle}>{title}</Text>
-          
+
           <View style={styles.timePickerRow}>
             <View style={styles.pickerContainer}>
               <Text style={styles.pickerLabel}>Hour</Text>
@@ -62,29 +68,45 @@ const TimePicker: React.FC<TimePickerProps> = ({ visible, initialTime, onConfirm
                 {hours.map(hour => (
                   <TouchableOpacity
                     key={hour}
-                    style={[styles.timePickerItem, selectedHour === hour && styles.timePickerItemSelected]}
+                    style={[
+                      styles.timePickerItem,
+                      selectedHour === hour && styles.timePickerItemSelected,
+                    ]}
                     onPress={() => setSelectedHour(hour)}
                   >
-                    <Text style={[styles.timePickerItemText, selectedHour === hour && styles.timePickerItemTextSelected]}>
+                    <Text
+                      style={[
+                        styles.timePickerItemText,
+                        selectedHour === hour && styles.timePickerItemTextSelected,
+                      ]}
+                    >
                       {hour}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
             </View>
-            
+
             <Text style={styles.timeSeparator}>:</Text>
-            
+
             <View style={styles.pickerContainer}>
               <Text style={styles.pickerLabel}>Minute</Text>
               <ScrollView style={styles.timePickerScroll}>
                 {minutes.map(minute => (
                   <TouchableOpacity
                     key={minute}
-                    style={[styles.timePickerItem, selectedMinute === minute && styles.timePickerItemSelected]}
+                    style={[
+                      styles.timePickerItem,
+                      selectedMinute === minute && styles.timePickerItemSelected,
+                    ]}
                     onPress={() => setSelectedMinute(minute)}
                   >
-                    <Text style={[styles.timePickerItemText, selectedMinute === minute && styles.timePickerItemTextSelected]}>
+                    <Text
+                      style={[
+                        styles.timePickerItemText,
+                        selectedMinute === minute && styles.timePickerItemTextSelected,
+                      ]}
+                    >
                       {minute}
                     </Text>
                   </TouchableOpacity>
@@ -92,13 +114,13 @@ const TimePicker: React.FC<TimePickerProps> = ({ visible, initialTime, onConfirm
               </ScrollView>
             </View>
           </View>
-          
+
           <View style={styles.timePickerButtons}>
             <TouchableOpacity style={styles.timePickerCancelButton} onPress={onCancel}>
               <Text style={styles.timePickerCancelText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.timePickerConfirmButton} 
+            <TouchableOpacity
+              style={styles.timePickerConfirmButton}
               onPress={() => onConfirm(`${selectedHour}:${selectedMinute}`)}
             >
               <Text style={styles.timePickerConfirmText}>Confirm</Text>
@@ -132,7 +154,7 @@ const DailyUsageInput: React.FC<DailyUsageInputProps> = ({
   useEffect(() => {
     if (visible) {
       loadLayout();
-      
+
       // Set preselected values if provided
       if (preselectedRoom) {
         setSelectedRoom(preselectedRoom);
@@ -250,7 +272,7 @@ const DailyUsageInput: React.FC<DailyUsageInputProps> = ({
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Select Room</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.roomList}>
-              {layout?.rooms.map((room) => (
+              {layout?.rooms.map(room => (
                 <TouchableOpacity
                   key={room.roomId}
                   style={[
@@ -259,15 +281,17 @@ const DailyUsageInput: React.FC<DailyUsageInputProps> = ({
                   ]}
                   onPress={() => handleRoomSelect(room)}
                 >
-                  <Ionicons 
-                    name="home-outline" 
-                    size={20} 
-                    color={selectedRoom?.roomId === room.roomId ? '#fff' : Colors.primary} 
+                  <Ionicons
+                    name="home-outline"
+                    size={20}
+                    color={selectedRoom?.roomId === room.roomId ? '#fff' : Colors.primary}
                   />
-                  <Text style={[
-                    styles.roomCardText,
-                    selectedRoom?.roomId === room.roomId && styles.roomCardTextSelected,
-                  ]}>
+                  <Text
+                    style={[
+                      styles.roomCardText,
+                      selectedRoom?.roomId === room.roomId && styles.roomCardTextSelected,
+                    ]}
+                  >
                     {room.roomName}
                   </Text>
                 </TouchableOpacity>
@@ -283,7 +307,9 @@ const DailyUsageInput: React.FC<DailyUsageInputProps> = ({
                 style={[styles.modeButton, !useCustomDevice && styles.modeButtonActive]}
                 onPress={() => setUseCustomDevice(false)}
               >
-                <Text style={[styles.modeButtonText, !useCustomDevice && styles.modeButtonTextActive]}>
+                <Text
+                  style={[styles.modeButtonText, !useCustomDevice && styles.modeButtonTextActive]}
+                >
                   Existing Device
                 </Text>
               </TouchableOpacity>
@@ -291,7 +317,9 @@ const DailyUsageInput: React.FC<DailyUsageInputProps> = ({
                 style={[styles.modeButton, useCustomDevice && styles.modeButtonActive]}
                 onPress={() => setUseCustomDevice(true)}
               >
-                <Text style={[styles.modeButtonText, useCustomDevice && styles.modeButtonTextActive]}>
+                <Text
+                  style={[styles.modeButtonText, useCustomDevice && styles.modeButtonTextActive]}
+                >
                   Custom Device
                 </Text>
               </TouchableOpacity>
@@ -304,7 +332,7 @@ const DailyUsageInput: React.FC<DailyUsageInputProps> = ({
               <Text style={styles.sectionTitle}>Select Device</Text>
               {selectedRoom.devices.length > 0 ? (
                 <View style={styles.deviceList}>
-                  {selectedRoom.devices.map((device) => (
+                  {selectedRoom.devices.map(device => (
                     <TouchableOpacity
                       key={device.deviceId}
                       style={[
@@ -314,23 +342,31 @@ const DailyUsageInput: React.FC<DailyUsageInputProps> = ({
                       onPress={() => setSelectedDevice(device)}
                     >
                       <View style={styles.deviceInfo}>
-                        <Text style={[
-                          styles.deviceName,
-                          selectedDevice?.deviceId === device.deviceId && styles.deviceNameSelected,
-                        ]}>
+                        <Text
+                          style={[
+                            styles.deviceName,
+                            selectedDevice?.deviceId === device.deviceId &&
+                              styles.deviceNameSelected,
+                          ]}
+                        >
                           {device.deviceName}
                         </Text>
-                        <Text style={[
-                          styles.deviceWattage,
-                          selectedDevice?.deviceId === device.deviceId && styles.deviceWattageSelected,
-                        ]}>
+                        <Text
+                          style={[
+                            styles.deviceWattage,
+                            selectedDevice?.deviceId === device.deviceId &&
+                              styles.deviceWattageSelected,
+                          ]}
+                        >
                           {device.wattage}W
                         </Text>
                       </View>
-                      <Ionicons 
-                        name="flash-outline" 
-                        size={20} 
-                        color={selectedDevice?.deviceId === device.deviceId ? '#fff' : Colors.primary} 
+                      <Ionicons
+                        name="flash-outline"
+                        size={20}
+                        color={
+                          selectedDevice?.deviceId === device.deviceId ? '#fff' : Colors.primary
+                        }
                       />
                     </TouchableOpacity>
                   ))}
@@ -338,7 +374,9 @@ const DailyUsageInput: React.FC<DailyUsageInputProps> = ({
               ) : (
                 <View style={styles.noDevicesContainer}>
                   <Text style={styles.noDevicesText}>No devices in this room</Text>
-                  <Text style={styles.noDevicesSubtext}>Add devices to your room layout first, or use custom device option</Text>
+                  <Text style={styles.noDevicesSubtext}>
+                    Add devices to your room layout first, or use custom device option
+                  </Text>
                 </View>
               )}
             </View>
@@ -376,15 +414,15 @@ const DailyUsageInput: React.FC<DailyUsageInputProps> = ({
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Usage Time</Text>
             <View style={styles.timeContainer}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.timeButton}
                 onPress={() => setShowStartTimePicker(true)}
               >
                 <Text style={styles.timeLabel}>Start Time</Text>
                 <Text style={styles.timeValue}>{formatTime(startTime)}</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.timeButton}
                 onPress={() => setShowEndTimePicker(true)}
               >
@@ -395,7 +433,7 @@ const DailyUsageInput: React.FC<DailyUsageInputProps> = ({
           </View>
 
           {/* Submit Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.submitButton, loading && styles.submitButtonDisabled]}
             onPress={handleSubmit}
             disabled={loading}
@@ -416,7 +454,7 @@ const DailyUsageInput: React.FC<DailyUsageInputProps> = ({
           visible={showStartTimePicker}
           initialTime={startTime}
           title="Select Start Time"
-          onConfirm={(time) => {
+          onConfirm={time => {
             setStartTime(time);
             setShowStartTimePicker(false);
           }}
@@ -427,7 +465,7 @@ const DailyUsageInput: React.FC<DailyUsageInputProps> = ({
           visible={showEndTimePicker}
           initialTime={endTime}
           title="Select End Time"
-          onConfirm={(time) => {
+          onConfirm={time => {
             setEndTime(time);
             setShowEndTimePicker(false);
           }}
