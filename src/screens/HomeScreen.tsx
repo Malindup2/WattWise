@@ -12,6 +12,8 @@ import {
   Modal,
   TextInput,
   Animated,
+  Easing,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
@@ -98,6 +100,13 @@ const HomeScreen = () => {
   // Animation values for circular progress
   const progressAnimation = useRef(new Animated.Value(0)).current;
   const percentageAnimation = useRef(new Animated.Value(0)).current;
+
+  // Sidebar animation
+  const sidebarAnimation = useRef(new Animated.Value(-width * 0.8)).current;
+
+  // Sidebar state
+  const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [sidebarModalVisible, setSidebarModalVisible] = useState(false);
 
   const [energyData, setEnergyData] = useState({
     totalConsumption: 0,
@@ -703,6 +712,35 @@ const HomeScreen = () => {
     return 'Good evening';
   };
 
+  const toggleSidebar = () => {
+    const isOpening = !sidebarVisible;
+
+    if (isOpening) {
+      // Opening: show modal first, then animate in
+      setSidebarModalVisible(true);
+      sidebarAnimation.setValue(-width * 0.8);
+      Animated.spring(sidebarAnimation, {
+        toValue: 0,
+        friction: 8,
+        tension: 100,
+        useNativeDriver: false,
+      }).start(() => {
+        setSidebarVisible(true);
+      });
+    } else {
+      // Closing: animate out, then hide modal
+      Animated.spring(sidebarAnimation, {
+        toValue: -width * 0.8,
+        friction: 8,
+        tension: 100,
+        useNativeDriver: false,
+      }).start(() => {
+        setSidebarVisible(false);
+        setSidebarModalVisible(false);
+      });
+    }
+  };
+
   const renderHeader = () => (
     <Animatable.View animation="fadeInDown" delay={200} style={styles.header}>
       <LinearGradient
@@ -713,15 +751,41 @@ const HomeScreen = () => {
       >
         <View style={styles.headerContent}>
           <View style={styles.headerLeft}>
-            <Text style={styles.welcomeText}>{getGreeting()}!</Text>
-            <Text style={styles.userNameText}>
-              {user?.email?.split('@')[0] || user?.displayName || 'User'}
-            </Text>
+            <TouchableOpacity
+              style={styles.hamburgerButton}
+              onPress={toggleSidebar}
+            >
+              <Ionicons name="menu" size={24} color="#fff" />
+            </TouchableOpacity>
+            <View style={styles.greetingContainer}>
+              <Text style={styles.welcomeText}>{getGreeting()}!</Text>
+              <Text style={styles.userNameText}>
+                {user?.email?.split('@')[0] || user?.displayName || 'User'}
+              </Text>
+            </View>
           </View>
-          <TouchableOpacity style={styles.notificationButton}>
-            <Ionicons name="notifications-outline" size={24} color="#fff" />
-            <View style={styles.notificationBadge} />
-          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.notificationButton}>
+              <Ionicons name="notifications-outline" size={24} color="#fff" />
+              <View style={styles.notificationBadge} />
+            </TouchableOpacity>
+            <View style={styles.profileContainer}>
+              <TouchableOpacity style={styles.profileButton}>
+                {user?.photoURL ? (
+                  <Image
+                    source={{ uri: user.photoURL }}
+                    style={styles.profileImage}
+                  />
+                ) : (
+                  <View style={styles.profilePlaceholder}>
+                    <Text style={styles.profileInitial}>
+                      {(user?.email?.split('@')[0] || user?.displayName || 'U').charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
 
         <View style={styles.headerStats}>
@@ -738,6 +802,105 @@ const HomeScreen = () => {
         </View>
       </LinearGradient>
     </Animatable.View>
+  );
+
+  const renderSidebar = () => (
+    <Modal
+      visible={sidebarModalVisible}
+      animationType="none"
+      transparent={true}
+      onRequestClose={toggleSidebar}
+    >
+      <View style={styles.sidebarOverlay}>
+        <TouchableOpacity
+          style={styles.sidebarBackdrop}
+          activeOpacity={1}
+          onPress={toggleSidebar}
+        />
+        <Animated.View
+          style={[
+            styles.sidebar,
+            {
+              transform: [{ translateX: sidebarAnimation }],
+            },
+          ]}
+        >
+          <View style={styles.sidebarHeader}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={toggleSidebar}
+            >
+              <Ionicons name="close" size={24} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.sidebarContent}>
+            <View style={styles.sidebarProfile}>
+              {user?.photoURL ? (
+                <Image
+                  source={{ uri: user.photoURL }}
+                  style={styles.sidebarProfileImage}
+                />
+              ) : (
+                <View style={styles.sidebarProfilePlaceholder}>
+                  <Text style={styles.sidebarProfileInitial}>
+                    {(user?.email?.split('@')[0] || user?.displayName || 'U').charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.sidebarProfileInfo}>
+                <Text style={styles.sidebarProfileName}>
+                  {user?.email?.split('@')[0] || user?.displayName || 'User'}
+                </Text>
+                <Text style={styles.sidebarProfileEmail}>
+                  {user?.email || ''}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.sidebarMenu}>
+              <TouchableOpacity style={styles.sidebarMenuItem}>
+                <Ionicons name="home-outline" size={24} color="#64748b" />
+                <Text style={styles.sidebarMenuText}>Home</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.sidebarMenuItem}>
+                <Ionicons name="analytics-outline" size={24} color="#64748b" />
+                <Text style={styles.sidebarMenuText}>Analytics</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.sidebarMenuItem}>
+                <Ionicons name="settings-outline" size={24} color="#64748b" />
+                <Text style={styles.sidebarMenuText}>Settings</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.sidebarMenuItem}>
+                <Ionicons name="help-circle-outline" size={24} color="#64748b" />
+                <Text style={styles.sidebarMenuText}>Help & Support</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.sidebarMenuItem}>
+                <Ionicons name="information-circle-outline" size={24} color="#64748b" />
+                <Text style={styles.sidebarMenuText}>About</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.sidebarFooter}>
+              <TouchableOpacity
+                style={styles.sidebarLogoutButton}
+                onPress={() => {
+                  AuthService.signOut();
+                  toggleSidebar();
+                }}
+              >
+                <Ionicons name="log-out-outline" size={20} color="#dc2626" />
+                <Text style={styles.sidebarLogoutText}>Logout</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Animated.View>
+      </View>
+    </Modal>
   );
 
   const renderMetricsGrid = () => (
@@ -1696,6 +1859,8 @@ const HomeScreen = () => {
       </Modal>
 
       <FloatingChatbot />
+
+      {renderSidebar()}
     </View>
   );
 };
@@ -1726,6 +1891,53 @@ const styles = StyleSheet.create({
   },
   headerLeft: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  hamburgerButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  greetingContainer: {
+    flex: 1,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  profileContainer: {
+    marginLeft: 12,
+  },
+  profileButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  profilePlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#05986c',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileInitial: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#ffffff',
   },
   welcomeText: {
     fontSize: 16,
@@ -2735,6 +2947,121 @@ const styles = StyleSheet.create({
   },
   modalPlaceholder: {
     width: 40,
+  },
+
+  // Sidebar styles
+  sidebarOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  sidebarBackdrop: {
+    flex: 1,
+  },
+  sidebar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: width * 0.8,
+    maxWidth: 300,
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 2,
+      height: 0,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  sidebarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  sidebarContent: {
+    flex: 1,
+    padding: 16,
+  },
+  sidebarProfile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    marginBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  sidebarProfileImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  sidebarProfilePlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sidebarProfileInitial: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  sidebarProfileInfo: {
+    marginLeft: 16,
+    flex: 1,
+  },
+  sidebarProfileName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  sidebarProfileEmail: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  sidebarMenu: {
+    flex: 1,
+  },
+  sidebarMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  sidebarMenuText: {
+    fontSize: 16,
+    color: Colors.textPrimary,
+    marginLeft: 16,
+    fontWeight: '500',
+  },
+  sidebarFooter: {
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    paddingTop: 16,
+  },
+  sidebarLogoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  sidebarLogoutText: {
+    fontSize: 16,
+    color: '#dc2626',
+    marginLeft: 16,
+    fontWeight: '500',
   },
 });
 
