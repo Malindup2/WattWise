@@ -8,7 +8,7 @@ export interface Device {
   deviceId: string;
   deviceName: string;
   wattage: number;
-  usage: DeviceUsage[];
+  usage?: DeviceUsage[]; // Optional since usage schedule is handled in Energy Usage section
   totalPowerUsed?: number; // wattage * totalHours
 }
 
@@ -22,6 +22,7 @@ export interface Layout {
   id?: string;
   layoutName: string;
   area: number;
+  type?: 'household' | 'industrial';
   rooms: Room[];
   userId?: string;
   createdAt?: Date;

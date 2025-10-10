@@ -5,6 +5,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import LaunchScreen from './src/screens/LaunchScreen';
 import OnboardingOne from './src/screens/OnboardingOne';
 import OnboardingTwo from './src/screens/OnboardingTwo';
@@ -92,61 +93,69 @@ export default function App() {
   // Show loading state
   if (loading) {
     return (
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading...</Text>
-        </SafeAreaView>
-      </SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <SafeAreaView style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+            <Text style={styles.loadingText}>Loading...</Text>
+          </SafeAreaView>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
     );
   }
 
   // Show launch screen first
   if (showLaunchScreen) {
-    return <LaunchScreen onFinish={handleLaunchFinish} />;
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <LaunchScreen onFinish={handleLaunchFinish} />
+      </GestureHandlerRootView>
+    );
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator
-        initialRouteName={showOnboarding ? 'Onboarding1' : user ? 'MainTabs' : 'Login'}
-        screenOptions={{ headerShown: false }}
-      >
-        <Stack.Screen name="Onboarding1" component={OnboardingOne} />
-        <Stack.Screen name="Onboarding2" component={OnboardingTwo} />
-        <Stack.Screen name="Onboarding3">
-          {props => (
-            <OnboardingThree
-              {...props}
-              onGetStarted={() => {
-                setShowOnboarding(false);
-              }}
-            />
-          )}
-        </Stack.Screen>
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="SignUp" component={SignUpScreen} />
-        <Stack.Screen name="MainTabs" component={MainTabNavigator} />
-        <Stack.Screen
-          name="LayoutSummary"
-          component={LayoutSummaryScreen}
-          options={{
-            headerShown: true,
-            title: 'Home Layout',
-            headerStyle: { backgroundColor: Colors.primary },
-            headerTintColor: '#fff',
-            headerTitleStyle: { fontWeight: 'bold' },
-          }}
-        />
-        <Stack.Screen
-          name="RoomDetails"
-          component={RoomDetailsScreen}
-          options={{
-            headerShown: false,
-          }}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <NavigationContainer>
+        <Stack.Navigator
+          initialRouteName={showOnboarding ? 'Onboarding1' : user ? 'MainTabs' : 'Login'}
+          screenOptions={{ headerShown: false }}
+        >
+          <Stack.Screen name="Onboarding1" component={OnboardingOne} />
+          <Stack.Screen name="Onboarding2" component={OnboardingTwo} />
+          <Stack.Screen name="Onboarding3">
+            {props => (
+              <OnboardingThree
+                {...props}
+                onGetStarted={() => {
+                  setShowOnboarding(false);
+                }}
+              />
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="SignUp" component={SignUpScreen} />
+          <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+          <Stack.Screen
+            name="LayoutSummary"
+            component={LayoutSummaryScreen}
+            options={{
+              headerShown: true,
+              title: 'Home Layout',
+              headerStyle: { backgroundColor: Colors.primary },
+              headerTintColor: '#fff',
+              headerTitleStyle: { fontWeight: 'bold' },
+            }}
+          />
+          <Stack.Screen
+            name="RoomDetails"
+            component={RoomDetailsScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </GestureHandlerRootView>
   );
 }
 
