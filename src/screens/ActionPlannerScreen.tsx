@@ -8,7 +8,8 @@ import EnergyEstimate from '../components/actionPlanner/EnergyEstimate';
 import ReminderModal from '../components/actionPlanner/ReminderModal';
 import { generateTasks } from '../services/blueprintService';
 import { UserProfile } from '../types/userProfile';
-import { Calendar} from 'react-native-calendars';
+import { Calendar } from 'react-native-calendars';
+import type { MarkedDates } from 'react-native-calendars/src/types';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -57,7 +58,7 @@ const ActionPlannerScreen: React.FC = () => {
     }
   };
 
-  // Calculate progress and totals
+  // ✅ Progress and summary
   const completedTasks = tasks.filter(t => t.completed).length;
   const progress = tasks.length ? (completedTasks / tasks.length) * 100 : 0;
   const totalEnergy = tasks.reduce((sum, t) => sum + (t.energySaved || 0), 0);
@@ -69,7 +70,7 @@ const ActionPlannerScreen: React.FC = () => {
     long: 'Long-Term Goals',
   };
 
-  // Goal sections
+  // ✅ Group tasks into sections
   const goalSections: GoalSectionType[] = (['short', 'medium', 'long'] as GoalType[]).map(type => {
     const sectionTasks = tasks
       .filter(t => t.goalType === type)
@@ -97,8 +98,8 @@ const ActionPlannerScreen: React.FC = () => {
     }
   };
 
-  // Prepare marked dates for Calendar
-  const markedDates: CalendarMarking = {};
+  // ✅ Calendar date markings
+  const markedDates: MarkedDates = {};
   tasks.forEach(task => {
     if (task.scheduledDate) {
       markedDates[task.scheduledDate] = {
@@ -121,7 +122,7 @@ const ActionPlannerScreen: React.FC = () => {
 
         <EnergyEstimate energy={totalEnergy} money={totalMoney} />
 
-        {/* Mini Calendar for scheduled/recurring tasks */}
+        {/* ✅ Mini Calendar View */}
         <View style={styles.calendarContainer}>
           <Calendar
             markingType="dot"
@@ -130,10 +131,14 @@ const ActionPlannerScreen: React.FC = () => {
               todayTextColor: Colors.primary,
               dotColor: Colors.warning,
               selectedDayBackgroundColor: Colors.success,
+              monthTextColor: Colors.textPrimary,
+              dayTextColor: Colors.textSecondary,
+              arrowColor: Colors.primary,
             }}
           />
         </View>
 
+        {/* ✅ Animated Goal Timeline */}
         <Animated.View style={{ opacity: fadeAnim }}>
           {goalSections.map((section, index) => {
             const isLeft = index % 2 === 0;
