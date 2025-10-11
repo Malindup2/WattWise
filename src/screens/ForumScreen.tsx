@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, StatusBar } from 'react-native';
 import { Colors } from '../constants/Colors';
-import CommunityForum from '../components/CommunityForum';
+import CommunityForum from '../components/CommunityForum/CommunityForum';
 
 const ForumScreen: React.FC = () => {
   return (
