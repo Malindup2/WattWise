@@ -1,4 +1,14 @@
-import { collection, query, where, orderBy, limit, getDocs, doc, getDoc, addDoc } from 'firebase/firestore';
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+  getDocs,
+  doc,
+  getDoc,
+  addDoc,
+} from 'firebase/firestore';
 import { db, auth } from '../../config/firebase';
 import { EnergyData } from './EnergyPredictionService';
 
@@ -35,12 +45,12 @@ export class EnergyDataService {
 
       // Get user profile
       const userDoc = await getDoc(doc(db, 'users', user.uid));
-      const userProfile = userDoc.data() as UserProfile || {};
+      const userProfile = (userDoc.data() as UserProfile) || {};
       console.log('👤 User profile loaded:', userProfile);
 
       // Try to get usage data, but handle index errors gracefully
       let usageData: DailyUsage[] = [];
-      
+
       try {
         // Get last 30 days of usage data
         const thirtyDaysAgo = new Date();
@@ -63,7 +73,10 @@ export class EnergyDataService {
 
         console.log('📊 Usage data loaded:', usageData.length, 'records');
       } catch (indexError: any) {
-        console.warn('📊 Firestore index not available, using mock data:', indexError?.message || indexError);
+        console.warn(
+          '📊 Firestore index not available, using mock data:',
+          indexError?.message || indexError
+        );
         // Continue with empty array to use mock data
       }
 
@@ -84,13 +97,13 @@ export class EnergyDataService {
         .map(day => day.totalKwh);
 
       // Get all 30 days data
-      const last30Days = usageData
-        .reverse()
-        .map(day => day.totalKwh);
+      const last30Days = usageData.reverse().map(day => day.totalKwh);
 
       // Count devices from most recent day
       const recentDay = usageData[usageData.length - 1];
-      const deviceCount = recentDay?.devices ? Object.keys(recentDay.devices).length : userProfile.deviceCount || 5;
+      const deviceCount = recentDay?.devices
+        ? Object.keys(recentDay.devices).length
+        : userProfile.deviceCount || 5;
 
       return {
         userId: user.uid,
@@ -100,7 +113,6 @@ export class EnergyDataService {
         deviceCount,
         monthlyBudget: userProfile.monthlyBudget,
       };
-
     } catch (error) {
       console.error('Error fetching energy data:', error);
       // Return mock data on error
@@ -111,7 +123,7 @@ export class EnergyDataService {
 
   static getMockEnergyData(userId: string): EnergyData {
     console.log('🎲 Generating mock energy data for user:', userId);
-    
+
     // Generate realistic mock data based on typical household patterns
     const baseUsage = 8.5;
     const variance = 1.5;
@@ -128,8 +140,8 @@ export class EnergyDataService {
       const dayOfWeek = index % 7;
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
       const weekendMultiplier = isWeekend ? 1.2 : 1.0;
-      const monthlyTrend = 1 + (Math.sin((index / 30) * Math.PI) * 0.1); // Slight monthly variation
-      
+      const monthlyTrend = 1 + Math.sin((index / 30) * Math.PI) * 0.1; // Slight monthly variation
+
       return (baseUsage + (Math.random() - 0.5) * variance) * weekendMultiplier * monthlyTrend;
     });
 
@@ -145,13 +157,15 @@ export class EnergyDataService {
     console.log('🎲 Generated mock data:', {
       ...mockData,
       last7Days: mockData.last7Days.map(v => v.toFixed(1)),
-      avgLast30Days: (mockData.last30Days.reduce((a, b) => a + b, 0) / 30).toFixed(1)
+      avgLast30Days: (mockData.last30Days.reduce((a, b) => a + b, 0) / 30).toFixed(1),
     });
 
     return mockData;
   }
 
-  static async saveDailyUsage(dailyUsage: Omit<DailyUsage, 'id' | 'userId' | 'createdAt'>): Promise<void> {
+  static async saveDailyUsage(
+    dailyUsage: Omit<DailyUsage, 'id' | 'userId' | 'createdAt'>
+  ): Promise<void> {
     try {
       const user = auth.currentUser;
       if (!user) {

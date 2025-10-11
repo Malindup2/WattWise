@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
-import { EnergyPredictionService, PredictionResponse, EnergyData, ChartDataPoint } from '../services/EnergyPredictionService';
+import {
+  EnergyPredictionService,
+  PredictionResponse,
+  EnergyData,
+  ChartDataPoint,
+} from '../services/EnergyPredictionService';
 import { EnergyDataService } from '../services/EnergyDataService';
 
 type FilterPeriod = 'daily' | 'weekly' | 'monthly';

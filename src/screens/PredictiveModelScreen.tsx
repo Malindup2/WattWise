@@ -14,7 +14,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { Colors } from '../constants/Colors';
-import { EnergyPredictionService, PredictionResponse, ChartDataPoint, EnergyData } from '../services/EnergyPredictionService';
+import {
+  EnergyPredictionService,
+  PredictionResponse,
+  ChartDataPoint,
+  EnergyData,
+} from '../services/EnergyPredictionService';
 import { EnergyDataService } from '../services/EnergyDataService';
 import { TestDataSeeder } from '../services/TestDataSeeder';
 
@@ -144,7 +149,9 @@ const PredictiveModelScreen: React.FC = () => {
 
   const prepareChartData = () => {
     const pastData = chartData.filter(item => item.type === 'past').map(item => item.value);
-    const predictedData = chartData.filter(item => item.type === 'predicted').map(item => item.value);
+    const predictedData = chartData
+      .filter(item => item.type === 'predicted')
+      .map(item => item.value);
     const labels = chartData.map(item => item.label);
 
     return {
@@ -167,20 +174,14 @@ const PredictiveModelScreen: React.FC = () => {
 
   const renderFilterTabs = () => (
     <View style={styles.filterContainer}>
-      {(['daily', 'weekly', 'monthly'] as FilterPeriod[]).map((period) => (
+      {(['daily', 'weekly', 'monthly'] as FilterPeriod[]).map(period => (
         <TouchableOpacity
           key={period}
-          style={[
-            styles.filterTab,
-            selectedPeriod === period && styles.filterTabActive,
-          ]}
+          style={[styles.filterTab, selectedPeriod === period && styles.filterTabActive]}
           onPress={() => setSelectedPeriod(period)}
         >
           <Text
-            style={[
-              styles.filterTabText,
-              selectedPeriod === period && styles.filterTabTextActive,
-            ]}
+            style={[styles.filterTabText, selectedPeriod === period && styles.filterTabTextActive]}
           >
             {period.charAt(0).toUpperCase() + period.slice(1)}
           </Text>
@@ -246,16 +247,16 @@ const PredictiveModelScreen: React.FC = () => {
                   insight.type === 'warning'
                     ? 'warning-outline'
                     : insight.type === 'tip'
-                    ? 'bulb-outline'
-                    : 'information-circle-outline'
+                      ? 'bulb-outline'
+                      : 'information-circle-outline'
                 }
                 size={20}
                 color={
                   insight.type === 'warning'
                     ? '#F59E0B'
                     : insight.type === 'tip'
-                    ? '#10B981'
-                    : '#3B82F6'
+                      ? '#10B981'
+                      : '#3B82F6'
                 }
               />
               <Text style={styles.insightTitle}>{insight.title}</Text>
@@ -269,12 +270,7 @@ const PredictiveModelScreen: React.FC = () => {
               Prediction Confidence: {predictions.confidence}%
             </Text>
             <View style={styles.confidenceBar}>
-              <View
-                style={[
-                  styles.confidenceFill,
-                  { width: `${predictions.confidence}%` },
-                ]}
-              />
+              <View style={[styles.confidenceFill, { width: `${predictions.confidence}%` }]} />
             </View>
           </View>
         )}
@@ -313,21 +309,21 @@ const PredictiveModelScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.backgroundSecondary} />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Know Your Future Usage ⚡</Text>
         <View style={styles.headerActions}>
           {__DEV__ && (
             <>
-              <TouchableOpacity 
-                onPress={handleTestApiKey} 
+              <TouchableOpacity
+                onPress={handleTestApiKey}
                 style={[styles.seedButton, { marginRight: 8 }]}
               >
                 <Text style={styles.seedButtonText}>Test API</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                onPress={handleSeedTestData} 
+              <TouchableOpacity
+                onPress={handleSeedTestData}
                 disabled={loading}
                 style={styles.seedButton}
               >
@@ -336,10 +332,10 @@ const PredictiveModelScreen: React.FC = () => {
             </>
           )}
           <TouchableOpacity onPress={handleRefresh} disabled={refreshing}>
-            <Ionicons 
-              name="refresh-outline" 
-              size={24} 
-              color={refreshing ? Colors.textSecondary : Colors.primary} 
+            <Ionicons
+              name="refresh-outline"
+              size={24}
+              color={refreshing ? Colors.textSecondary : Colors.primary}
             />
           </TouchableOpacity>
         </View>
@@ -347,9 +343,7 @@ const PredictiveModelScreen: React.FC = () => {
 
       <ScrollView
         style={styles.scrollView}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
         showsVerticalScrollIndicator={false}
       >
         {/* Filter Tabs */}
@@ -358,10 +352,8 @@ const PredictiveModelScreen: React.FC = () => {
         {/* Chart Section */}
         <View style={styles.chartContainer}>
           <Text style={styles.chartTitle}>Energy Usage Trends</Text>
-          <Text style={styles.chartSubtitle}>
-            Past (Green) vs Predicted (Blue)
-          </Text>
-          
+          <Text style={styles.chartSubtitle}>Past (Green) vs Predicted (Blue)</Text>
+
           {chartData.length > 0 && (
             <LineChart
               data={prepareChartData()}

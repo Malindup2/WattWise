@@ -37,18 +37,14 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
 
   return (
     <Modal visible={!!post} animationType="slide" transparent>
-      <TouchableOpacity
-        style={styles.modalOverlay}
-        activeOpacity={1}
-        onPress={onClose}
-      >
+      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1, justifyContent: 'flex-end' }}
         >
           <TouchableOpacity
             activeOpacity={1}
-            style={[styles.modalCard, { maxHeight: '86%', flex:1 }]}
+            style={[styles.modalCard, { maxHeight: '86%', flex: 1 }]}
             onPress={() => {}}
           >
             <View style={styles.commentsHeader}>
@@ -70,8 +66,10 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
                   <ActivityIndicator color={Colors.primary} />
                 </View>
               ) : (
-                <ScrollView contentContainerStyle={{ paddingBottom: 16 }}
-                keyboardShouldPersistTaps="handled">
+                <ScrollView
+                  contentContainerStyle={{ paddingBottom: 16 }}
+                  keyboardShouldPersistTaps="handled"
+                >
                   {comments.map(comment => (
                     <CommentCard
                       key={comment.id}
@@ -90,11 +88,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
               )}
             </View>
 
-            <CommentComposer
-              postId={post.id}
-              currentUser={currentUser}
-              onSubmit={() => {}}
-            />
+            <CommentComposer postId={post.id} currentUser={currentUser} onSubmit={() => {}} />
           </TouchableOpacity>
         </KeyboardAvoidingView>
       </TouchableOpacity>

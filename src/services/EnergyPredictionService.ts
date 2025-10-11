@@ -53,22 +53,25 @@ export class EnergyPredictionService {
       // Test both API versions to see if gemini-2.5-flash is available
       const apiVersions = ['v1beta', 'v1'];
       let foundModel = false;
-      
+
       for (const version of apiVersions) {
         try {
           const testUrl = `https://generativelanguage.googleapis.com/${version}/models?key=${this.apiKey}`;
           console.log(`🧪 Testing ${version} API for gemini-2.5-flash...`);
-          
+
           const response = await fetch(testUrl);
           console.log(`🧪 ${version} API response status:`, response.status);
-          
+
           if (response.ok) {
             const data = await response.json();
             const models = data.models?.map((m: any) => m.name) || [];
             const hasGemini25Flash = models.includes('models/gemini-2.5-flash');
-            console.log(`📋 ${version} API models:`, models.filter((name: string) => name.includes('gemini')));
+            console.log(
+              `📋 ${version} API models:`,
+              models.filter((name: string) => name.includes('gemini'))
+            );
             console.log(`🎯 gemini-2.5-flash available in ${version}:`, hasGemini25Flash);
-            
+
             if (hasGemini25Flash) {
               foundModel = true;
               console.log(`✅ Found gemini-2.5-flash in ${version} API`);
@@ -81,7 +84,7 @@ export class EnergyPredictionService {
           console.log(`❌ ${version} API error:`, error);
         }
       }
-      
+
       if (foundModel) {
         console.log('✅ Gemini API key is valid and gemini-2.5-flash is available');
         return true;
@@ -103,7 +106,7 @@ export class EnergyPredictionService {
 
     // Use only the specified free model
     const modelName = 'gemini-2.5-flash';
-    
+
     try {
       console.log(`🤖 Using model: ${modelName}`);
       const result = await this.tryGetPredictions(energyData, modelName);
@@ -116,17 +119,20 @@ export class EnergyPredictionService {
     }
   }
 
-  private static async tryGetPredictions(energyData: EnergyData, modelName: string): Promise<PredictionResponse> {
+  private static async tryGetPredictions(
+    energyData: EnergyData,
+    modelName: string
+  ): Promise<PredictionResponse> {
     console.log('🔑 Using Gemini API key:', this.apiKey!.substring(0, 10) + '...');
-    
+
     // Try both v1 and v1beta API versions for gemini-2.5-flash
     const apiVersions = ['v1beta', 'v1'];
-    
+
     for (const version of apiVersions) {
       try {
         const url = `https://generativelanguage.googleapis.com/${version}/models/${modelName}:generateContent?key=${this.apiKey}`;
         console.log(`🌐 Trying ${version} API with model ${modelName}`);
-        
+
         const result = await this.makeApiRequest(url, energyData);
         console.log(`✅ Success with ${version} API`);
         return result;
@@ -135,11 +141,14 @@ export class EnergyPredictionService {
         continue;
       }
     }
-    
+
     throw new Error(`All API versions failed for model ${modelName}`);
   }
 
-  private static async makeApiRequest(url: string, energyData: EnergyData): Promise<PredictionResponse> {
+  private static async makeApiRequest(
+    url: string,
+    energyData: EnergyData
+  ): Promise<PredictionResponse> {
     const prompt = `You are an energy forecasting assistant. Given the user's past daily kWh data, predict their energy consumption and provide actionable insights.
 
 User Data:
@@ -192,7 +201,7 @@ Return ONLY a valid JSON object with this exact structure:
     });
 
     console.log('📡 Response status:', response.status, response.statusText);
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('❌ API Error Response:', errorText);
@@ -201,28 +210,28 @@ Return ONLY a valid JSON object with this exact structure:
 
     const data = await response.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    
+
     console.log('🤖 Gemini raw response:', text);
-    
+
     if (!text.trim()) {
       throw new Error('Empty response from Gemini API');
     }
-    
+
     // Clean up the response and parse JSON
     let cleanedText = text.replace(/```json\n?|\n?```/g, '').trim();
-    
+
     // Additional cleanup for common issues
     cleanedText = cleanedText.replace(/^[^{]*({.*})[^}]*$/s, '$1');
-    
+
     console.log('🤖 Cleaned Gemini response:', cleanedText);
-    
+
     const parsed = JSON.parse(cleanedText) as PredictionResponse;
-    
+
     // Validate the response structure
     if (!parsed.predictions || !parsed.insights || !parsed.costEstimate) {
       throw new Error('Invalid response structure from Gemini');
     }
-    
+
     console.log('✅ Gemini prediction successful');
     return parsed;
   }
@@ -231,15 +240,15 @@ Return ONLY a valid JSON object with this exact structure:
     console.log('🎲 Generating mock predictions for:', {
       userId: energyData.userId,
       avgUsage: energyData.averageDailyKwh.toFixed(1),
-      deviceCount: energyData.deviceCount
+      deviceCount: energyData.deviceCount,
     });
 
     const avgUsage = energyData.averageDailyKwh;
     const variance = avgUsage * 0.15; // 15% variance
-    
+
     // Generate predictions with slight trends
     const next5Days = Array.from({ length: 5 }, (_, i) => {
-      const trendFactor = 1 + (i * 0.02); // Slight upward trend
+      const trendFactor = 1 + i * 0.02; // Slight upward trend
       return Math.max(0, avgUsage * trendFactor + (Math.random() - 0.5) * variance);
     });
 
@@ -266,20 +275,20 @@ Return ONLY a valid JSON object with this exact structure:
       },
       insights: [
         {
-          title: "Peak Usage Alert",
+          title: 'Peak Usage Alert',
           description: `Your usage tends to peak on weekends. Consider using energy-efficient appliances during these times.`,
-          type: "warning"
+          type: 'warning',
         },
         {
-          title: "Energy Saving Tip",
+          title: 'Energy Saving Tip',
           description: `You could save up to ${(dailyCost * 0.1).toFixed(0)} LKR daily by reducing AC usage by 1 hour.`,
-          type: "tip"
+          type: 'tip',
         },
         {
-          title: "Usage Pattern",
+          title: 'Usage Pattern',
           description: `Your daily average of ${avgUsage.toFixed(1)} kWh is consistent with similar households.`,
-          type: "info"
-        }
+          type: 'info',
+        },
       ],
       costEstimate: {
         daily: Math.round(dailyCost),
@@ -294,7 +303,7 @@ Return ONLY a valid JSON object with this exact structure:
       next5DaysAvg: (next5Days.reduce((a, b) => a + b, 0) / next5Days.length).toFixed(1),
       confidence: mockResponse.confidence,
       dailyCost: mockResponse.costEstimate.daily.toString(),
-      insightsCount: mockResponse.insights.length
+      insightsCount: mockResponse.insights.length,
     });
 
     return mockResponse;
@@ -312,11 +321,11 @@ Return ONLY a valid JSON object with this exact structure:
     pastData.forEach((value, index) => {
       const date = new Date(today);
       date.setDate(date.getDate() - (pastData.length - 1 - index));
-      
+
       chartData.push({
         value: Math.round(value * 100) / 100,
         label: this.formatDate(date, period),
-        type: 'past'
+        type: 'past',
       });
     });
 
@@ -324,11 +333,11 @@ Return ONLY a valid JSON object with this exact structure:
     predictions.forEach((value, index) => {
       const date = new Date(today);
       date.setDate(date.getDate() + index + 1);
-      
+
       chartData.push({
         value: Math.round(value * 100) / 100,
         label: this.formatDate(date, period),
-        type: 'predicted'
+        type: 'predicted',
       });
     });
 

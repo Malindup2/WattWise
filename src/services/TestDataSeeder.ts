@@ -14,47 +14,47 @@ export class TestDataSeeder {
       // Generate 30 days of realistic energy data
       const testData = [];
       const today = new Date();
-      
+
       for (let i = 29; i >= 0; i--) {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
-        
+
         // Simulate realistic daily usage patterns
         const baseUsage = 8.5;
         const isWeekend = date.getDay() === 0 || date.getDay() === 6;
         const weekendMultiplier = isWeekend ? 1.3 : 1.0;
         const seasonalVariation = 1 + Math.sin((i / 30) * Math.PI) * 0.2;
         const randomVariation = 0.8 + Math.random() * 0.4; // ±20% random variation
-        
+
         const totalKwh = baseUsage * weekendMultiplier * seasonalVariation * randomVariation;
-        
+
         // Generate device breakdown
         const devices = {
-          'ac_unit': {
+          ac_unit: {
             name: 'Air Conditioning',
             kwh: totalKwh * 0.4, // 40% of total usage
-            hours: 8 + Math.random() * 4
+            hours: 8 + Math.random() * 4,
           },
-          'lighting': {
+          lighting: {
             name: 'Lighting',
             kwh: totalKwh * 0.15, // 15% of total usage
-            hours: 6 + Math.random() * 2
+            hours: 6 + Math.random() * 2,
           },
-          'refrigerator': {
+          refrigerator: {
             name: 'Refrigerator',
             kwh: totalKwh * 0.2, // 20% of total usage
-            hours: 24
+            hours: 24,
           },
-          'washing_machine': {
+          washing_machine: {
             name: 'Washing Machine',
             kwh: totalKwh * 0.1, // 10% of total usage
-            hours: Math.random() > 0.7 ? 2 : 0 // Used 30% of days
+            hours: Math.random() > 0.7 ? 2 : 0, // Used 30% of days
           },
-          'other_appliances': {
+          other_appliances: {
             name: 'Other Appliances',
             kwh: totalKwh * 0.15, // 15% of total usage
-            hours: 4 + Math.random() * 4
-          }
+            hours: 4 + Math.random() * 4,
+          },
         };
 
         testData.push({
@@ -67,19 +67,16 @@ export class TestDataSeeder {
       }
 
       // Add all test data to Firestore
-      const promises = testData.map(data => 
-        addDoc(collection(db, 'dailyUsage'), data)
-      );
+      const promises = testData.map(data => addDoc(collection(db, 'dailyUsage'), data));
 
       await Promise.all(promises);
-      
+
       console.log(`✅ Successfully seeded ${testData.length} days of energy data`);
       console.log('📊 Sample data:', {
         averageKwh: (testData.reduce((sum, d) => sum + d.totalKwh, 0) / testData.length).toFixed(1),
         minKwh: Math.min(...testData.map(d => d.totalKwh)).toFixed(1),
         maxKwh: Math.max(...testData.map(d => d.totalKwh)).toFixed(1),
       });
-
     } catch (error) {
       console.error('❌ Error seeding test data:', error);
       throw error;
@@ -104,9 +101,8 @@ export class TestDataSeeder {
       };
 
       await addDoc(collection(db, 'users'), userProfile);
-      
-      console.log('✅ Successfully seeded user profile');
 
+      console.log('✅ Successfully seeded user profile');
     } catch (error) {
       console.error('❌ Error seeding user profile:', error);
       throw error;
