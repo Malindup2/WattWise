@@ -48,7 +48,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
         >
           <TouchableOpacity
             activeOpacity={1}
-            style={[styles.modalCard, { maxHeight: '86%' }]}
+            style={[styles.modalCard, { maxHeight: '86%', flex:1 }]}
             onPress={() => {}}
           >
             <View style={styles.commentsHeader}>
@@ -64,13 +64,14 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
               <Text style={styles.postContent}>{post.content}</Text>
             </View>
 
-            <View style={styles.commentsListWrap}>
+            <View style={{ flex: 1 }}>
               {loading ? (
                 <View style={styles.loadingWrap}>
                   <ActivityIndicator color={Colors.primary} />
                 </View>
               ) : (
-                <ScrollView contentContainerStyle={{ paddingBottom: 80 }}>
+                <ScrollView contentContainerStyle={{ paddingBottom: 16 }}
+                keyboardShouldPersistTaps="handled">
                   {comments.map(comment => (
                     <CommentCard
                       key={comment.id}
