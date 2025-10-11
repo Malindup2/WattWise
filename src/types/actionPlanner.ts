@@ -4,13 +4,13 @@ export type Task = {
   description: string;
   goalType: 'short' | 'medium' | 'long';
   completed: boolean;
-  energySaved?: number;   // kWh
-  moneySaved?: number;    // $
-  reminderDate?: string;  // YYYY-MM-DD
+  energySaved?: number; // kWh
+  moneySaved?: number; // $
+  reminderDate?: string; // YYYY-MM-DD
 
   // New optional properties for recurring/scheduled tasks
   recurrence?: 'daily' | 'weekly' | 'monthly'; // recurrence type
-  scheduledDate?: string;                        // YYYY-MM-DD
+  scheduledDate?: string; // YYYY-MM-DD
 };
 
 export type GoalSection = {

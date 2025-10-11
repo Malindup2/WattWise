@@ -18,16 +18,46 @@ import { UserProfile } from '../types/userProfile';
 // Static blueprints for initial task generation
 export const blueprints = {
   shortTerm: [
-    { title: 'Turn off unused lights', description: 'Switch off lights in rooms not in use.', energySaved: 2, moneySaved: 5 },
-    { title: 'Clean refrigerator coils', description: 'Improves efficiency.', energySaved: 3, moneySaved: 6 },
-    { title: 'Clean AC filter', description: 'Improves AC efficiency.', energySaved: 5, moneySaved: 10 },
+    {
+      title: 'Turn off unused lights',
+      description: 'Switch off lights in rooms not in use.',
+      energySaved: 2,
+      moneySaved: 5,
+    },
+    {
+      title: 'Clean refrigerator coils',
+      description: 'Improves efficiency.',
+      energySaved: 3,
+      moneySaved: 6,
+    },
+    {
+      title: 'Clean AC filter',
+      description: 'Improves AC efficiency.',
+      energySaved: 5,
+      moneySaved: 10,
+    },
   ],
   mediumTerm: [
-    { title: 'Upgrade LED bulbs', description: 'Replace old bulbs with LED.', energySaved: 10, moneySaved: 20 },
-    { title: 'Insulate windows', description: 'Reduce heat loss.', energySaved: 15, moneySaved: 30 },
+    {
+      title: 'Upgrade LED bulbs',
+      description: 'Replace old bulbs with LED.',
+      energySaved: 10,
+      moneySaved: 20,
+    },
+    {
+      title: 'Insulate windows',
+      description: 'Reduce heat loss.',
+      energySaved: 15,
+      moneySaved: 30,
+    },
   ],
   longTerm: [
-    { title: 'Install solar panels', description: 'Invest in renewable energy.', energySaved: 150, moneySaved: 500 },
+    {
+      title: 'Install solar panels',
+      description: 'Invest in renewable energy.',
+      energySaved: 150,
+      moneySaved: 500,
+    },
   ],
 };
 
@@ -48,7 +78,12 @@ export const generateTasks = (user: UserProfile): Task[] => {
         id: idCounter.toString(),
         title: t.title,
         description: t.description,
-        goalType: assignGoalType === 'shortTerm' ? 'short' : assignGoalType === 'mediumTerm' ? 'medium' : 'long',
+        goalType:
+          assignGoalType === 'shortTerm'
+            ? 'short'
+            : assignGoalType === 'mediumTerm'
+              ? 'medium'
+              : 'long',
         completed: false,
         energySaved: t.energySaved,
         moneySaved: t.moneySaved,
@@ -71,10 +106,7 @@ export class ActionPlannerService {
       }
 
       // Query for user's action plan document
-      const q = query(
-        collection(db, 'user_action_plans'),
-        where('userId', '==', currentUser.uid)
-      );
+      const q = query(collection(db, 'user_action_plans'), where('userId', '==', currentUser.uid));
 
       const querySnapshot = await getDocs(q);
 
@@ -139,10 +171,7 @@ export class ActionPlannerService {
       }
 
       // Find user's action plan document
-      const q = query(
-        collection(db, 'user_action_plans'),
-        where('userId', '==', currentUser.uid)
-      );
+      const q = query(collection(db, 'user_action_plans'), where('userId', '==', currentUser.uid));
 
       const querySnapshot = await getDocs(q);
 
@@ -155,9 +184,7 @@ export class ActionPlannerService {
       const tasks: Task[] = actionPlanData.tasks || [];
 
       // Update the specific task
-      const updatedTasks = tasks.map(task =>
-        task.id === taskId ? { ...task, completed } : task
-      );
+      const updatedTasks = tasks.map(task => (task.id === taskId ? { ...task, completed } : task));
 
       // Update the document
       await updateDoc(actionPlanDoc.ref, {
@@ -181,10 +208,7 @@ export class ActionPlannerService {
       }
 
       // Find user's action plan document
-      const q = query(
-        collection(db, 'user_action_plans'),
-        where('userId', '==', currentUser.uid)
-      );
+      const q = query(collection(db, 'user_action_plans'), where('userId', '==', currentUser.uid));
 
       const querySnapshot = await getDocs(q);
 
@@ -216,10 +240,7 @@ export class ActionPlannerService {
       }
 
       // Find user's action plan document
-      const q = query(
-        collection(db, 'user_action_plans'),
-        where('userId', '==', currentUser.uid)
-      );
+      const q = query(collection(db, 'user_action_plans'), where('userId', '==', currentUser.uid));
 
       const querySnapshot = await getDocs(q);
 
@@ -260,10 +281,7 @@ export class ActionPlannerService {
       }
 
       // Find user's action plan document
-      const q = query(
-        collection(db, 'user_action_plans'),
-        where('userId', '==', currentUser.uid)
-      );
+      const q = query(collection(db, 'user_action_plans'), where('userId', '==', currentUser.uid));
 
       const querySnapshot = await getDocs(q);
 

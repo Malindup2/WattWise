@@ -35,11 +35,7 @@ const TaskCard = ({ task, onToggleComplete, isHighImpact = false }: Props) => {
           🔁 {task.recurrence.charAt(0).toUpperCase() + task.recurrence.slice(1)}
         </Text>
       )}
-      {task.scheduledDate && (
-        <Text style={styles.scheduled}>
-          📅 {task.scheduledDate}
-        </Text>
-      )}
+      {task.scheduledDate && <Text style={styles.scheduled}>📅 {task.scheduledDate}</Text>}
     </TouchableOpacity>
   );
 };

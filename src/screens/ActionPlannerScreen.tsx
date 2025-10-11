@@ -105,7 +105,10 @@ const ActionPlannerScreen: React.FC = () => {
   const goalSections: GoalSectionType[] = (['short', 'medium', 'long'] as GoalType[]).map(type => {
     const sectionTasks = tasks
       .filter(t => t.goalType === type)
-      .sort((a, b) => ((b.energySaved ?? 0) + (b.moneySaved ?? 0)) - ((a.energySaved ?? 0) + (a.moneySaved ?? 0)));
+      .sort(
+        (a, b) =>
+          (b.energySaved ?? 0) + (b.moneySaved ?? 0) - ((a.energySaved ?? 0) + (a.moneySaved ?? 0))
+      );
     return {
       type,
       title: titleMap[type],
@@ -115,17 +118,23 @@ const ActionPlannerScreen: React.FC = () => {
 
   const getTimelineColor = (type: GoalType) => {
     switch (type) {
-      case 'short': return Colors.success;
-      case 'medium': return Colors.warning;
-      case 'long': return Colors.error;
+      case 'short':
+        return Colors.success;
+      case 'medium':
+        return Colors.warning;
+      case 'long':
+        return Colors.error;
     }
   };
 
   const getIcon = (type: GoalType) => {
     switch (type) {
-      case 'short': return '⚡';
-      case 'medium': return '💡';
-      case 'long': return '🏠';
+      case 'short':
+        return '⚡';
+      case 'medium':
+        return '💡';
+      case 'long':
+        return '🏠';
     }
   };
 
@@ -154,57 +163,57 @@ const ActionPlannerScreen: React.FC = () => {
             <Text style={styles.title}>Your Energy Roadmap</Text>
             <Text style={styles.subtitle}>Step-by-step energy-saving actions</Text>
 
-        <ProgressBar progress={progress} />
-        <Text style={styles.progressText}>{Math.round(progress)}% Completed</Text>
+            <ProgressBar progress={progress} />
+            <Text style={styles.progressText}>{Math.round(progress)}% Completed</Text>
 
-        <EnergyEstimate energy={totalEnergy} money={totalMoney} />
+            <EnergyEstimate energy={totalEnergy} money={totalMoney} />
 
-        {/* ✅ Mini Calendar View */}
-        <View style={styles.calendarContainer}>
-          <Calendar
-            markingType="dot"
-            markedDates={markedDates}
-            theme={{
-              todayTextColor: Colors.primary,
-              dotColor: Colors.warning,
-              selectedDayBackgroundColor: Colors.success,
-              monthTextColor: Colors.textPrimary,
-              dayTextColor: Colors.textSecondary,
-              arrowColor: Colors.primary,
-            }}
-          />
-        </View>
+            {/* ✅ Mini Calendar View */}
+            <View style={styles.calendarContainer}>
+              <Calendar
+                markingType="dot"
+                markedDates={markedDates}
+                theme={{
+                  todayTextColor: Colors.primary,
+                  dotColor: Colors.warning,
+                  selectedDayBackgroundColor: Colors.success,
+                  monthTextColor: Colors.textPrimary,
+                  dayTextColor: Colors.textSecondary,
+                  arrowColor: Colors.primary,
+                }}
+              />
+            </View>
 
-        {/* ✅ Animated Goal Timeline */}
-        <Animated.View style={{ opacity: fadeAnim }}>
-          {goalSections.map((section, index) => {
-            const isLeft = index % 2 === 0;
-            const color = getTimelineColor(section.type);
+            {/* ✅ Animated Goal Timeline */}
+            <Animated.View style={{ opacity: fadeAnim }}>
+              {goalSections.map((section, index) => {
+                const isLeft = index % 2 === 0;
+                const color = getTimelineColor(section.type);
 
-            return (
-              <View key={section.type} style={styles.timelineItem}>
-                <View style={styles.timelineLineContainer}>
-                  {index !== goalSections.length - 1 && (
-                    <View style={[styles.timelineLine, { backgroundColor: color }]} />
-                  )}
-                  <View style={[styles.timelineDot, { backgroundColor: color }]}>
-                    <Text style={styles.dotIcon}>{getIcon(section.type)}</Text>
+                return (
+                  <View key={section.type} style={styles.timelineItem}>
+                    <View style={styles.timelineLineContainer}>
+                      {index !== goalSections.length - 1 && (
+                        <View style={[styles.timelineLine, { backgroundColor: color }]} />
+                      )}
+                      <View style={[styles.timelineDot, { backgroundColor: color }]}>
+                        <Text style={styles.dotIcon}>{getIcon(section.type)}</Text>
+                      </View>
+                    </View>
+
+                    <View
+                      style={[
+                        styles.cardWrapper,
+                        isLeft ? { marginRight: screenWidth / 4 } : { marginLeft: screenWidth / 4 },
+                      ]}
+                    >
+                      <GoalCard section={section} onToggleComplete={toggleComplete} />
+                    </View>
                   </View>
-                </View>
-
-                <View
-                  style={[
-                    styles.cardWrapper,
-                    isLeft ? { marginRight: screenWidth / 4 } : { marginLeft: screenWidth / 4 },
-                  ]}
-                >
-                  <GoalCard section={section} onToggleComplete={toggleComplete} />
-                </View>
-              </View>
-            );
-          })}
-        </Animated.View>
-        </>
+                );
+              })}
+            </Animated.View>
+          </>
         )}
       </ScrollView>
 
@@ -238,7 +247,13 @@ const styles = StyleSheet.create({
   timelineItem: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 40 },
   timelineLineContainer: { width: 40, alignItems: 'center' },
   timelineLine: { position: 'absolute', top: 16, bottom: 0, width: 4, borderRadius: 2 },
-  timelineDot: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  timelineDot: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   dotIcon: { fontSize: 12, color: Colors.textOnPrimary },
   cardWrapper: { flex: 1 },
 });

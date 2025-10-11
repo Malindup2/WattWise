@@ -4,16 +4,46 @@ import { UserProfile } from '../types/userProfile';
 
 export const blueprints = {
   shortTerm: [
-    { title: 'Turn off unused lights', description: 'Switch off lights in rooms not in use.', energySaved: 2, moneySaved: 5 },
-    { title: 'Clean refrigerator coils', description: 'Improves efficiency.', energySaved: 3, moneySaved: 6 },
-    { title: 'Clean AC filter', description: 'Improves AC efficiency.', energySaved: 5, moneySaved: 10 },
+    {
+      title: 'Turn off unused lights',
+      description: 'Switch off lights in rooms not in use.',
+      energySaved: 2,
+      moneySaved: 5,
+    },
+    {
+      title: 'Clean refrigerator coils',
+      description: 'Improves efficiency.',
+      energySaved: 3,
+      moneySaved: 6,
+    },
+    {
+      title: 'Clean AC filter',
+      description: 'Improves AC efficiency.',
+      energySaved: 5,
+      moneySaved: 10,
+    },
   ],
   mediumTerm: [
-    { title: 'Upgrade LED bulbs', description: 'Replace old bulbs with LED.', energySaved: 10, moneySaved: 20 },
-    { title: 'Insulate windows', description: 'Reduce heat loss.', energySaved: 15, moneySaved: 30 },
+    {
+      title: 'Upgrade LED bulbs',
+      description: 'Replace old bulbs with LED.',
+      energySaved: 10,
+      moneySaved: 20,
+    },
+    {
+      title: 'Insulate windows',
+      description: 'Reduce heat loss.',
+      energySaved: 15,
+      moneySaved: 30,
+    },
   ],
   longTerm: [
-    { title: 'Install solar panels', description: 'Invest in renewable energy.', energySaved: 150, moneySaved: 500 },
+    {
+      title: 'Install solar panels',
+      description: 'Invest in renewable energy.',
+      energySaved: 150,
+      moneySaved: 500,
+    },
   ],
 };
 
@@ -34,7 +64,12 @@ export const generateTasks = (user: UserProfile): Task[] => {
         id: idCounter.toString(),
         title: t.title,
         description: t.description,
-        goalType: assignGoalType === 'shortTerm' ? 'short' : assignGoalType === 'mediumTerm' ? 'medium' : 'long',
+        goalType:
+          assignGoalType === 'shortTerm'
+            ? 'short'
+            : assignGoalType === 'mediumTerm'
+              ? 'medium'
+              : 'long',
         completed: false,
         energySaved: t.energySaved,
         moneySaved: t.moneySaved,
