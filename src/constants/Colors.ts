@@ -1,6 +1,5 @@
-// WattWise Color Theme
 export const Colors = {
-  // Primary green color
+  // Primary green
   primary: '#49B02D',
   primaryLight: '#5FB833',
   primaryDark: '#3A8C23',
@@ -16,7 +15,7 @@ export const Colors = {
   background: '#FFFFFF',
   backgroundSecondary: '#F9FAFB',
 
-  // Status colors (derived from primary)
+  // Status colors
   success: '#49B02D',
   successLight: '#F0F9F0',
   warning: '#F59E0B',
