@@ -4,6 +4,8 @@
  * @param end - End time in "HH:MM" format
  * @returns Duration in hours (decimal)
  */
+import { Task } from '../types/actionPlanner';
+
 export const calculateDuration = (start: string, end: string): number => {
   const [startHour, startMin] = start.split(':').map(Number);
   const [endHour, endMin] = end.split(':').map(Number);
@@ -36,8 +38,19 @@ export const calculatePowerUsage = (wattage: number, totalHours: number): number
  * @returns Total energy consumption in kWh
  */
 export const calculateRoomEnergyConsumption = (devices: any[]): number => {
+  if (!devices || !Array.isArray(devices)) {
+    return 0;
+  }
+
   return devices.reduce((total, device) => {
+    if (!device || !device.usage || !Array.isArray(device.usage)) {
+      return total;
+    }
+
     const deviceTotal = device.usage.reduce((deviceSum: number, usage: any) => {
+      if (!usage || typeof usage.totalHours !== 'number' || typeof device.wattage !== 'number') {
+        return deviceSum;
+      }
       return deviceSum + calculatePowerUsage(device.wattage, usage.totalHours);
     }, 0);
     return total + deviceTotal;
@@ -50,7 +63,14 @@ export const calculateRoomEnergyConsumption = (devices: any[]): number => {
  * @returns Total energy consumption in kWh
  */
 export const calculateLayoutEnergyConsumption = (rooms: any[]): number => {
+  if (!rooms || !Array.isArray(rooms)) {
+    return 0;
+  }
+
   return rooms.reduce((total, room) => {
+    if (!room) {
+      return total;
+    }
     return total + calculateRoomEnergyConsumption(room.devices || []);
   }, 0);
 };
@@ -74,4 +94,8 @@ export const formatTime = (time: string): string => {
  */
 export const generateId = (): string => {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
+};
+
+export const calculateImpactScore = (task: Task) => {
+  return (task.energySaved || 0) * 0.6 + (task.moneySaved || 0) * 0.4;
 };

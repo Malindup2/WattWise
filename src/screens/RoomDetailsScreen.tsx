@@ -72,12 +72,7 @@ const RoomDetailsScreen = () => {
     }
   };
 
-  const handleAddDevice = async (deviceData: {
-    deviceName: string;
-    wattage: number;
-    startTime: string;
-    endTime: string;
-  }) => {
+  const handleAddDevice = async (deviceData: { deviceName: string; wattage: number }) => {
     try {
       const user = AuthService.getCurrentUser();
       if (user) {
@@ -96,12 +91,7 @@ const RoomDetailsScreen = () => {
     }
   };
 
-  const handleEditDevice = async (deviceData: {
-    deviceName: string;
-    wattage: number;
-    startTime: string;
-    endTime: string;
-  }) => {
+  const handleEditDevice = async (deviceData: { deviceName: string; wattage: number }) => {
     if (!editingDevice) return;
 
     try {

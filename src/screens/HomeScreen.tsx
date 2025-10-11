@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,18 +11,31 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
+  Animated,
+  Easing,
+  Image,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Animatable from 'react-native-animatable';
 import AnimatedCounter from '../components/AnimatedCounter';
+import DailyUsageInput from '../components/DailyUsageInput';
+import DailyUsageDisplay from '../components/DailyUsageDisplay';
 import { Colors } from '../constants/Colors';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { AuthService } from '../services/firebase';
 import { User } from 'firebase/auth';
+import {
+  updateProfile,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+} from 'firebase/auth';
 import { FirestoreService } from '../services/firebase';
 import { LayoutService } from '../services/LayoutService';
+import { DailyUsageService, UsageStats } from '../services/DailyUsageService';
 import { AlertModal } from '../components/AlertModal';
 import { AddEditDeviceModal } from '../components/modals';
 import { DEVICE_PRESETS, ROOM_ICONS } from '../constants/DeviceTypes';
@@ -55,6 +68,7 @@ const HomeScreen = () => {
   const navigation = useNavigation();
 
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null); // Firestore user data
   const [userLayout, setUserLayout] = useState<ExtendedLayout | null>(null);
   const [loadingLayout, setLoadingLayout] = useState(false);
   const [showLayoutModal, setShowLayoutModal] = useState(false);
@@ -77,35 +91,133 @@ const HomeScreen = () => {
   const [editingDevice, setEditingDevice] = useState<any>(null);
   const [expandedRoom, setExpandedRoom] = useState<string | null>(null);
 
+  // Daily usage tracking state
+  const [showUsageInput, setShowUsageInput] = useState(false);
+  const [showDailyUsage, setShowDailyUsage] = useState(false);
+  const [usageStats, setUsageStats] = useState<UsageStats>({
+    today: 0,
+    yesterday: 0,
+    weeklyAverage: 0,
+    monthlyTotal: 0,
+    trend: 'stable',
+    trendPercentage: 0,
+  });
+  const [weeklyTrend, setWeeklyTrend] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
+  const [categoryBreakdown, setCategoryBreakdown] = useState<{ [key: string]: number }>({});
+
+  // Animation values for circular progress
+  const progressAnimation = useRef(new Animated.Value(0)).current;
+  const percentageAnimation = useRef(new Animated.Value(0)).current;
+
+  // Sidebar animation
+  const sidebarAnimation = useRef(new Animated.Value(-width * 0.8)).current;
+
+  // Sidebar state
+  const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [sidebarModalVisible, setSidebarModalVisible] = useState(false);
+
+  // Profile management state
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showAboutModal, setShowAboutModal] = useState(false);
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [updatingProfile, setUpdatingProfile] = useState(false);
+  const [updatingPassword, setUpdatingPassword] = useState(false);
+
   const [energyData, setEnergyData] = useState({
-    totalConsumption: 2847,
-    currentUsage: 3.2,
-    monthlyBill: 284.5,
-    efficiency: 87,
-    predictions: [2.1, 2.8, 3.2, 2.9, 3.5, 4.1, 3.8],
+    totalConsumption: 0,
+    currentUsage: 0,
+    monthlyBill: 0,
+    efficiency: 0,
+    predictions: [0, 0, 0, 0, 0, 0, 0],
     categories: {
-      'Heat/Cool': 45,
-      Appliances: 23,
-      Lighting: 12,
-      Electronics: 15,
-      Other: 5,
+      Lighting: 0,
+      Appliances: 0,
+      Electronics: 0,
+      HVAC: 0,
+      Other: 0,
     },
   });
 
   const [refreshing, setRefreshing] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('Week');
 
+  // Function to animate circular progress
+  const animateProgress = (targetPercentage: number) => {
+    // Reset animations
+    progressAnimation.setValue(0);
+    percentageAnimation.setValue(0);
+
+    // Animate progress arc
+    Animated.timing(progressAnimation, {
+      toValue: targetPercentage / 100,
+      duration: 1500,
+      useNativeDriver: false,
+    }).start();
+
+    // Animate percentage counter
+    Animated.timing(percentageAnimation, {
+      toValue: targetPercentage,
+      duration: 1500,
+      useNativeDriver: false,
+    }).start();
+  };
+
   const loadEnergyData = async () => {
     try {
-      setTimeout(() => {
+      const user = AuthService.getCurrentUser();
+      if (user) {
+        // Load real usage statistics
+        const stats = await DailyUsageService.getUsageStats(user.uid);
+        setUsageStats(stats);
+
+        // Load weekly trend for charts
+        const trend = await DailyUsageService.getWeeklyTrend(user.uid);
+        setWeeklyTrend(trend);
+
+        // Load category breakdown
+        const categories = await DailyUsageService.getCategoryBreakdown(user.uid, 7);
+        setCategoryBreakdown(categories);
+
+        // Update energy data with real values
         setEnergyData(prev => ({
           ...prev,
-          currentUsage: Math.random() * 5 + 2,
-          efficiency: Math.floor(Math.random() * 15 + 80),
+          totalConsumption: stats.monthlyTotal,
+          currentUsage: stats.today,
+          monthlyBill: stats.monthlyTotal * 0.1, // Assuming 0.1 LKR per kWh
+          efficiency: Math.min(100, Math.max(0, 100 - (stats.trendPercentage || 0))),
+          predictions: trend,
+          categories: {
+            Lighting: categories['Lighting'] || 0,
+            Appliances: categories['Appliances'] || 0,
+            Electronics: categories['Electronics'] || 0,
+            HVAC: categories['HVAC'] || 0,
+            Other: categories['Other'] || 0,
+          },
         }));
-      }, 1000);
+
+        // Calculate efficiency percentage and trigger animation
+        const efficiencyPercentage =
+          stats.weeklyAverage > 0
+            ? Math.max(
+                0,
+                Math.min(100, ((stats.weeklyAverage - stats.today) / stats.weeklyAverage) * 100)
+              )
+            : 75;
+
+        // Trigger circular progress animation with real data
+        setTimeout(() => {
+          animateProgress(Math.round(efficiencyPercentage));
+        }, 500); // Small delay to ensure UI is ready
+      }
     } catch (error) {
       console.error('Error loading energy data:', error);
+      // Keep default values on error
     }
   };
 
@@ -255,12 +367,7 @@ const HomeScreen = () => {
   };
 
   // Device management functions
-  const handleAddDevice = async (deviceData: {
-    deviceName: string;
-    wattage: number;
-    startTime: string;
-    endTime: string;
-  }) => {
+  const handleAddDevice = async (deviceData: { deviceName: string; wattage: number }) => {
     if (!selectedRoom || !user) return;
 
     try {
@@ -313,12 +420,7 @@ const HomeScreen = () => {
     }
   };
 
-  const handleEditDevice = async (deviceData: {
-    deviceName: string;
-    wattage: number;
-    startTime: string;
-    endTime: string;
-  }) => {
+  const handleEditDevice = async (deviceData: { deviceName: string; wattage: number }) => {
     if (!editingDevice || !selectedRoom || !user) return;
 
     try {
@@ -598,17 +700,277 @@ const HomeScreen = () => {
     setRefreshing(false);
   };
 
+  const handleUsageAdded = async () => {
+    // Refresh data when new usage is added
+    await loadEnergyData();
+  };
+
+  const loadUserProfile = async () => {
+    try {
+      const currentUser = AuthService.getCurrentUser();
+      if (currentUser) {
+        const userDoc = await FirestoreService.getUserDocument(currentUser.uid);
+        setUserProfile(userDoc);
+        console.log('👤 User profile loaded:', userDoc);
+      }
+    } catch (error) {
+      console.error('❌ Error loading user profile:', error);
+    }
+  };
+
   useEffect(() => {
     loadEnergyData();
-    setUser(AuthService.getCurrentUser());
+    const currentUser = AuthService.getCurrentUser();
+    setUser(currentUser);
     loadUserLayout();
+    loadUserProfile();
+
+    // Initialize username for editing - prioritize Firestore username over Auth displayName
+    if (currentUser) {
+      // We'll set the username after userProfile loads
+    }
   }, []);
+
+  // Effect to initialize username when userProfile loads
+  useEffect(() => {
+    if (userProfile) {
+      setNewUsername(
+        userProfile.username || userProfile.displayName || user?.email?.split('@')[0] || ''
+      );
+    } else if (user?.displayName) {
+      setNewUsername(user.displayName);
+    }
+  }, [userProfile, user]);
+
+  // Effect to trigger animation when usageStats changes
+  useEffect(() => {
+    if (usageStats.today !== 0 || usageStats.weeklyAverage !== 0) {
+      const efficiencyPercentage =
+        usageStats.weeklyAverage > 0
+          ? Math.max(
+              0,
+              Math.min(
+                100,
+                ((usageStats.weeklyAverage - usageStats.today) / usageStats.weeklyAverage) * 100
+              )
+            )
+          : 75;
+
+      setTimeout(() => {
+        animateProgress(Math.round(efficiencyPercentage));
+      }, 800); // Delay for smooth entrance
+    }
+  }, [usageStats.today, usageStats.weeklyAverage]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
+  };
+
+  const toggleSidebar = (callback?: () => void) => {
+    if (!sidebarModalVisible) {
+      // Opening: show modal first, then animate in
+      setSidebarModalVisible(true);
+      setSidebarVisible(true);
+
+      // Set initial position
+      sidebarAnimation.setValue(-width * 0.8);
+
+      // Use requestAnimationFrame for better iOS compatibility
+      requestAnimationFrame(() => {
+        Animated.spring(sidebarAnimation, {
+          toValue: 0,
+          friction: 7,
+          tension: 65,
+          useNativeDriver: true, // Change to true for better iOS performance
+        }).start(() => {
+          // Execute callback after animation completes, with type check
+          if (callback && typeof callback === 'function') {
+            callback();
+          }
+        });
+      });
+    } else {
+      // Closing: animate out, then hide modal
+      Animated.spring(sidebarAnimation, {
+        toValue: -width * 0.8,
+        friction: 7,
+        tension: 65,
+        useNativeDriver: true, // Change to true for better iOS performance
+      }).start(() => {
+        setSidebarVisible(false);
+        setSidebarModalVisible(false);
+
+        // Execute callback after animation completes, with type check
+        if (callback && typeof callback === 'function') {
+          callback();
+        }
+      });
+    }
+  };
+
+  // Profile management functions
+  const handleEditProfile = () => {
+    // Prioritize userProfile.username from Firestore over Auth displayName
+    setNewUsername(userProfile?.username || user?.displayName || user?.email?.split('@')[0] || '');
+    setShowEditProfileModal(true);
+  };
+
+  const handleUpdateProfile = async () => {
+    try {
+      console.log('🔧 Starting profile update...');
+      setUpdatingProfile(true);
+
+      const currentUser = AuthService.getCurrentUser();
+      if (currentUser && newUsername.trim()) {
+        // Save the username value before clearing form
+        const usernameToUpdate = newUsername.trim();
+
+        console.log('🔧 Current user found:', currentUser.uid);
+        console.log('🔧 New username:', usernameToUpdate);
+
+        // Update the existing user document by finding it with the uid field
+        await FirestoreService.updateUserDocumentByUid(currentUser.uid, {
+          username: usernameToUpdate,
+        });
+
+        console.log('✅ Profile update successful!');
+
+        // Close the profile modal first (AFTER API call succeeds, like password update)
+        setShowProfileModal(false);
+        setNewUsername(''); // Clear form field
+
+        // Use requestAnimationFrame for better iOS compatibility instead of setTimeout
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            console.log('🔧 Setting alert visible for profile update success');
+            setAlertType('success');
+            setAlertTitle('Profile Updated');
+            setAlertMessage('Your profile has been updated successfully!');
+            setAlertVisible(true);
+          });
+        });
+
+        // Update local user state and reload profile data after alert timing
+        setUser({ ...currentUser, displayName: usernameToUpdate });
+        loadUserProfile();
+      }
+    } catch (error) {
+      console.error('❌ Error updating profile:', error);
+      console.log('🔧 Profile update failed, showing error alert');
+
+      // Close the profile modal first even on error (like password update)
+      setShowProfileModal(false);
+      setNewUsername(''); // Clear form field
+
+      // Use requestAnimationFrame for better iOS compatibility instead of setTimeout
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          console.log('🔧 Setting alert visible for profile update error');
+          setAlertType('error');
+          setAlertTitle('Update Failed');
+          setAlertMessage('Failed to update profile. Please try again.');
+          setAlertVisible(true);
+        });
+      });
+    } finally {
+      setUpdatingProfile(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    console.log('🔧 Password change function called');
+
+    // Validate current password is provided
+    if (!currentPassword.trim()) {
+      console.log('❌ Current password missing');
+      setAlertType('error');
+      setAlertTitle('Current Password Required');
+      setAlertMessage('Please enter your current password.');
+      setAlertVisible(true);
+      return;
+    }
+
+    // Validate new password and confirmation match
+    if (newPassword !== confirmPassword) {
+      console.log('❌ Password mismatch');
+      setAlertType('error');
+      setAlertTitle('Password Mismatch');
+      setAlertMessage('New password and confirm password do not match.');
+      setAlertVisible(true);
+      return;
+    }
+
+    // Validate new password length
+    if (newPassword.length < 6) {
+      console.log('❌ Password too short');
+      setAlertType('error');
+      setAlertTitle('Password Too Short');
+      setAlertMessage('Password must be at least 6 characters long.');
+      setAlertVisible(true);
+      return;
+    }
+
+    // Ensure new password is different from current
+    if (currentPassword === newPassword) {
+      console.log('❌ Same password');
+      setAlertType('error');
+      setAlertTitle('Same Password');
+      setAlertMessage('New password must be different from your current password.');
+      setAlertVisible(true);
+      return;
+    }
+
+    try {
+      console.log('🔧 Starting password change...');
+      setUpdatingPassword(true);
+
+      // Pass both current and new password for reauthentication
+      await AuthService.updatePassword(currentPassword, newPassword);
+
+      console.log('✅ Password change successful!');
+
+      // Close the password modal first
+      setShowChangePasswordModal(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+
+      // Use requestAnimationFrame for better iOS compatibility instead of setTimeout
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          console.log('🔧 Setting alert visible for password change success');
+          setAlertType('success');
+          setAlertTitle('Password Updated');
+          setAlertMessage('Your password has been changed successfully!');
+          setAlertVisible(true);
+        });
+      });
+    } catch (error: any) {
+      console.error('❌ Error changing password:', error);
+      console.log('🔧 Password change failed, showing error alert');
+
+      // Close the password modal first even on error
+      setShowChangePasswordModal(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+
+      // Use requestAnimationFrame for better iOS compatibility instead of setTimeout
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          console.log('🔧 Setting alert visible for password change error');
+          setAlertType('error');
+          setAlertTitle('Password Change Failed');
+          setAlertMessage(error.message || 'Failed to change password. Please try again.');
+          setAlertVisible(true);
+        });
+      });
+    } finally {
+      setUpdatingPassword(false);
+    }
   };
 
   const renderHeader = () => (
@@ -621,15 +983,47 @@ const HomeScreen = () => {
       >
         <View style={styles.headerContent}>
           <View style={styles.headerLeft}>
-            <Text style={styles.welcomeText}>{getGreeting()}!</Text>
-            <Text style={styles.userNameText}>
-              {user?.email?.split('@')[0] || user?.displayName || 'User'}
-            </Text>
+            <TouchableOpacity style={styles.hamburgerButton} onPress={() => toggleSidebar()}>
+              <Ionicons name="menu" size={24} color="#fff" />
+            </TouchableOpacity>
+            <View style={styles.greetingContainer}>
+              <Text style={styles.welcomeText}>{getGreeting()}!</Text>
+              <Text style={styles.userNameText}>
+                {userProfile?.username ||
+                  userProfile?.displayName ||
+                  user?.displayName ||
+                  user?.email?.split('@')[0] ||
+                  'User'}
+              </Text>
+            </View>
           </View>
-          <TouchableOpacity style={styles.notificationButton}>
-            <Ionicons name="notifications-outline" size={24} color="#fff" />
-            <View style={styles.notificationBadge} />
-          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.notificationButton}>
+              <Ionicons name="notifications-outline" size={24} color="#fff" />
+              <View style={styles.notificationBadge} />
+            </TouchableOpacity>
+            <View style={styles.profileContainer}>
+              <TouchableOpacity style={styles.profileButton}>
+                {user?.photoURL ? (
+                  <Image source={{ uri: user.photoURL }} style={styles.profileImage} />
+                ) : (
+                  <View style={styles.profilePlaceholder}>
+                    <Text style={styles.profileInitial}>
+                      {(
+                        userProfile?.username ||
+                        userProfile?.displayName ||
+                        user?.displayName ||
+                        user?.email?.split('@')[0] ||
+                        'U'
+                      )
+                        .charAt(0)
+                        .toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
 
         <View style={styles.headerStats}>
@@ -648,6 +1042,184 @@ const HomeScreen = () => {
     </Animatable.View>
   );
 
+  const renderSidebar = () => (
+    <Modal
+      visible={sidebarModalVisible}
+      animationType="none"
+      transparent={true}
+      onRequestClose={() => toggleSidebar()}
+      statusBarTranslucent={true}
+    >
+      <View style={styles.sidebarOverlay}>
+        <TouchableOpacity
+          style={styles.sidebarBackdrop}
+          activeOpacity={1}
+          onPress={() => toggleSidebar()}
+        />
+        <Animated.View
+          style={[
+            styles.sidebar,
+            {
+              transform: [{ translateX: sidebarAnimation }],
+            },
+          ]}
+        >
+          <View style={styles.sidebarHeader}>
+            <TouchableOpacity style={styles.closeButton} onPress={() => toggleSidebar()}>
+              <Ionicons name="close" size={24} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.sidebarContent}>
+            <View style={styles.sidebarProfile}>
+              <TouchableOpacity
+                style={styles.profileImageContainer}
+                onPress={() => {
+                  toggleSidebar(() => {
+                    setTimeout(() => setShowProfileModal(true), 100);
+                  });
+                }}
+              >
+                {user?.photoURL ? (
+                  <Image source={{ uri: user.photoURL }} style={styles.sidebarProfileImage} />
+                ) : (
+                  <View style={styles.sidebarProfilePlaceholder}>
+                    <Text style={styles.sidebarProfileInitial}>
+                      {(
+                        userProfile?.username ||
+                        userProfile?.displayName ||
+                        user?.displayName ||
+                        user?.email?.split('@')[0] ||
+                        'U'
+                      )
+                        .charAt(0)
+                        .toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.editProfileBadge}>
+                  <Ionicons name="camera" size={12} color="#fff" />
+                </View>
+              </TouchableOpacity>
+              <View style={styles.sidebarProfileInfo}>
+                <TouchableOpacity
+                  onPress={() => {
+                    toggleSidebar(() => {
+                      setTimeout(() => setShowProfileModal(true), 100);
+                    });
+                  }}
+                >
+                  <Text style={styles.sidebarProfileName}>
+                    {userProfile?.username ||
+                      userProfile?.displayName ||
+                      user?.displayName ||
+                      user?.email?.split('@')[0] ||
+                      'User'}
+                  </Text>
+                </TouchableOpacity>
+                <Text style={styles.sidebarProfileEmail}>{user?.email || ''}</Text>
+              </View>
+            </View>
+
+            <View style={styles.sidebarDivider} />
+
+            <View style={styles.sidebarMenu}>
+              <TouchableOpacity
+                style={styles.sidebarMenuItem}
+                onPress={() => {
+                  toggleSidebar();
+                  // Navigate to Home if needed
+                }}
+              >
+                <View style={styles.menuItemIcon}>
+                  <Ionicons name="home-outline" size={22} color={Colors.primary} />
+                </View>
+                <Text style={styles.sidebarMenuText}>Home</Text>
+                <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.sidebarMenuItem}
+                onPress={() => {
+                  toggleSidebar(() => {
+                    setTimeout(() => setShowProfileModal(true), 100);
+                  });
+                }}
+              >
+                <View style={styles.menuItemIcon}>
+                  <Ionicons name="person-outline" size={22} color={Colors.primary} />
+                </View>
+                <Text style={styles.sidebarMenuText}>Edit Profile</Text>
+                <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.sidebarMenuItem}
+                onPress={() => {
+                  toggleSidebar(() => {
+                    setTimeout(() => setShowChangePasswordModal(true), 100);
+                  });
+                }}
+              >
+                <View style={styles.menuItemIcon}>
+                  <Ionicons name="lock-closed-outline" size={22} color={Colors.primary} />
+                </View>
+                <Text style={styles.sidebarMenuText}>Change Password</Text>
+                <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
+              </TouchableOpacity>
+
+              <View style={styles.sidebarDivider} />
+
+              <TouchableOpacity
+                style={styles.sidebarMenuItem}
+                onPress={() => {
+                  toggleSidebar(() => {
+                    setTimeout(() => setShowHelpModal(true), 100);
+                  });
+                }}
+              >
+                <View style={styles.menuItemIcon}>
+                  <Ionicons name="help-circle-outline" size={22} color={Colors.primary} />
+                </View>
+                <Text style={styles.sidebarMenuText}>Help & Support</Text>
+                <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.sidebarMenuItem}
+                onPress={() => {
+                  toggleSidebar(() => {
+                    setTimeout(() => setShowAboutModal(true), 100);
+                  });
+                }}
+              >
+                <View style={styles.menuItemIcon}>
+                  <Ionicons name="information-circle-outline" size={22} color={Colors.primary} />
+                </View>
+                <Text style={styles.sidebarMenuText}>About</Text>
+                <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.sidebarFooter}>
+              <TouchableOpacity
+                style={styles.sidebarLogoutButton}
+                onPress={() => {
+                  toggleSidebar(() => {
+                    AuthService.signOut();
+                  });
+                }}
+              >
+                <Ionicons name="log-out-outline" size={20} color="#dc2626" />
+                <Text style={styles.sidebarLogoutText}>Logout</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+
   const renderMetricsGrid = () => (
     <Animatable.View animation="fadeInUp" delay={400} style={styles.metricsContainer}>
       <Text style={styles.sectionTitle}>Energy Overview</Text>
@@ -657,15 +1229,47 @@ const HomeScreen = () => {
             <Ionicons name="speedometer-outline" size={24} color="#3b82f6" />
           </View>
           <AnimatedCounter
-            value={energyData.currentUsage}
+            value={usageStats.today}
             style={styles.metricValue}
-            suffix=" kW"
-            decimals={1}
+            suffix=" kWh"
+            decimals={2}
           />
-          <Text style={styles.metricLabel}>Current Usage</Text>
+          <Text style={styles.metricLabel}>Today's Usage</Text>
           <View style={styles.metricChange}>
-            <Ionicons name="trending-up" size={12} color="#ef4444" />
-            <Text style={[styles.changeText, { color: '#ef4444' }]}>+5.2%</Text>
+            <Ionicons
+              name={
+                usageStats.trend === 'up'
+                  ? 'trending-up'
+                  : usageStats.trend === 'down'
+                    ? 'trending-down'
+                    : 'remove'
+              }
+              size={12}
+              color={
+                usageStats.trend === 'up'
+                  ? '#ef4444'
+                  : usageStats.trend === 'down'
+                    ? '#22c55e'
+                    : '#6b7280'
+              }
+            />
+            <Text
+              style={[
+                styles.changeText,
+                {
+                  color:
+                    usageStats.trend === 'up'
+                      ? '#ef4444'
+                      : usageStats.trend === 'down'
+                        ? '#22c55e'
+                        : '#6b7280',
+                },
+              ]}
+            >
+              {usageStats.trend === 'stable'
+                ? 'Stable'
+                : `${usageStats.trendPercentage.toFixed(1)}%`}
+            </Text>
           </View>
         </View>
 
@@ -674,14 +1278,15 @@ const HomeScreen = () => {
             <Ionicons name="calendar-outline" size={24} color="#a855f7" />
           </View>
           <AnimatedCounter
-            value={energyData.totalConsumption}
+            value={usageStats.monthlyTotal}
             style={styles.metricValue}
             suffix=" kWh"
+            decimals={1}
           />
           <Text style={styles.metricLabel}>Monthly Total</Text>
           <View style={styles.metricChange}>
             <Ionicons name="trending-down" size={12} color="#22c55e" />
-            <Text style={[styles.changeText, { color: '#22c55e' }]}>-8.1%</Text>
+            <Text style={[styles.changeText, { color: '#22c55e' }]}>This month</Text>
           </View>
         </View>
 
@@ -690,15 +1295,15 @@ const HomeScreen = () => {
             <Ionicons name="card-outline" size={24} color="#f97316" />
           </View>
           <AnimatedCounter
-            value={energyData.monthlyBill}
+            value={usageStats.monthlyTotal * 0.1}
             style={styles.metricValue}
             prefix="LKR"
             decimals={2}
           />
           <Text style={styles.metricLabel}>Est. Bill</Text>
           <View style={styles.metricChange}>
-            <Ionicons name="trending-down" size={12} color="#22c55e" />
-            <Text style={[styles.changeText, { color: '#22c55e' }]}>-12.3%</Text>
+            <Ionicons name="calendar-outline" size={12} color="#22c55e" />
+            <Text style={[styles.changeText, { color: '#22c55e' }]}>This month</Text>
           </View>
         </View>
 
@@ -716,6 +1321,140 @@ const HomeScreen = () => {
       </View>
     </Animatable.View>
   );
+
+  const renderDailyUsageSection = () => {
+    // Calculate efficiency percentage based on comparison with weekly average
+    const efficiencyPercentage =
+      usageStats.weeklyAverage > 0
+        ? Math.max(
+            0,
+            Math.min(
+              100,
+              ((usageStats.weeklyAverage - usageStats.today) / usageStats.weeklyAverage) * 100
+            )
+          )
+        : 75;
+
+    const isHighConsume = usageStats.today > usageStats.weeklyAverage;
+    const displayPercentage = Math.round(efficiencyPercentage);
+
+    // Animated rotation values
+    const highConsumeRotation = progressAnimation.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', `${isHighConsume ? (100 - displayPercentage) * 1.8 : 0}deg`],
+    });
+
+    const economyRotation = progressAnimation.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', `${!isHighConsume ? displayPercentage * 1.8 : 0}deg`],
+    });
+
+    // Animated percentage display
+    const animatedPercentage = percentageAnimation.interpolate({
+      inputRange: [0, 100],
+      outputRange: [0, displayPercentage],
+      extrapolate: 'clamp',
+    });
+
+    return (
+      <Animatable.View animation="fadeInUp" delay={500} style={styles.dailyUsageSection}>
+        <View style={styles.dailyUsageHeader}>
+          <Text style={styles.sectionTitle}>Today Usage</Text>
+          <TouchableOpacity style={styles.addUsageButton} onPress={() => setShowUsageInput(true)}>
+            <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
+            <Text style={styles.addUsageText}>Log Usage</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.todayStatsCard}>
+          {/* Circular Progress Indicator */}
+          <View style={styles.circularProgressContainer}>
+            <View style={styles.circularProgress}>
+              {/* Background Circle */}
+              <View style={styles.progressBackground} />
+
+              {/* Progress Arc - High Consume (Red) */}
+              <Animated.View
+                style={[
+                  styles.progressArc,
+                  styles.progressHigh,
+                  {
+                    transform: [{ rotate: highConsumeRotation }],
+                  },
+                ]}
+              />
+
+              {/* Progress Arc - Economy (Green) */}
+              <Animated.View
+                style={[
+                  styles.progressArc,
+                  styles.progressEconomy,
+                  {
+                    transform: [{ rotate: economyRotation }],
+                  },
+                ]}
+              />
+
+              {/* Center Circle with Lightning Icon and Percentage */}
+              <View style={styles.progressCenter}>
+                <Ionicons name="flash" size={24} color={Colors.textPrimary} />
+                <Text style={styles.progressPercentage}>{displayPercentage}%</Text>
+                <Text style={styles.progressLabel}>
+                  {isHighConsume ? 'High Usage' : 'Efficient'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Legend */}
+            <View style={styles.progressLegend}>
+              <View style={styles.legendRow}>
+                <View style={styles.legendItemProgress}>
+                  <View style={[styles.legendDot, { backgroundColor: '#ef4444' }]} />
+                  <Text style={styles.legendTextProgress}>High consume</Text>
+                </View>
+                <View style={styles.legendItemProgress}>
+                  <View style={[styles.legendDot, { backgroundColor: Colors.primary }]} />
+                  <Text style={styles.legendTextProgress}>Economy</Text>
+                </View>
+              </View>
+              <Text style={styles.progressSummary}>
+                {displayPercentage}% electricity {isHighConsume ? 'above average' : 'saved'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Original 3 Stats Row */}
+          <View style={styles.todayStatsRow}>
+            <View style={styles.todayStat}>
+              <Ionicons name="flash" size={20} color={Colors.primary} />
+              <Text style={styles.todayStatValue}>{usageStats.today.toFixed(2)} kWh</Text>
+              <Text style={styles.todayStatLabel}>Today</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.todayStat}>
+              <Ionicons name="calendar-outline" size={20} color={Colors.gray} />
+              <Text style={styles.todayStatValue}>{usageStats.yesterday.toFixed(2)} kWh</Text>
+              <Text style={styles.todayStatLabel}>Yesterday</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.todayStat}>
+              <Ionicons name="analytics-outline" size={20} color={Colors.primaryLight} />
+              <Text style={styles.todayStatValue}>{usageStats.weeklyAverage.toFixed(2)} kWh</Text>
+              <Text style={styles.todayStatLabel}>Weekly Avg</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.viewDetailsButton}
+            onPress={() => setShowDailyUsage(true)}
+          >
+            <Text style={styles.viewDetailsText}>View Detailed Usage</Text>
+            <Ionicons name="chevron-forward" size={16} color={Colors.primary} />
+          </TouchableOpacity>
+        </View>
+      </Animatable.View>
+    );
+  };
 
   const renderCharts = () => (
     <Animatable.View animation="fadeInUp" delay={600} style={styles.chartsContainer}>
@@ -753,7 +1492,9 @@ const HomeScreen = () => {
               {
                 data:
                   selectedPeriod === 'Week'
-                    ? energyData.predictions
+                    ? weeklyTrend.length > 0
+                      ? weeklyTrend
+                      : [0, 0, 0, 0, 0, 0, 0]
                     : selectedPeriod === 'Month'
                       ? [45, 52, 48, 55]
                       : [320, 280, 350, 290, 380, 320],
@@ -792,12 +1533,15 @@ const HomeScreen = () => {
             labels: ['', '', '', '', ''], // Empty labels since we have custom legend
             datasets: [
               {
-                data: Object.values(energyData.categories),
+                data:
+                  Object.values(energyData.categories).length > 0
+                    ? Object.values(energyData.categories)
+                    : [20, 30, 25, 15, 10],
                 colors: [
                   () => '#ef4444', // Bright Red
                   () => '#f97316', // Bright Orange
                   () => '#3b82f6', // Bright Blue
-                  () => '#a855f7', // Purple (undo green for this square)
+                  () => '#a855f7', // Purple
                   () => '#06b6d4', // Teal
                 ],
               },
@@ -1068,12 +1812,7 @@ const HomeScreen = () => {
                           </View>
                           <View style={styles.deviceInfo}>
                             <Text style={styles.deviceName}>{device.deviceName}</Text>
-                            <Text style={styles.deviceDetails}>
-                              {device.wattage}W
-                              {device.usage &&
-                                device.usage.length > 0 &&
-                                ` • ${formatTime(device.usage[0].start)} - ${formatTime(device.usage[0].end)}`}
-                            </Text>
+                            <Text style={styles.deviceDetails}>{device.wattage}W</Text>
                             {device.totalPowerUsed && (
                               <Text style={styles.deviceEnergy}>
                                 {device.totalPowerUsed.toFixed(2)} kWh/day
@@ -1365,6 +2104,7 @@ const HomeScreen = () => {
       >
         {renderHeader()}
         {renderMetricsGrid()}
+        {renderDailyUsageSection()}
         {renderCharts()}
         {renderLayoutSection()}
         {renderDeviceManagement()}
@@ -1434,7 +2174,262 @@ const HomeScreen = () => {
         </View>
       </Modal>
 
+      {/* Daily Usage Input Modal */}
+      <DailyUsageInput
+        visible={showUsageInput}
+        onClose={() => setShowUsageInput(false)}
+        onUsageAdded={handleUsageAdded}
+      />
+
+      {/* Daily Usage Display Modal */}
+      <Modal visible={showDailyUsage} animationType="slide" presentationStyle="pageSheet">
+        <View style={styles.container}>
+          <View style={styles.dailyModalHeader}>
+            <TouchableOpacity
+              onPress={() => setShowDailyUsage(false)}
+              style={styles.dailyModalCloseButton}
+            >
+              <Ionicons name="close" size={24} color={Colors.textPrimary} />
+            </TouchableOpacity>
+            <Text style={styles.dailyModalTitle}>Daily Usage Details</Text>
+            <View style={styles.modalPlaceholder} />
+          </View>
+          <DailyUsageDisplay
+            onAddUsage={() => {
+              setShowDailyUsage(false);
+              setShowUsageInput(true);
+            }}
+          />
+        </View>
+      </Modal>
+
       <FloatingChatbot />
+
+      {renderSidebar()}
+
+      {/* Profile Edit Modal */}
+      <Modal visible={showProfileModal} animationType="slide" presentationStyle="pageSheet">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              onPress={() => {
+                setShowProfileModal(false);
+                setNewUsername('');
+              }}
+              style={styles.modalCloseButton}
+            >
+              <Ionicons name="close" size={24} color={Colors.textPrimary} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Edit Profile</Text>
+            <View style={styles.modalPlaceholder} />
+          </View>
+
+          <View style={styles.modalContent}>
+            <View style={styles.profileEditSection}>
+              <Text style={styles.inputLabel}>Username</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder={
+                  userProfile?.username ||
+                  userProfile?.displayName ||
+                  user?.displayName ||
+                  user?.email?.split('@')[0] ||
+                  'Enter username'
+                }
+                value={newUsername}
+                onChangeText={setNewUsername}
+                autoCapitalize="none"
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.updateButton, !newUsername.trim() && styles.updateButtonDisabled]}
+              onPress={handleUpdateProfile}
+              disabled={updatingProfile || !newUsername.trim()}
+            >
+              {updatingProfile ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.updateButtonText}>Update Username</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Password Change Modal */}
+      <Modal visible={showChangePasswordModal} animationType="slide" presentationStyle="pageSheet">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              onPress={() => {
+                setShowChangePasswordModal(false);
+                setCurrentPassword('');
+                setNewPassword('');
+                setConfirmPassword('');
+              }}
+              style={styles.modalCloseButton}
+            >
+              <Ionicons name="close" size={24} color={Colors.textPrimary} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Change Password</Text>
+            <View style={styles.modalPlaceholder} />
+          </View>
+
+          <View style={styles.modalContent}>
+            <View style={styles.profileEditSection}>
+              <Text style={styles.inputLabel}>Current Password</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Enter current password"
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                secureTextEntry
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.profileEditSection}>
+              <Text style={styles.inputLabel}>New Password</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Enter new password (min 6 characters)"
+                value={newPassword}
+                onChangeText={setNewPassword}
+                secureTextEntry
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.profileEditSection}>
+              <Text style={styles.inputLabel}>Confirm New Password</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Confirm new password"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+                autoCapitalize="none"
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.updateButton,
+                (!currentPassword || !newPassword || !confirmPassword) &&
+                  styles.updateButtonDisabled,
+              ]}
+              onPress={handleChangePassword}
+              disabled={updatingPassword || !currentPassword || !newPassword || !confirmPassword}
+            >
+              {updatingPassword ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.updateButtonText}>Update Password</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Help & Support Modal */}
+      <Modal visible={showHelpModal} animationType="slide" presentationStyle="pageSheet">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              onPress={() => setShowHelpModal(false)}
+              style={styles.modalCloseButton}
+            >
+              <Ionicons name="close" size={24} color={Colors.textPrimary} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Help & Support</Text>
+            <View style={styles.modalPlaceholder} />
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            <View style={styles.helpSection}>
+              <View style={styles.helpItem}>
+                <Ionicons name="mail-outline" size={24} color={Colors.primary} />
+                <View style={styles.helpText}>
+                  <Text style={styles.helpTitle}>Email Support</Text>
+                  <Text style={styles.helpDescription}>support@wattwise.com</Text>
+                </View>
+              </View>
+
+              <View style={styles.helpItem}>
+                <Ionicons name="call-outline" size={24} color={Colors.primary} />
+                <View style={styles.helpText}>
+                  <Text style={styles.helpTitle}>Phone Support</Text>
+                  <Text style={styles.helpDescription}>+1 (555) 123-4567</Text>
+                </View>
+              </View>
+
+              <View style={styles.helpItem}>
+                <Ionicons name="chatbubbles-outline" size={24} color={Colors.primary} />
+                <View style={styles.helpText}>
+                  <Text style={styles.helpTitle}>Live Chat</Text>
+                  <Text style={styles.helpDescription}>Available 24/7</Text>
+                </View>
+              </View>
+
+              <View style={styles.helpItem}>
+                <Ionicons name="document-text-outline" size={24} color={Colors.primary} />
+                <View style={styles.helpText}>
+                  <Text style={styles.helpTitle}>User Guide</Text>
+                  <Text style={styles.helpDescription}>Complete app documentation</Text>
+                </View>
+              </View>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* About Modal */}
+      <Modal visible={showAboutModal} animationType="slide" presentationStyle="pageSheet">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              onPress={() => setShowAboutModal(false)}
+              style={styles.modalCloseButton}
+            >
+              <Ionicons name="close" size={24} color={Colors.textPrimary} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>About WattWise</Text>
+            <View style={styles.modalPlaceholder} />
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            <View style={styles.aboutSection}>
+              <View style={styles.appLogo}>
+                <Ionicons name="flash" size={48} color={Colors.primary} />
+                <Text style={styles.appName}>WattWise</Text>
+                <Text style={styles.appVersion}>Version 1.0.0</Text>
+              </View>
+
+              <Text style={styles.aboutDescription}>
+                WattWise is your intelligent energy management companion. Monitor, analyze, and
+                optimize your energy consumption with advanced AI-powered insights and
+                recommendations.
+              </Text>
+
+              <View style={styles.aboutItem}>
+                <Text style={styles.aboutLabel}>Developer</Text>
+                <Text style={styles.aboutValue}>WattWise Team</Text>
+              </View>
+
+              <View style={styles.aboutItem}>
+                <Text style={styles.aboutLabel}>Copyright</Text>
+                <Text style={styles.aboutValue}>© 2025 WattWise. All rights reserved.</Text>
+              </View>
+
+              <View style={styles.aboutItem}>
+                <Text style={styles.aboutLabel}>License</Text>
+                <Text style={styles.aboutValue}>MIT License</Text>
+              </View>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -1465,6 +2460,53 @@ const styles = StyleSheet.create({
   },
   headerLeft: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  hamburgerButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  greetingContainer: {
+    flex: 1,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  profileContainer: {
+    marginLeft: 12,
+  },
+  profileButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  profilePlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#05986c',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileInitial: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#ffffff',
   },
   welcomeText: {
     fontSize: 16,
@@ -2287,6 +3329,450 @@ const styles = StyleSheet.create({
   },
   typeButtonTextActive: {
     color: '#ffffff',
+  },
+
+  // Daily Usage Section Styles
+  dailyUsageSection: {
+    marginHorizontal: 20,
+    marginBottom: 24,
+  },
+  dailyUsageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  addUsageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: Colors.lightGray,
+    borderRadius: 8,
+    gap: 4,
+  },
+  addUsageText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.primary,
+  },
+  todayStatsCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+
+  // Circular Progress Styles
+  circularProgressContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  circularProgress: {
+    width: 160,
+    height: 160,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    marginBottom: 16,
+  },
+  progressBackground: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    borderWidth: 8,
+    borderColor: '#F3F4F6',
+  },
+  progressArc: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    borderWidth: 8,
+    borderColor: 'transparent',
+    borderTopColor: '#ef4444',
+    transform: [{ rotate: '-90deg' }],
+  },
+  progressHigh: {
+    borderTopColor: '#ef4444',
+  },
+  progressEconomy: {
+    borderTopColor: Colors.primary,
+  },
+  progressCenter: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 10,
+  },
+  progressPercentage: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.textPrimary,
+    marginTop: 4,
+  },
+  progressLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+  },
+  progressLegend: {
+    alignItems: 'center',
+  },
+  legendRow: {
+    flexDirection: 'row',
+    gap: 24,
+    marginBottom: 8,
+  },
+  legendItemProgress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  legendTextProgress: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  progressSummary: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    textAlign: 'center',
+  },
+
+  todayStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  todayStat: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: Colors.border,
+    marginHorizontal: 16,
+  },
+  todayStatValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+  },
+  todayStatLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  viewDetailsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    backgroundColor: Colors.lightGray,
+    borderRadius: 8,
+    gap: 4,
+  },
+  viewDetailsText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.primary,
+  },
+
+  // Daily Usage Modal Styles
+  dailyModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  dailyModalCloseButton: {
+    padding: 8,
+  },
+  dailyModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+  },
+  modalPlaceholder: {
+    width: 40,
+  },
+
+  // Sidebar styles
+  sidebarOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  sidebarBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  sidebar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: width * 0.8,
+    maxWidth: 300,
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 2,
+      height: 0,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    zIndex: 1000,
+  },
+  sidebarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingTop: 60,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  sidebarContent: {
+    flex: 1,
+    padding: 16,
+  },
+  sidebarProfile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    marginBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  sidebarProfileImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  sidebarProfilePlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sidebarProfileInitial: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  sidebarProfileInfo: {
+    marginLeft: 16,
+    flex: 1,
+  },
+  sidebarProfileName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  sidebarProfileEmail: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  sidebarMenu: {
+    flex: 1,
+  },
+  sidebarMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    marginBottom: 4,
+    backgroundColor: 'transparent',
+  },
+  sidebarMenuText: {
+    fontSize: 16,
+    color: Colors.textPrimary,
+    flex: 1,
+    fontWeight: '500',
+  },
+  sidebarFooter: {
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    paddingTop: 16,
+  },
+  sidebarLogoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  sidebarLogoutText: {
+    fontSize: 16,
+    color: '#dc2626',
+    marginLeft: 16,
+    fontWeight: '500',
+  },
+  // Profile management styles
+  profileImageContainer: {
+    position: 'relative',
+  },
+  editProfileBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+  },
+  sidebarDivider: {
+    height: 1,
+    backgroundColor: '#e2e8f0',
+    marginVertical: 16,
+  },
+  menuItemIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: `${Colors.primary}15`,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  // Additional modal styles
+  profileEditSection: {
+    marginBottom: 24,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.textPrimary,
+    marginBottom: 8,
+  },
+  modalInput: {
+    height: 50,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    backgroundColor: '#f8fafc',
+  },
+  updateButton: {
+    height: 50,
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  updateButtonDisabled: {
+    backgroundColor: '#94a3b8',
+  },
+  updateButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  // Help section styles
+  helpSection: {
+    padding: 20,
+  },
+  helpItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  helpText: {
+    marginLeft: 16,
+    flex: 1,
+  },
+  helpTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  helpDescription: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  // About section styles
+  aboutSection: {
+    padding: 20,
+  },
+  appLogo: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  appName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.textPrimary,
+    marginTop: 12,
+  },
+  appVersion: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginTop: 4,
+  },
+  aboutDescription: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: Colors.textSecondary,
+    marginBottom: 32,
+    textAlign: 'center',
+  },
+  aboutItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  aboutLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.textPrimary,
+  },
+  aboutValue: {
+    fontSize: 16,
+    color: Colors.textSecondary,
   },
 });
 

@@ -679,7 +679,7 @@ ${avoidBlock}`;
     // Extract devices from all rooms
     layout.rooms.forEach(room => {
       room.devices.forEach(device => {
-        const dailyHours = device.usage.reduce((sum, usage) => sum + usage.totalHours, 0);
+        const dailyHours = device.usage?.reduce((sum, usage) => sum + usage.totalHours, 0) || 0;
         totalDailyHours += dailyHours;
         totalWattage += device.wattage;
 

@@ -3,6 +3,8 @@ import {
   signInWithEmailAndPassword,
   signOut,
   User,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
 } from 'firebase/auth';
 import {
   collection,
@@ -48,6 +50,37 @@ export class AuthService {
 
   static getCurrentUser(): User | null {
     return auth.currentUser;
+  }
+
+  static async updatePassword(currentPassword: string, newPassword: string): Promise<void> {
+    try {
+      const user = auth.currentUser;
+      if (!user || !user.email) {
+        throw new Error('No user is currently signed in');
+      }
+
+      // Create credential with current password for reauthentication
+      const credential = EmailAuthProvider.credential(user.email, currentPassword);
+
+      // Reauthenticate user
+      await reauthenticateWithCredential(user, credential);
+
+      // Update password after successful reauthentication
+      const { updatePassword } = await import('firebase/auth');
+      await updatePassword(user, newPassword);
+
+      console.log('✅ Password updated successfully');
+    } catch (error: any) {
+      console.error('❌ Error updating password:', error);
+      if (error.code === 'auth/wrong-password') {
+        throw new Error('Current password is incorrect');
+      } else if (error.code === 'auth/weak-password') {
+        throw new Error('New password is too weak');
+      } else if (error.code === 'auth/requires-recent-login') {
+        throw new Error('Please log in again and try updating your password');
+      }
+      throw error;
+    }
   }
 }
 
@@ -138,6 +171,74 @@ export class FirestoreService {
         ...doc.data(),
       }));
     } catch (error) {
+      throw error;
+    }
+  }
+
+  static async updateDocument(collectionName: string, docId: string, data: any): Promise<void> {
+    try {
+      const docRef = doc(db, collectionName, docId);
+      await updateDoc(docRef, data);
+      console.log(`✅ Document updated successfully in ${collectionName}/${docId}`);
+    } catch (error) {
+      console.error('❌ Error updating document:', error);
+      throw error;
+    }
+  }
+
+  static async createOrUpdateUserDocument(userId: string, data: any): Promise<void> {
+    try {
+      const userRef = doc(db, 'users', userId);
+      // Use setDoc with merge option to create or update the document
+      await setDoc(
+        userRef,
+        {
+          ...data,
+          updatedAt: new Date(),
+        },
+        { merge: true }
+      );
+      console.log(`✅ User document created/updated successfully for ${userId}`);
+    } catch (error) {
+      console.error('❌ Error creating/updating user document:', error);
+      throw error;
+    }
+  }
+
+  static async getUserDocument(userId: string): Promise<DocumentData | null> {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
+      if (userDoc.exists()) {
+        return { id: userDoc.id, ...userDoc.data() };
+      }
+      return null;
+    } catch (error) {
+      console.error('❌ Error getting user document:', error);
+      throw error;
+    }
+  }
+
+  static async updateUserDocumentByUid(uid: string, data: any): Promise<void> {
+    try {
+      // Find user document by uid field
+      const q = query(collection(db, 'users'), where('uid', '==', uid));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        throw new Error(`No user document found with uid: ${uid}`);
+      }
+
+      // Update the first (should be only) document found
+      const userDoc = querySnapshot.docs[0];
+      await updateDoc(userDoc.ref, {
+        ...data,
+        updatedAt: new Date(),
+      });
+
+      console.log(`✅ User document updated successfully for uid: ${uid}`);
+    } catch (error) {
+      console.error('❌ Error updating user document by uid:', error);
       throw error;
     }
   }
