@@ -3,6 +3,8 @@ export const COLLECTIONS = {
   FORUM_COMMENTS: 'forum_comments',
   NOTIFICATIONS: 'notifications',
   VOTES: 'votes',
+  POST_SUMMARIES: 'post_summaries', // Add this
+  COMMENT_SUMMARIES: 'comment_summaries', // Add this
 } as const;
 
 export const MEDIA_CONFIG = {
@@ -30,3 +32,19 @@ export const HIT_SLOP = {
   MEDIUM: { top: 8, bottom: 8, left: 8, right: 8 },
   LARGE: { top: 10, bottom: 10, left: 10, right: 10 },
 } as const;
+
+export const OPENAI_CONFIG = {
+  POST_SUMMARY_THRESHOLD: 300, // chars
+  COMMENT_SUMMARY_THRESHOLD: 5, // comments
+  MAX_POST_SUMMARY_LENGTH: 200,
+  MAX_COMMENT_SUMMARY_LENGTH: 250,
+};
+
+export const SUMMARIZATION_MESSAGES = {
+  GENERATING_SUMMARY: 'Generating summary...',
+  SUMMARY_ERROR: 'Failed to generate summary',
+  GENERATE_SUMMARY: 'Generate Summary',
+  REFRESH_SUMMARY: 'Refresh Summary',
+  POST_SUMMARY_TITLE: 'AI Summary',
+  COMMENT_SUMMARY_TITLE: 'Discussion Summary',
+};

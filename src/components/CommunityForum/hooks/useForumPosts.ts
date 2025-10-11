@@ -8,7 +8,7 @@ export const useForumPosts = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = subscribeToPosts((newPosts) => {
+    const unsubscribe = subscribeToPosts(newPosts => {
       setPosts(newPosts);
       setLoading(false);
       setError(null);

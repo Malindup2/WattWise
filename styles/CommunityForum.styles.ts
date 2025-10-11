@@ -1,5 +1,5 @@
-import { StyleSheet } from "react-native";
-import {Colors} from "../src/constants/Colors";
+import { StyleSheet } from 'react-native';
+import { Colors } from '../src/constants/Colors';
 
 export const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.backgroundSecondary },
@@ -198,4 +198,76 @@ export const styles = StyleSheet.create({
   menuItemText: { color: Colors.textPrimary, fontSize: 16 },
   menuCancel: { marginTop: 4, alignItems: 'center', paddingVertical: 10 },
   menuCancelText: { color: Colors.textSecondary, fontWeight: '600' },
+
+  // Add these styles to your existing styles
+  summaryContainer: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.primary,
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  summaryTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.primary,
+    marginLeft: 6,
+    flex: 1,
+  },
+  summaryText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+  },
+  refreshButton: {
+    padding: 4,
+  },
+  generatingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  generatingText: {
+    fontSize: 14,
+    color: Colors.textLight,
+    fontStyle: 'italic',
+    marginLeft: 6,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#DC2626',
+    fontStyle: 'italic',
+  },
+  retryText: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  generateSummaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+  },
+  generateSummaryText: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
 });
