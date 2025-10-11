@@ -23,12 +23,7 @@ import { usePostForm } from './hooks/usePostForm';
 import { useMediaPicker } from './hooks/useMediaPicker';
 import { ForumPost, SortKey } from './types';
 import { UI_MESSAGES, ACCESSIBILITY_LABELS, HIT_SLOP } from './constants';
-import {
-  PostCard,
-  PostForm,
-  PostMenu,
-  CommentsModal,
-} from './components';
+import { PostCard, PostForm, PostMenu, CommentsModal } from './components';
 
 const CommunityForum: React.FC = () => {
   // State management
@@ -126,10 +121,11 @@ const CommunityForum: React.FC = () => {
   // Filtered and sorted posts
   const filteredPosts = useMemo(() => {
     return (posts || [])
-      .filter((post: ForumPost) =>
-        !search.trim() ||
-        post.title.toLowerCase().includes(search.trim().toLowerCase()) ||
-        post.content.toLowerCase().includes(search.trim().toLowerCase())
+      .filter(
+        (post: ForumPost) =>
+          !search.trim() ||
+          post.title.toLowerCase().includes(search.trim().toLowerCase()) ||
+          post.content.toLowerCase().includes(search.trim().toLowerCase())
       )
       .sort((a: ForumPost, b: ForumPost) => {
         if (sortKey === 'date') {
@@ -190,9 +186,7 @@ const CommunityForum: React.FC = () => {
             onPress={() => setSortKey((prev: SortKey) => (prev === 'date' ? 'popularity' : 'date'))}
           >
             <Ionicons name="funnel-outline" size={16} color={Colors.primary} />
-            <Text style={styles.filterChipText}>
-              {sortKey === 'date' ? 'Date' : 'Popularity'}
-            </Text>
+            <Text style={styles.filterChipText}>{sortKey === 'date' ? 'Date' : 'Popularity'}</Text>
           </TouchableOpacity>
         </View>
       </View>

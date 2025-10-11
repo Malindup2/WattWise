@@ -21,9 +21,7 @@ export const PostCard: React.FC<PostCardProps> = ({
   onShowComments,
   onShowMenu,
 }) => {
-  const dateText = post.createdAt?.toDate 
-    ? post.createdAt.toDate().toLocaleString() 
-    : '…';
+  const dateText = post.createdAt?.toDate ? post.createdAt.toDate().toLocaleString() : '…';
 
   const isOwner = currentUserId === post.uid;
 
@@ -41,42 +39,29 @@ export const PostCard: React.FC<PostCardProps> = ({
           </TouchableOpacity>
         )}
       </View>
-      
+
       <Text style={styles.postMeta}>
         By {post.author} · {dateText}
       </Text>
-      
+
       <Text style={styles.postContent}>{post.content}</Text>
-      
+
       {post.mediaUrl && (
-        <Image 
-          source={{ uri: post.mediaUrl }} 
-          style={styles.postImage} 
-          resizeMode="cover" 
-        />
+        <Image source={{ uri: post.mediaUrl }} style={styles.postImage} resizeMode="cover" />
       )}
 
       <View style={styles.postActions}>
-        <TouchableOpacity 
-          style={styles.iconButton} 
-          onPress={() => onVote(post, 1)}
-        >
+        <TouchableOpacity style={styles.iconButton} onPress={() => onVote(post, 1)}>
           <Ionicons name="arrow-up-circle-outline" size={20} color={Colors.primary} />
           <Text style={styles.iconButtonText}>{post.upVotes || 0}</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.iconButton} 
-          onPress={() => onVote(post, -1)}
-        >
+
+        <TouchableOpacity style={styles.iconButton} onPress={() => onVote(post, -1)}>
           <Ionicons name="arrow-down-circle-outline" size={20} color={Colors.primary} />
           <Text style={styles.iconButtonText}>{post.downVotes || 0}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.iconButton} 
-          onPress={() => onShowComments(post)}
-        >
+        <TouchableOpacity style={styles.iconButton} onPress={() => onShowComments(post)}>
           <Ionicons name="chatbubble-ellipses-outline" size={20} color={Colors.primary} />
           <Text style={styles.iconButtonText}>Comments</Text>
         </TouchableOpacity>

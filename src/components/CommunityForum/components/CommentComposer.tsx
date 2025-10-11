@@ -1,5 +1,5 @@
 import React from 'react';
-import { View,Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Colors } from '../../../constants/Colors';
 import { styles } from '../../../../styles/CommunityForum.styles';
 import { useCommentForm } from '../hooks/useCommentForm';

@@ -2212,7 +2212,8 @@ const HomeScreen = () => {
             </View>
 
             <Text style={styles.deleteModalMessage}>
-              Are you sure you want to log out? You will need to sign in again to access your account.
+              Are you sure you want to log out? You will need to sign in again to access your
+              account.
             </Text>
 
             <View style={styles.deleteModalButtons}>
