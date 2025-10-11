@@ -14,8 +14,8 @@ export const useForumComments = (postId: string | null) => {
     }
 
     setLoading(true);
-    
-    const unsubscribe = subscribeToComments(postId, (newComments) => {
+
+    const unsubscribe = subscribeToComments(postId, newComments => {
       setComments(newComments);
       setLoading(false);
       setError(null);

@@ -11,7 +11,7 @@ export const useMediaPicker = () => {
       // Dynamically require to avoid type resolution error if not installed
       // @ts-ignore
       const ImagePicker = require('expo-image-picker');
-      
+
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Required', UI_MESSAGES.PERMISSION_REQUIRED);

@@ -9,5 +9,14 @@ export {
   subscribeToComments,
   vote,
   createNotification,
+  subscribeToUserNotifications,
+  markNotificationAsRead,
+  getUnreadNotificationsCount,
   uploadMedia,
+  generatePostSummary,
+  generateCommentSummary,
+  getPostSummary,
+  getCommentSummary,
+  subscribeToPostSummary,
+  subscribeToCommentSummary
 } from './ForumService';
