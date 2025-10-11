@@ -13,18 +13,12 @@ interface CommentCardProps {
   onDelete: (commentId: string) => void;
 }
 
-export const CommentCard: React.FC<CommentCardProps> = ({
-  comment,
-  currentUserId,
-  onDelete,
-}) => {
+export const CommentCard: React.FC<CommentCardProps> = ({ comment, currentUserId, onDelete }) => {
   const [isEditing, setIsEditing] = useState(false);
   const { formData, submitting, updateContent, updateComment } = useCommentForm();
 
   const isOwner = currentUserId === comment.uid;
-  const dateText = comment.createdAt?.toDate 
-    ? comment.createdAt.toDate().toLocaleString() 
-    : '';
+  const dateText = comment.createdAt?.toDate ? comment.createdAt.toDate().toLocaleString() : '';
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -66,9 +60,7 @@ export const CommentCard: React.FC<CommentCardProps> = ({
             style={[styles.secondaryBtn, { borderColor: '#DC2626' }]}
             onPress={handleDelete}
           >
-            <Text style={[styles.secondaryBtnText, { color: '#DC2626' }]}>
-              Delete
-            </Text>
+            <Text style={[styles.secondaryBtnText, { color: '#DC2626' }]}>Delete</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -82,15 +74,8 @@ export const CommentCard: React.FC<CommentCardProps> = ({
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <Text style={styles.commentDate}>{dateText}</Text>
           {isOwner && (
-            <TouchableOpacity
-              onPress={handleEdit}
-              hitSlop={HIT_SLOP.SMALL}
-            >
-              <Ionicons
-                name="ellipsis-vertical"
-                size={16}
-                color={Colors.textSecondary}
-              />
+            <TouchableOpacity onPress={handleEdit} hitSlop={HIT_SLOP.SMALL}>
+              <Ionicons name="ellipsis-vertical" size={16} color={Colors.textSecondary} />
             </TouchableOpacity>
           )}
         </View>

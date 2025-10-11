@@ -42,39 +42,34 @@ export const createPost = async (
 
 export const updatePost = async (postId: string, title: string, content: string): Promise<void> => {
   const postRef = doc(db, COLLECTIONS.FORUM_POSTS, postId);
-  await updateDoc(postRef, { 
-    title: title.trim(), 
-    content: content.trim() 
+  await updateDoc(postRef, {
+    title: title.trim(),
+    content: content.trim(),
   });
 };
 
 export const deletePost = async (postId: string): Promise<void> => {
   // Delete the post
   await deleteDoc(doc(db, COLLECTIONS.FORUM_POSTS, postId));
-  
+
   // Delete associated comments
   const commentsQuery = query(
-    collection(db, COLLECTIONS.FORUM_COMMENTS), 
+    collection(db, COLLECTIONS.FORUM_COMMENTS),
     where('postId', '==', postId)
   );
   const commentsSnapshot = await getDocs(commentsQuery);
   await Promise.all(
-    commentsSnapshot.docs.map(d => 
-      deleteDoc(doc(db, COLLECTIONS.FORUM_COMMENTS, d.id))
-    )
+    commentsSnapshot.docs.map(d => deleteDoc(doc(db, COLLECTIONS.FORUM_COMMENTS, d.id)))
   );
 };
 
-export const subscribeToPosts = (callback: (posts: ForumPost[]) => void): () => void => {
-  const postsQuery = query(
-    collection(db, COLLECTIONS.FORUM_POSTS), 
-    orderBy('createdAt', 'desc')
-  );
-  
-  return onSnapshot(postsQuery, (snapshot) => {
-    const posts: ForumPost[] = snapshot.docs.map(d => ({ 
-      id: d.id, 
-      ...(d.data() as any) 
+export const subscribeToPosts = (callback: (posts: ForumPost[]) => void): (() => void) => {
+  const postsQuery = query(collection(db, COLLECTIONS.FORUM_POSTS), orderBy('createdAt', 'desc'));
+
+  return onSnapshot(postsQuery, snapshot => {
+    const posts: ForumPost[] = snapshot.docs.map(d => ({
+      id: d.id,
+      ...(d.data() as any),
     }));
     callback(posts);
   });
@@ -106,17 +101,20 @@ export const deleteComment = async (commentId: string): Promise<void> => {
   await deleteDoc(doc(db, COLLECTIONS.FORUM_COMMENTS, commentId));
 };
 
-export const subscribeToComments = (postId: string, callback: (comments: ForumComment[]) => void): () => void => {
+export const subscribeToComments = (
+  postId: string,
+  callback: (comments: ForumComment[]) => void
+): (() => void) => {
   const commentsQuery = query(
     collection(db, COLLECTIONS.FORUM_COMMENTS),
     where('postId', '==', postId),
     orderBy('createdAt', 'asc')
   );
-  
-  return onSnapshot(commentsQuery, (snapshot) => {
-    const comments: ForumComment[] = snapshot.docs.map(d => ({ 
-      id: d.id, 
-      ...(d.data() as any) 
+
+  return onSnapshot(commentsQuery, snapshot => {
+    const comments: ForumComment[] = snapshot.docs.map(d => ({
+      id: d.id,
+      ...(d.data() as any),
     }));
     callback(comments);
   });
@@ -127,7 +125,7 @@ export const vote = async (postId: string, uid: string, value: 1 | -1): Promise<
   const voteDocRef = doc(db, COLLECTIONS.FORUM_POSTS, postId, COLLECTIONS.VOTES, uid);
   const existingSnap = await getDoc(voteDocRef);
   const prev = existingSnap.exists() ? ((existingSnap.data() as VoteData)?.value ?? null) : null;
-  
+
   if (prev === value) {
     // Unvote
     await deleteDoc(voteDocRef);
@@ -135,14 +133,15 @@ export const vote = async (postId: string, uid: string, value: 1 | -1): Promise<
     await updateDoc(doc(db, COLLECTIONS.FORUM_POSTS, postId), fields);
   } else {
     // Set or switch vote
-    const updateFields = prev == null
-      ? value === 1
-        ? { upVotes: increment(1) }
-        : { downVotes: increment(1) }
-      : value === 1
-        ? { upVotes: increment(1), downVotes: increment(-1) }
-        : { downVotes: increment(1), upVotes: increment(-1) };
-    
+    const updateFields =
+      prev == null
+        ? value === 1
+          ? { upVotes: increment(1) }
+          : { downVotes: increment(1) }
+        : value === 1
+          ? { upVotes: increment(1), downVotes: increment(-1) }
+          : { downVotes: increment(1), upVotes: increment(-1) };
+
     await updateDoc(doc(db, COLLECTIONS.FORUM_POSTS, postId), updateFields);
     await setDoc(voteDocRef, { value }, { merge: true });
   }
