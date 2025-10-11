@@ -25,6 +25,7 @@ export const UI_MESSAGES = {
 export const ACCESSIBILITY_LABELS = {
   POST_OPTIONS: 'Post options',
   CREATE_NEW_POST: 'Create new post',
+  VIEW_NOTIFICATIONS: 'View notifications', // Add this line
 } as const;
 
 export const HIT_SLOP = {
@@ -48,3 +49,5 @@ export const SUMMARIZATION_MESSAGES = {
   POST_SUMMARY_TITLE: 'AI Summary',
   COMMENT_SUMMARY_TITLE: 'Discussion Summary',
 };
+
+

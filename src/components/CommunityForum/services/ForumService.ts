@@ -16,7 +16,7 @@ import {
   limit,
 } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../../../config/firebase';
+import { auth, db, storage } from '../../../../config/firebase';
 import { COLLECTIONS, MEDIA_CONFIG } from '../constants';
 import {
   ForumPost,
@@ -85,22 +85,47 @@ export const subscribeToPosts = (callback: (posts: ForumPost[]) => void): (() =>
   });
 };
 
-// Comments operations
 export const createComment = async (
   postId: string,
   uid: string,
-  author: string,
+  author: string, // This should be the username
   content: string
 ): Promise<void> => {
-  await addDoc(collection(db, COLLECTIONS.FORUM_COMMENTS), {
-    postId,
-    uid,
-    author,
-    content: content.trim(),
-    createdAt: serverTimestamp(),
-  });
-};
+  try {
+    const postDoc = await getDoc(doc(db, COLLECTIONS.FORUM_POSTS, postId));
+    
+    if (!postDoc.exists()) {
+      throw new Error('Post not found');
+    }
+    
+    const post = { id: postDoc.id, ...postDoc.data() } as ForumPost;
+    
+    // Create the comment
+    await addDoc(collection(db, COLLECTIONS.FORUM_COMMENTS), {
+      postId,
+      uid,
+      author,
+      content: content.trim(),
+      createdAt: serverTimestamp(),
+    });
 
+    // Notify the post owner if it's not their own comment
+    if (post.uid !== uid) {
+      await createNotification(
+        'new_comment',
+        post.uid,
+        uid,
+        author, // This should be the comment author's username
+        postId,
+        post.title || 'Your post', // Ensure post title is passed
+        content.substring(0, 100) + (content.length > 100 ? '...' : '')
+      );
+    }
+  } catch (error) {
+    console.error('Error creating comment:', error);
+    throw error;
+  }
+};
 export const updateComment = async (commentId: string, content: string): Promise<void> => {
   await updateDoc(doc(db, COLLECTIONS.FORUM_COMMENTS, commentId), {
     content: content.trim(),
@@ -157,19 +182,100 @@ export const vote = async (postId: string, uid: string, value: 1 | -1): Promise<
   }
 };
 
+// Notification operations
 export const createNotification = async (
-  type: 'upvote' | 'downvote',
+  type: 'upvote' | 'downvote' | 'new_comment' | 'new_post',
   toUid: string,
   fromUid: string,
-  postId: string
+  fromUserName: string,
+  postId: string,
+  postTitle?: string,
+  commentPreview?: string
 ): Promise<void> => {
+  console.log('🔔 createNotification - Parameters:', {
+    type,
+    toUid,
+    fromUid,
+    fromUserName,
+    postId,
+    postTitle,
+    commentPreview
+  });
+
   await addDoc(collection(db, COLLECTIONS.NOTIFICATIONS), {
     type,
     toUid,
     fromUid,
+    fromUserName,
     postId,
+    postTitle: postTitle || null,
+    commentPreview: commentPreview || null,
+    read: false,
     createdAt: serverTimestamp(),
   } as Omit<NotificationData, 'id'>);
+
+  console.log('🔔 createNotification - Notification saved to Firestore');
+};
+
+// Add this function to your ForumService.ts or create a user service
+export const getUserDisplayName = async (uid: string): Promise<string> => {
+  try {
+    // Try to get from users collection first
+    const userDoc = await getDoc(doc(db, 'users', uid));
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      return userData.username || userData.displayName || 'User';
+    }
+    
+    // Fallback: check if it's the current user from auth
+    const currentUser = auth.currentUser;
+    if (currentUser && currentUser.uid === uid) {
+      return currentUser.displayName || currentUser.email?.split('@')[0] || 'User';
+    }
+    
+    return 'User';
+  } catch (error) {
+    console.error('Error getting user display name:', error);
+    return 'User';
+  }
+};
+
+// Subscribe to notifications for a user
+export const subscribeToUserNotifications = (
+  userId: string,
+  callback: (notifications: NotificationData[]) => void
+): (() => void) => {
+  const notificationsQuery = query(
+    collection(db, COLLECTIONS.NOTIFICATIONS),
+    where('toUid', '==', userId),
+    orderBy('createdAt', 'desc')
+  );
+
+  return onSnapshot(notificationsQuery, snapshot => {
+    const notifications: NotificationData[] = snapshot.docs.map(d => ({
+      id: d.id,
+      ...(d.data() as any),
+    }));
+    callback(notifications);
+  });
+};
+
+// Mark notification as read
+export const markNotificationAsRead = async (notificationId: string): Promise<void> => {
+  await updateDoc(doc(db, COLLECTIONS.NOTIFICATIONS, notificationId), {
+    read: true,
+  });
+};
+
+// Get unread notifications count
+export const getUnreadNotificationsCount = async (userId: string): Promise<number> => {
+  const q = query(
+    collection(db, COLLECTIONS.NOTIFICATIONS),
+    where('toUid', '==', userId),
+    where('read', '==', false)
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.size;
 };
 
 // Media operations

@@ -26,11 +26,17 @@ export interface VoteData {
   value: 1 | -1;
 }
 
+// Add to your existing NotificationData interface or create a new one
 export interface NotificationData {
-  type: 'upvote' | 'downvote';
+  id: string; // Add this line
+  type: 'upvote' | 'downvote' | 'new_comment' | 'new_post';
   toUid: string;
   fromUid: string;
+  fromUserName: string;
   postId: string;
+  postTitle?: string | null;
+  commentPreview?: string | null;
+  read: boolean;
   createdAt: Timestamp;
 }
 

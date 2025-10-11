@@ -26,6 +26,22 @@ import { ForumPost, SortKey } from './types';
 import { UI_MESSAGES, ACCESSIBILITY_LABELS, HIT_SLOP } from './constants';
 import { PostCard, PostForm, PostMenu, CommentsModal } from './components';
 
+const getUserDisplayName = async (uid: string): Promise<string> => {
+  try {
+    // For now, use a simple approach - you can enhance this later
+    const currentUser = auth.currentUser;
+    if (currentUser && currentUser.uid === uid) {
+      return currentUser.displayName || currentUser.email?.split('@')[0] || 'User';
+    }
+    
+    // If it's not the current user, return a generic name for now
+    return 'User';
+  } catch (error) {
+    console.error('Error getting user display name:', error);
+    return 'User';
+  }
+};
+
 const CommunityForum: React.FC = () => {
   // State management
   const [showNewPostModal, setShowNewPostModal] = useState(false);
@@ -62,38 +78,46 @@ const CommunityForum: React.FC = () => {
     setPostMenuFor(null);
   };
 
-  const handleVote = async (post: ForumPost, value: 1 | -1) => {
-    if (!currentUser) return;
+const handleVote = async (post: ForumPost, value: 1 | -1) => {
+  if (!currentUser) return;
 
-    // Add haptic feedback
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    try {
-      // Update local state immediately for better UX
-      setUserVotes(prev => ({
-        ...prev,
-        [post.id]: value,
-      }));
+  try {
+    setUserVotes(prev => ({
+      ...prev,
+      [post.id]: value,
+    }));
 
-      await vote(post.id, currentUser.uid, value);
-      if (post.uid && post.uid !== currentUser.uid) {
-        await createNotification(
-          value === 1 ? 'upvote' : 'downvote',
-          post.uid,
-          currentUser.uid,
-          post.id
-        );
-      }
-    } catch (error) {
-      // Revert on error
-      setUserVotes(prev => {
-        const newVotes = { ...prev };
-        delete newVotes[post.id];
-        return newVotes;
+    await vote(post.id, currentUser.uid, value);
+    if (post.uid && post.uid !== currentUser.uid) {
+      // Get the user's display name properly
+      const currentUserName = await getUserDisplayName(currentUser.uid);
+      const postTitle = post.title || 'Your post';
+      
+      console.log('🔔 Creating notification with:', {
+        userName: currentUserName,
+        postTitle: postTitle
       });
-      console.error('Error voting:', error);
+      
+      await createNotification(
+        value === 1 ? 'upvote' : 'downvote',
+        post.uid,
+        currentUser.uid,
+        currentUserName,
+        post.id,
+        postTitle
+      );
     }
-  };
+  } catch (error) {
+    setUserVotes(prev => {
+      const newVotes = { ...prev };
+      delete newVotes[post.id];
+      return newVotes;
+    });
+    console.error('Error voting:', error);
+  }
+};
 
   const handleDeletePost = async (post: ForumPost) => {
     if (!currentUser || post.uid !== currentUser.uid) return;

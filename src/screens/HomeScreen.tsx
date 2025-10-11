@@ -64,8 +64,19 @@ import FloatingChatbot from '../components/FloatingChatbot';
 const { width, height } = Dimensions.get('window');
 const chartWidth = width - 60;
 
+//-----Added by kumod ---------
+import { useNotifications } from '../../src/components/CommunityForum/hooks/useNotifications';
+import { HIT_SLOP } from '../components/CommunityForum/constants';
+import NotificationsModal from './../../src/components/CommunityForum/components/NotificationModal';
+//---------Added by Kumod------------
+
 const HomeScreen = () => {
   const navigation = useNavigation();
+
+  //---------Added by Kumod------------
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const [showNotifications, setShowNotifications] = useState(false);
+  //---------Added by Kumod------------
 
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null); // Firestore user data
@@ -998,9 +1009,27 @@ const HomeScreen = () => {
             </View>
           </View>
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.notificationButton}>
-              <Ionicons name="notifications-outline" size={24} color="#fff" />
-              <View style={styles.notificationBadge} />
+            <TouchableOpacity
+              style={styles.notificationButton}
+              onPress={() => setShowNotifications(true)}
+              activeOpacity={0.7}
+              hitSlop={HIT_SLOP.LARGE}
+            >
+              <Ionicons name="notifications-outline" size={22} color="#fff" />
+
+              {unreadCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text
+                    style={{
+                      color: Colors.textOnPrimary,
+                      fontSize: 10,
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
             <View style={styles.profileContainer}>
               <TouchableOpacity style={styles.profileButton}>
@@ -2111,6 +2140,20 @@ const HomeScreen = () => {
         <View style={styles.bottomSpacer} />
       </ScrollView>
 
+   
+
+     {/*  // --------Added by Kumod ------- */}
+      <NotificationsModal
+        visible={showNotifications}
+        notifications={notifications}
+        unreadCount={unreadCount}
+        onClose={() => setShowNotifications(false)}
+        onMarkAsRead={markAsRead}
+        onMarkAllAsRead={markAllAsRead}
+      />
+{/*  // -------Added by Kumod ------- */}
+
+
       {renderLayoutSelectionModal()}
       {renderLayoutEditModal()}
 
@@ -2529,12 +2572,15 @@ const styles = StyleSheet.create({
   },
   notificationBadge: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#fbbf24',
+  top: 5,
+  right: 5,
+  backgroundColor: '#ef4444',
+  borderRadius: 10,
+  minWidth: 10, 
+  height: 18,
+  justifyContent: 'center', 
+  alignItems: 'center',
+  paddingHorizontal: 3, 
   },
   headerStats: {
     flexDirection: 'row',
