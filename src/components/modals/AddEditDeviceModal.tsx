@@ -18,19 +18,13 @@ import {
   HOUSEHOLD_DEVICE_PRESETS,
   INDUSTRIAL_DEVICE_PRESETS,
 } from '../../constants/DeviceTypes';
-import { formatTime, calculateDuration } from '../../utils/energyCalculations';
 import { Colors } from '../../constants/Colors';
 
 interface AddEditDeviceModalProps {
   visible: boolean;
   device?: Device | null;
   layoutType?: 'household' | 'industrial';
-  onSave: (deviceData: {
-    deviceName: string;
-    wattage: number;
-    startTime: string;
-    endTime: string;
-  }) => Promise<void>;
+  onSave: (deviceData: { deviceName: string; wattage: number }) => Promise<void>;
   onClose: () => void;
 }
 
@@ -43,10 +37,6 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
 }) => {
   const [deviceName, setDeviceName] = useState('');
   const [wattage, setWattage] = useState('');
-  const [startTime, setStartTime] = useState('19:00');
-  const [endTime, setEndTime] = useState('23:00');
-  const [showTimeModal, setShowTimeModal] = useState(false);
-  const [editingTimeType, setEditingTimeType] = useState<'start' | 'end'>('start');
   const [saving, setSaving] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
 
@@ -62,8 +52,6 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
       if (device) {
         setDeviceName(device.deviceName);
         setWattage(device.wattage.toString());
-        setStartTime(device.usage[0]?.start || '19:00');
-        setEndTime(device.usage[0]?.end || '23:00');
         setSelectedPreset(null);
       } else {
         resetForm();
@@ -74,8 +62,6 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
   const resetForm = () => {
     setDeviceName('');
     setWattage('');
-    setStartTime('19:00');
-    setEndTime('23:00');
     setSelectedPreset(null);
   };
 
@@ -85,20 +71,6 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
     setDeviceName(preset.name);
     setWattage(preset.wattage.toString());
     setSelectedPreset(preset.name);
-  };
-
-  const openTimeSelector = (type: 'start' | 'end') => {
-    setEditingTimeType(type);
-    setShowTimeModal(true);
-  };
-
-  const handleTimeSelect = (time: string) => {
-    if (editingTimeType === 'start') {
-      setStartTime(time);
-    } else {
-      setEndTime(time);
-    }
-    setShowTimeModal(false);
   };
 
   const validateForm = (): string | null => {
@@ -132,8 +104,6 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
       await onSave({
         deviceName: deviceName.trim(),
         wattage: Number(wattage),
-        startTime,
-        endTime,
       });
       resetForm();
     } catch (error) {
@@ -142,9 +112,6 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
       setSaving(false);
     }
   };
-
-  const totalHours = calculateDuration(startTime, endTime);
-  const dailyConsumption = ((Number(wattage) || 0) * totalHours) / 1000; // kWh
 
   return (
     <Modal
@@ -251,105 +218,7 @@ const AddEditDeviceModal: React.FC<AddEditDeviceModalProps> = ({
                 : 'Check the device label or manual for wattage information (max: 10,000W)'}
             </Text>
           </View>
-
-          {/* Usage Time */}
-          <View style={styles.timeContainer}>
-            <Text style={styles.sectionTitle}>Usage Schedule</Text>
-
-            <View style={styles.timeRow}>
-              <View style={styles.timeInput}>
-                <Text style={styles.timeLabel}>Start Time</Text>
-                <TouchableOpacity
-                  style={styles.timeButton}
-                  onPress={() => openTimeSelector('start')}
-                >
-                  <Ionicons name="time-outline" size={20} color="#64748b" />
-                  <Text style={styles.timeText}>{formatTime(startTime)}</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.timeArrow}>
-                <Ionicons name="arrow-forward" size={20} color="#64748b" />
-              </View>
-
-              <View style={styles.timeInput}>
-                <Text style={styles.timeLabel}>End Time</Text>
-                <TouchableOpacity style={styles.timeButton} onPress={() => openTimeSelector('end')}>
-                  <Ionicons name="time-outline" size={20} color="#64748b" />
-                  <Text style={styles.timeText}>{formatTime(endTime)}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-
-          {/* Usage Summary */}
-          {wattage && Number(wattage) > 0 && (
-            <View style={styles.summaryContainer}>
-              <Text style={styles.sectionTitle}>Daily Usage Summary</Text>
-              <View style={styles.summaryCard}>
-                <View style={styles.summaryItem}>
-                  <Text style={styles.summaryLabel}>Duration</Text>
-                  <Text style={styles.summaryValue}>{totalHours} hours</Text>
-                </View>
-                <View style={styles.summaryDivider} />
-                <View style={styles.summaryItem}>
-                  <Text style={styles.summaryLabel}>Daily Consumption</Text>
-                  <Text style={styles.summaryValue}>{dailyConsumption.toFixed(2)} kWh</Text>
-                </View>
-              </View>
-            </View>
-          )}
         </ScrollView>
-
-        {/* Custom Time Selector Modal */}
-        <Modal
-          visible={showTimeModal}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowTimeModal(false)}
-        >
-          <View style={styles.timeModalOverlay}>
-            <View style={styles.timeModalContent}>
-              <Text style={styles.timeModalTitle}>
-                Select {editingTimeType === 'start' ? 'Start' : 'End'} Time
-              </Text>
-
-              <ScrollView style={styles.timeOptionsContainer}>
-                {Array.from({ length: 24 }, (_, hour) =>
-                  ['00', '30'].map(minute => {
-                    const timeValue = `${hour.toString().padStart(2, '0')}:${minute}`;
-                    const isSelected =
-                      (editingTimeType === 'start' ? startTime : endTime) === timeValue;
-
-                    return (
-                      <TouchableOpacity
-                        key={timeValue}
-                        style={[styles.timeOption, isSelected && styles.timeOptionSelected]}
-                        onPress={() => handleTimeSelect(timeValue)}
-                      >
-                        <Text
-                          style={[
-                            styles.timeOptionText,
-                            isSelected && styles.timeOptionTextSelected,
-                          ]}
-                        >
-                          {formatTime(timeValue)}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })
-                ).flat()}
-              </ScrollView>
-
-              <TouchableOpacity
-                style={styles.timeModalCloseButton}
-                onPress={() => setShowTimeModal(false)}
-              >
-                <Text style={styles.timeModalCloseText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
       </View>
     </Modal>
   );
@@ -465,132 +334,6 @@ const styles = StyleSheet.create({
     color: '#64748b',
     marginTop: 6,
     fontStyle: 'italic',
-  },
-  timeContainer: {
-    marginBottom: 24,
-  },
-  timeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  timeInput: {
-    flex: 1,
-  },
-  timeLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#64748b',
-    marginBottom: 8,
-  },
-  timeButton: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  timeText: {
-    fontSize: 16,
-    color: '#1e293b',
-    marginLeft: 8,
-    fontWeight: '500',
-  },
-  timeArrow: {
-    marginHorizontal: 16,
-    marginTop: 24,
-  },
-  summaryContainer: {
-    marginBottom: 20,
-  },
-  summaryCard: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  summaryItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  summaryDivider: {
-    height: 1,
-    backgroundColor: '#f1f5f9',
-    marginVertical: 8,
-  },
-  summaryLabel: {
-    fontSize: 16,
-    color: '#64748b',
-    fontWeight: '500',
-  },
-  summaryValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.primary,
-  },
-  // Time Modal Styles
-  timeModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  timeModalContent: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 20,
-    width: '80%',
-    maxHeight: '70%',
-  },
-  timeModalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1e293b',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  timeOptionsContainer: {
-    maxHeight: 300,
-  },
-  timeOption: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginBottom: 8,
-    backgroundColor: '#f8fafc',
-  },
-  timeOptionSelected: {
-    backgroundColor: Colors.primary,
-  },
-  timeOptionText: {
-    fontSize: 16,
-    color: '#64748b',
-    textAlign: 'center',
-  },
-  timeOptionTextSelected: {
-    color: 'white',
-    fontWeight: '600',
-  },
-  timeModalCloseButton: {
-    marginTop: 16,
-    paddingVertical: 12,
-    backgroundColor: '#f1f5f9',
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  timeModalCloseText: {
-    fontSize: 16,
-    color: '#64748b',
-    fontWeight: '500',
   },
 });
 
