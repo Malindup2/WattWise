@@ -6,8 +6,7 @@ import GoalCard from '../components/actionPlanner/GoalCard';
 import ProgressBar from '../components/actionPlanner/ProgressBar';
 import EnergyEstimate from '../components/actionPlanner/EnergyEstimate';
 import ReminderModal from '../components/actionPlanner/ReminderModal';
-import { generateTasks } from '../services/blueprintService';
-import { UserProfile } from '../types/userProfile';
+import { ActionPlannerService } from '../services/actionPlannerService';
 import { Calendar } from 'react-native-calendars';
 import type { MarkedDates } from 'react-native-calendars/src/types';
 
@@ -19,34 +18,66 @@ const ActionPlannerScreen: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [reminderTask, setReminderTask] = useState<Task | null>(null);
+  const [loading, setLoading] = useState(true);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const loadTasks = () => {
-      const userProfile: UserProfile = {
-        householdSize: 4,
-        appliances: ['AC', 'Fridge', 'Washer'],
-        energyUsage: 350,
-      };
-      const personalizedTasks = generateTasks(userProfile);
-      setTasks(personalizedTasks);
-      checkReminders(personalizedTasks);
-
-      Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }).start();
+    const loadTasks = async () => {
+      try {
+        setLoading(true);
+        const userTasks = await ActionPlannerService.getUserActionPlan();
+        setTasks(userTasks);
+        checkReminders(userTasks);
+      } catch (error) {
+        console.error('Error loading action plan:', error);
+        // Fallback to empty array if Firebase fails
+        setTasks([]);
+      } finally {
+        setLoading(false);
+        Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }).start();
+      }
     };
     loadTasks();
   }, []);
 
-  const toggleComplete = (id: string) => {
-    setTasks(prev => {
-      const updated = prev.map(t => (t.id === id ? { ...t, completed: !t.completed } : t));
-      checkReminders(updated);
-      return updated;
-    });
+  const toggleComplete = async (id: string) => {
+    try {
+      // Update local state first for immediate UI feedback
+      setTasks(prev => {
+        const updated = prev.map(t => (t.id === id ? { ...t, completed: !t.completed } : t));
+        checkReminders(updated);
+        return updated;
+      });
+
+      // Update Firebase
+      const task = tasks.find(t => t.id === id);
+      if (task) {
+        await ActionPlannerService.updateTaskCompletion(id, !task.completed);
+      }
+    } catch (error) {
+      console.error('Error updating task completion:', error);
+      // Revert local state on error
+      setTasks(prev => {
+        const reverted = prev.map(t => (t.id === id ? { ...t, completed: !t.completed } : t));
+        checkReminders(reverted);
+        return reverted;
+      });
+    }
   };
 
-  const handleMarkDone = (id: string) => {
-    setTasks(prev => prev.map(t => (t.id === id ? { ...t, completed: true } : t)));
+  const handleMarkDone = async (id: string) => {
+    try {
+      // Update local state first
+      setTasks(prev => prev.map(t => (t.id === id ? { ...t, completed: true } : t)));
+
+      // Update Firebase
+      await ActionPlannerService.updateTaskCompletion(id, true);
+      setModalVisible(false);
+    } catch (error) {
+      console.error('Error marking task as done:', error);
+      // Revert local state on error
+      setTasks(prev => prev.map(t => (t.id === id ? { ...t, completed: false } : t)));
+    }
   };
 
   const checkReminders = (tasksList: Task[]) => {
@@ -114,8 +145,14 @@ const ActionPlannerScreen: React.FC = () => {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.backgroundSecondary} />
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Your Energy Roadmap</Text>
-        <Text style={styles.subtitle}>Step-by-step energy-saving actions</Text>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Loading your action plan...</Text>
+          </View>
+        ) : (
+          <>
+            <Text style={styles.title}>Your Energy Roadmap</Text>
+            <Text style={styles.subtitle}>Step-by-step energy-saving actions</Text>
 
         <ProgressBar progress={progress} />
         <Text style={styles.progressText}>{Math.round(progress)}% Completed</Text>
@@ -167,6 +204,8 @@ const ActionPlannerScreen: React.FC = () => {
             );
           })}
         </Animated.View>
+        </>
+        )}
       </ScrollView>
 
       {reminderTask && (
@@ -187,6 +226,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: '700', color: Colors.textPrimary, marginBottom: 6 },
   subtitle: { fontSize: 16, color: Colors.textSecondary, marginBottom: 16 },
   progressText: { fontSize: 12, color: Colors.textSecondary, textAlign: 'right', marginBottom: 12 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 100 },
+  loadingText: { fontSize: 18, color: Colors.textSecondary },
 
   calendarContainer: {
     marginBottom: 24,
