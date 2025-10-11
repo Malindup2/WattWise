@@ -72,7 +72,7 @@ const FloatingChatbot = () => {
         console.log('✅ User energy data loaded for chatbot:', {
           avgUsage: energyData.averageDailyKwh.toFixed(1),
           last7Days: energyData.last7Days.length,
-          deviceCount: energyData.deviceCount
+          deviceCount: energyData.deviceCount,
         });
       } else {
         console.log('⚠️ No energy data found for chatbot');
@@ -100,9 +100,10 @@ const FloatingChatbot = () => {
       let userDataContext = '';
       if (userEnergyData) {
         const yesterday = userEnergyData.last7Days[userEnergyData.last7Days.length - 1];
-        const weekAvg = userEnergyData.last7Days.reduce((a, b) => a + b, 0) / userEnergyData.last7Days.length;
+        const weekAvg =
+          userEnergyData.last7Days.reduce((a, b) => a + b, 0) / userEnergyData.last7Days.length;
         const monthlyEstimate = userEnergyData.averageDailyKwh * 30 * 25; // 25 LKR per kWh
-        
+
         userDataContext = `
 REAL USER ENERGY DATA CONTEXT:
 - Current average daily usage: ${userEnergyData.averageDailyKwh.toFixed(1)} kWh
@@ -299,7 +300,7 @@ Response:`;
     <>
       <TouchableOpacity style={styles.floatingButton} onPress={toggleChatbot} activeOpacity={0.8}>
         <Ionicons name="flash" size={28} color="#fff" />
-        <View style={[styles.badge, { backgroundColor: userEnergyData ? '#e8f5e8' : '#fff' }]}>
+        <View style={[styles.badge, { backgroundColor: userEnergyData ? '#ffffffff' : '#fff' }]}>
           <Text style={styles.badgeText}>AI</Text>
         </View>
       </TouchableOpacity>
@@ -314,7 +315,7 @@ Response:`;
         enableDynamicSizing={true}
         backdropComponent={renderBackdrop}
         handleIndicatorStyle={{ backgroundColor: '#49B02D' }}
-        backgroundStyle={{ backgroundColor: '#fff' }}
+        backgroundStyle={{ backgroundColor: '#ffffffff' }}
         enablePanDownToClose={true}
       >
         <BottomSheetView style={styles.bottomSheetContent}>
@@ -330,12 +331,11 @@ Response:`;
                   <Text style={styles.headerTitleAI}>AI</Text>
                 </View>
                 <Text style={styles.headerSubtitle}>
-                  {isLoadingData 
-                    ? 'Loading your data...' 
-                    : userEnergyData 
+                  {isLoadingData
+                    ? 'Loading your data...'
+                    : userEnergyData
                       ? `${userEnergyData.averageDailyKwh.toFixed(1)} kWh daily avg • ${userEnergyData.deviceCount} devices`
-                      : 'General energy tips available'
-                  }
+                      : 'General energy tips available'}
                 </Text>
               </View>
             </View>
@@ -345,11 +345,7 @@ Response:`;
                 style={styles.refreshButton}
                 disabled={isLoadingData}
               >
-                <Ionicons 
-                  name="refresh" 
-                  size={20} 
-                  color={isLoadingData ? "#ccc" : "#49B02D"} 
-                />
+                <Ionicons name="refresh" size={20} color={isLoadingData ? '#ccc' : '#49B02D'} />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => bottomSheetRef.current?.close()}
