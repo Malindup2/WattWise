@@ -1,14 +1,16 @@
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 import { Colors } from '../src/constants/Colors';
 
 export const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.backgroundSecondary },
+  container: { flex: 1, backgroundColor: Colors.backgroundSecondary,
+  paddingBottom: 0,
+   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: Platform.OS === 'ios' ? 50 : 8,
     paddingBottom: 12,
     backgroundColor: Colors.white,
     borderBottomWidth: 1,
@@ -65,7 +67,7 @@ export const styles = StyleSheet.create({
   },
   addButtonText: { color: Colors.textOnPrimary, fontWeight: '600' },
 
-  listContent: { padding: 16, paddingBottom: 110 },
+  listContent: { padding: 16, paddingBottom: 0 },
   loadingWrap: { padding: 24, alignItems: 'center', justifyContent: 'center' },
   emptyWrap: { alignItems: 'center', justifyContent: 'center', padding: 24 },
   emptyText: { color: Colors.textSecondary, marginTop: 8 },
@@ -82,6 +84,11 @@ export const styles = StyleSheet.create({
     elevation: 1,
     borderWidth: 1,
     borderColor: Colors.borderLight,
+  },
+  ownPostCard: {
+    backgroundColor: '#f0f9ff', // Light blue background for user's own posts
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.primary,
   },
   postTitle: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
   postHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -171,6 +178,12 @@ export const styles = StyleSheet.create({
     borderColor: Colors.border,
     marginBottom: 8,
   },
+  ownCommentCard: {
+    backgroundColor: '#f0f9ff', // Light blue background for user's own comments
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.primary,
+  },
+  
   commentHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   commentAuthor: { fontWeight: '700', color: Colors.textPrimary },
   commentDate: { color: Colors.textLight, fontSize: 12 },
@@ -269,5 +282,15 @@ export const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: '600',
     marginLeft: 6,
+  },
+  // Add styles for voted icons
+  votedUpIcon: {
+    color: '#10b981', // Green for upvoted
+  },
+  votedDownIcon: {
+    color: '#ef4444', // Red for downvoted
+  },
+  defaultVoteIcon: {
+    color: Colors.primary,
   },
 });

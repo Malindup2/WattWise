@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics'; // Add haptic feedback
 import { Colors } from '../../../constants/Colors';
 import { styles } from '../../../../styles/CommunityForum.styles';
 import { ForumPost } from '../types';
@@ -13,6 +14,7 @@ interface PostCardProps {
   onVote: (post: ForumPost, value: 1 | -1) => void;
   onShowComments: (post: ForumPost) => void;
   onShowMenu: (post: ForumPost) => void;
+  userVotes?: Record<string, 1 | -1>; // Add user votes state
 }
 
 export const PostCard: React.FC<PostCardProps> = ({
@@ -21,6 +23,7 @@ export const PostCard: React.FC<PostCardProps> = ({
   onVote,
   onShowComments,
   onShowMenu,
+  userVotes = {},
 }) => {
   const { summary, generating, error, generateSummary, hasSummary } = usePostSummarization({
     postId: post.id,
@@ -29,12 +32,29 @@ export const PostCard: React.FC<PostCardProps> = ({
   });
 
   const dateText = post.createdAt?.toDate ? post.createdAt.toDate().toLocaleString() : '…';
-
   const isOwner = currentUserId === post.uid;
+  const userVote = userVotes[post.id]; // Get user's vote for this post
+
+  const handleVote = async (value: 1 | -1) => {
+    // Add haptic feedback
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onVote(post, value);
+  };
+
+  const handleShowComments = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onShowComments(post);
+  };
+
+  const handleShowMenu = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onShowMenu(post);
+  };
 
   const handleManualSummary = async () => {
     if (generating) return;
 
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const result = await generateSummary();
     if (result) {
       Alert.alert('Success', 'Summary generated successfully!');
@@ -45,13 +65,17 @@ export const PostCard: React.FC<PostCardProps> = ({
 
   const shouldShowManualTrigger = !hasSummary && !generating && post.content.length > 200;
 
+  // Determine icon colors based on vote state
+  const upVoteIconColor = userVote === 1 ? styles.votedUpIcon : styles.defaultVoteIcon;
+  const downVoteIconColor = userVote === -1 ? styles.votedDownIcon : styles.defaultVoteIcon;
+
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, isOwner && styles.ownPostCard]}>
       <View style={styles.postHeaderRow}>
         <Text style={styles.postTitle}>{post.title}</Text>
         {isOwner && (
           <TouchableOpacity
-            onPress={() => onShowMenu(post)}
+            onPress={handleShowMenu}
             hitSlop={HIT_SLOP.MEDIUM}
             accessibilityLabel={ACCESSIBILITY_LABELS.POST_OPTIONS}
           >
@@ -62,6 +86,7 @@ export const PostCard: React.FC<PostCardProps> = ({
 
       <Text style={styles.postMeta}>
         By {post.author} · {dateText}
+        {isOwner && ' · Your post'}
       </Text>
 
       <Text style={styles.postContent}>{post.content}</Text>
@@ -116,17 +141,25 @@ export const PostCard: React.FC<PostCardProps> = ({
       )}
 
       <View style={styles.postActions}>
-        <TouchableOpacity style={styles.iconButton} onPress={() => onVote(post, 1)}>
-          <Ionicons name="arrow-up-circle-outline" size={20} color={Colors.primary} />
+        <TouchableOpacity style={styles.iconButton} onPress={() => handleVote(1)}>
+          <Ionicons 
+            name={userVote === 1 ? "arrow-up-circle" : "arrow-up-circle-outline"} 
+            size={20} 
+            style={upVoteIconColor}
+          />
           <Text style={styles.iconButtonText}>{post.upVotes || 0}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.iconButton} onPress={() => onVote(post, -1)}>
-          <Ionicons name="arrow-down-circle-outline" size={20} color={Colors.primary} />
+        <TouchableOpacity style={styles.iconButton} onPress={() => handleVote(-1)}>
+          <Ionicons 
+            name={userVote === -1 ? "arrow-down-circle" : "arrow-down-circle-outline"} 
+            size={20} 
+            style={downVoteIconColor}
+          />
           <Text style={styles.iconButtonText}>{post.downVotes || 0}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.iconButton} onPress={() => onShowComments(post)}>
+        <TouchableOpacity style={styles.iconButton} onPress={handleShowComments}>
           <Ionicons name="chatbubble-ellipses-outline" size={20} color={Colors.primary} />
           <Text style={styles.iconButtonText}>Comments</Text>
         </TouchableOpacity>
