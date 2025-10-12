@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import * as Haptics from 'expo-haptics'; // Add haptic feedback
 import { Colors } from '../../../constants/Colors';
 import { styles } from '../../../../styles/CommunityForum.styles';
 import { useCommentForm } from '../hooks/useCommentForm';
@@ -19,6 +20,7 @@ export const CommentComposer: React.FC<CommentComposerProps> = ({
   const { formData, submitting, updateContent, submitComment } = useCommentForm();
 
   const handleSubmit = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const success = await submitComment(postId);
     if (success) {
       onSubmit();

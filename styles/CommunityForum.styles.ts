@@ -1,14 +1,18 @@
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet, Dimensions } from 'react-native';
 import { Colors } from '../src/constants/Colors';
 
+const { height: screenHeight } = Dimensions.get('window');
+
 export const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.backgroundSecondary },
+  container: { flex: 1, backgroundColor: Colors.backgroundSecondary,
+  paddingBottom: 0,
+   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: Platform.OS === 'ios' ? 50 : 8,
     paddingBottom: 12,
     backgroundColor: Colors.white,
     borderBottomWidth: 1,
@@ -65,7 +69,7 @@ export const styles = StyleSheet.create({
   },
   addButtonText: { color: Colors.textOnPrimary, fontWeight: '600' },
 
-  listContent: { padding: 16, paddingBottom: 110 },
+  listContent: { padding: 16, paddingBottom: 0 },
   loadingWrap: { padding: 24, alignItems: 'center', justifyContent: 'center' },
   emptyWrap: { alignItems: 'center', justifyContent: 'center', padding: 24 },
   emptyText: { color: Colors.textSecondary, marginTop: 8 },
@@ -82,6 +86,11 @@ export const styles = StyleSheet.create({
     elevation: 1,
     borderWidth: 1,
     borderColor: Colors.borderLight,
+  },
+  ownPostCard: {
+    backgroundColor: '#f0f9ff', // Light blue background for user's own posts
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.primary,
   },
   postTitle: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
   postHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -105,13 +114,15 @@ export const styles = StyleSheet.create({
   },
   modalCard: {
     backgroundColor: Colors.white,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 16,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
     borderWidth: 1,
     borderColor: Colors.borderLight,
+    maxHeight: '80%',
   },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: Colors.textPrimary, marginBottom: 12 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: Colors.textPrimary, textAlign: 'center',
+    flex: 1,marginBottom: 12 },
   input: {
     backgroundColor: Colors.white,
     borderWidth: 1,
@@ -171,6 +182,12 @@ export const styles = StyleSheet.create({
     borderColor: Colors.border,
     marginBottom: 8,
   },
+  ownCommentCard: {
+    backgroundColor: '#f0f9ff', // Light blue background for user's own comments
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.primary,
+  },
+  
   commentHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   commentAuthor: { fontWeight: '700', color: Colors.textPrimary },
   commentDate: { color: Colors.textLight, fontSize: 12 },
@@ -185,6 +202,23 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  commentComposerContainer: {
+  borderTopWidth: 1,
+  borderTopColor: Colors.border,
+  paddingTop: 16,
+  backgroundColor: Colors.background,
+  // Add padding for iOS safe area
+  paddingBottom: Platform.OS === 'ios' ? 34 : 16,
+},
+composerWrapper: {
+  borderTopWidth: 1,
+  borderTopColor: Colors.borderLight,
+  backgroundColor: Colors.background,
+  paddingTop: 8,
+},
+composerWithKeyboard: {
+  paddingBottom: Platform.OS === 'ios' ? 0 : 8,
+},
   menuOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.2)', justifyContent: 'flex-end' },
   menuCard: {
     backgroundColor: Colors.white,
@@ -198,4 +232,281 @@ export const styles = StyleSheet.create({
   menuItemText: { color: Colors.textPrimary, fontSize: 16 },
   menuCancel: { marginTop: 4, alignItems: 'center', paddingVertical: 10 },
   menuCancelText: { color: Colors.textSecondary, fontWeight: '600' },
+
+  // Add these styles to your existing styles
+  summaryContainer: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.primary,
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  summaryTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.primary,
+    marginLeft: 6,
+    flex: 1,
+  },
+  summaryText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+  },
+  refreshButton: {
+    padding: 4,
+  },
+  generatingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  generatingText: {
+    fontSize: 14,
+    color: Colors.textLight,
+    fontStyle: 'italic',
+    marginLeft: 6,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#DC2626',
+    fontStyle: 'italic',
+  },
+  retryText: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  generateSummaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+  },
+  generateSummaryText: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  // Add styles for voted icons
+  votedUpIcon: {
+    color: '#10b981', // Green for upvoted
+  },
+  votedDownIcon: {
+    color: '#ef4444', // Red for downvoted
+  },
+  defaultVoteIcon: {
+    color: Colors.primary,
+  },
+  headerButtons: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 12,
+},
+notificationsButton: {
+  padding: 8,
+  borderRadius: 8,
+  backgroundColor: Colors.background,
+  position: 'relative',
+},
+notificationBadge: {
+  position: 'absolute',
+  top: -4,
+  right: -4,
+  backgroundColor: Colors.error,
+  borderRadius: 10,
+  minWidth: 18,
+  height: 18,
+  justifyContent: 'center',
+  alignItems: 'center',
+  borderWidth: 2,
+  borderColor: Colors.background,
+},
+notificationBadgeText: {
+  color: Colors.textOnPrimary,
+  fontSize: 10,
+  fontWeight: 'bold',
+  textAlign: 'center',
+},
+loadingOverlay: {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  justifyContent: 'center',
+  alignItems: 'center',
+  zIndex: 1000,
+},
+loadingOverlayContent: {
+  backgroundColor: Colors.background,
+  padding: 20,
+  borderRadius: 12,
+  alignItems: 'center',
+  gap: 12,
+},
+loadingOverlayText: {
+  color: Colors.textPrimary,
+  fontSize: 16,
+  fontWeight: '500',
+},
+
+modalContainer: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  modalCloseButton: {
+    padding: 4,
+    borderRadius: 8,
+    backgroundColor: '#f1f5f9',
+  },
+  
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  noNotificationsContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 20,
+    marginTop: screenHeight * 0.2,
+  },
+  noNotificationsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#374151',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  noNotificationsText: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 300,
+  },
+  notificationItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  unreadNotification: {
+    backgroundColor: '#f0f9ff',
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.primary,
+    borderColor: '#e0f2fe',
+  },
+  notificationIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(73, 176, 45, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    flexShrink: 0,
+  },
+  notificationContent: {
+    flex: 1,
+    flexShrink: 1,
+  },
+  notificationText: {
+    fontSize: 14,
+    color: '#374151',
+    lineHeight: 20,
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  notificationTime: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginBottom: 4,
+    fontWeight: '400',
+  },
+  commentPreview: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontStyle: 'italic',
+    lineHeight: 16,
+    backgroundColor: '#f8fafc',
+    padding: 8,
+    borderRadius: 6,
+    marginTop: 4,
+    borderLeftWidth: 2,
+    borderLeftColor: '#e2e8f0',
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.primary,
+    marginLeft: 8,
+    marginTop: 8,
+    flexShrink: 0,
+  },
+  markAllReadButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(73, 176, 45, 0.1)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(73, 176, 45, 0.2)',
+  },
+  markAllReadText: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
 });
