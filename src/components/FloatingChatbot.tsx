@@ -14,6 +14,9 @@ import { GiftedChat, IMessage, Bubble, Send } from 'react-native-gifted-chat';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import axios from 'axios';
+import { EnergyDataService } from '../services/EnergyDataService';
+import { EnergyData } from '../services/EnergyPredictionService';
+import { auth } from '../../config/firebase';
 
 const { width, height } = Dimensions.get('window');
 
@@ -21,6 +24,8 @@ const FloatingChatbot = () => {
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [inputText, setInputText] = useState('');
+  const [userEnergyData, setUserEnergyData] = useState<EnergyData | null>(null);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
   // BottomSheet ref
   const bottomSheetRef = useRef<BottomSheet>(null);
@@ -34,23 +39,50 @@ const FloatingChatbot = () => {
   const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 
   const predefinedCapsules = [
-    'What is my energy usage?',
-    'How can I save energy?',
-    'Tell me a tip!',
+    'What was my energy usage yesterday?',
+    'How does my usage compare to last week?',
+    'What can I do to reduce my bills?',
+    'Which day did I use the most energy?',
+    'Give me personalized energy tips',
+    'How much am I spending on electricity?',
   ];
 
-  // Initialize with welcome message
+  // Initialize with welcome message and load user data
   useEffect(() => {
+    loadUserEnergyData();
     if (messages.length === 0) {
       const welcomeMessage: IMessage = {
         _id: 'welcome',
-        text: "Hi! I'm your energy assistant. I can help you understand your energy usage, provide saving tips, and answer questions about your home's energy consumption. How can I help you today?",
+        text: "Hi! I'm your personalized energy assistant. I can analyze your actual energy usage data, provide tailored insights, and help you save money. Ask me about your consumption patterns!",
         createdAt: new Date(),
         user: { _id: 2, name: 'WattWise AI', avatar: '⚡' },
       };
       setMessages([welcomeMessage]);
     }
   }, []);
+
+  // Load user's actual energy data
+  const loadUserEnergyData = async () => {
+    try {
+      setIsLoadingData(true);
+      console.log('🤖 Loading user energy data for chatbot...');
+      const energyData = await EnergyDataService.getUserEnergyData();
+      if (energyData) {
+        setUserEnergyData(energyData);
+        console.log('✅ User energy data loaded for chatbot:', {
+          avgUsage: energyData.averageDailyKwh.toFixed(1),
+          last7Days: energyData.last7Days.length,
+          deviceCount: energyData.deviceCount,
+        });
+      } else {
+        console.log('⚠️ No energy data found for chatbot');
+      }
+    } catch (error) {
+      console.error('❌ Error loading energy data for chatbot:', error);
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
 
   // Auto-scroll to bottom when messages change (newest messages at bottom)
   useEffect(() => {
@@ -64,6 +96,52 @@ const FloatingChatbot = () => {
   const sendMessageToAPI = async (text: string) => {
     setIsLoading(true);
     try {
+      // Build context with user's actual energy data
+      let userDataContext = '';
+      if (userEnergyData) {
+        const yesterday = userEnergyData.last7Days[userEnergyData.last7Days.length - 1];
+        const weekAvg =
+          userEnergyData.last7Days.reduce((a, b) => a + b, 0) / userEnergyData.last7Days.length;
+        const monthlyEstimate = userEnergyData.averageDailyKwh * 30 * 25; // 25 LKR per kWh
+
+        userDataContext = `
+REAL USER ENERGY DATA CONTEXT:
+- Current average daily usage: ${userEnergyData.averageDailyKwh.toFixed(1)} kWh
+- Yesterday's usage: ${yesterday.toFixed(1)} kWh
+- Last 7 days average: ${weekAvg.toFixed(1)} kWh
+- Last 7 days data: [${userEnergyData.last7Days.map(d => d.toFixed(1)).join(', ')}] kWh
+- Device count: ${userEnergyData.deviceCount} devices
+- Monthly budget: ${userEnergyData.monthlyBudget ? `LKR ${userEnergyData.monthlyBudget}` : 'Not set'}
+- Estimated monthly cost: LKR ${monthlyEstimate.toFixed(0)}
+- User ID: ${userEnergyData.userId}
+
+Use this REAL data to provide specific, personalized responses. Reference actual numbers and patterns.
+`;
+      } else {
+        userDataContext = `
+USER DATA: Not available yet (still loading or no data found).
+Provide general energy advice but mention that specific insights would be available once data is loaded.
+`;
+      }
+
+      const enhancedPrompt = `${userDataContext}
+
+You are WattWise AI, a smart energy assistant with access to the user's real energy consumption data. 
+Provide helpful, specific responses based on their actual usage patterns. 
+
+User Question: "${text}"
+
+Guidelines:
+- Use the actual data provided above to give personalized insights
+- Reference specific numbers from their usage (yesterday's consumption, weekly averages, etc.)
+- Compare their patterns (higher/lower days, trends)
+- Provide actionable advice based on their device count and spending
+- Be conversational but informative
+- Keep responses under 100 words unless they ask for detailed analysis
+- If asking about "yesterday" or "last week", use the actual data provided
+
+Response:`;
+
       const response = await axios.post(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
         {
@@ -71,8 +149,7 @@ const FloatingChatbot = () => {
             {
               parts: [
                 {
-                  text: `You are an energy efficiency assistant helping users manage their home energy consumption. 
-                  Answer the following question in a helpful, concise way (2-3 sentences max): ${text}`,
+                  text: enhancedPrompt,
                 },
               ],
             },
@@ -223,7 +300,7 @@ const FloatingChatbot = () => {
     <>
       <TouchableOpacity style={styles.floatingButton} onPress={toggleChatbot} activeOpacity={0.8}>
         <Ionicons name="flash" size={28} color="#fff" />
-        <View style={styles.badge}>
+        <View style={[styles.badge, { backgroundColor: userEnergyData ? '#ffffffff' : '#fff' }]}>
           <Text style={styles.badgeText}>AI</Text>
         </View>
       </TouchableOpacity>
@@ -238,7 +315,7 @@ const FloatingChatbot = () => {
         enableDynamicSizing={true}
         backdropComponent={renderBackdrop}
         handleIndicatorStyle={{ backgroundColor: '#49B02D' }}
-        backgroundStyle={{ backgroundColor: '#fff' }}
+        backgroundStyle={{ backgroundColor: '#ffffffff' }}
         enablePanDownToClose={true}
       >
         <BottomSheetView style={styles.bottomSheetContent}>
@@ -253,15 +330,30 @@ const FloatingChatbot = () => {
                   <Text style={styles.headerTitleWattWise}>WattWise</Text>
                   <Text style={styles.headerTitleAI}>AI</Text>
                 </View>
-                <Text style={styles.headerSubtitle}>Always here to help</Text>
+                <Text style={styles.headerSubtitle}>
+                  {isLoadingData
+                    ? 'Loading your data...'
+                    : userEnergyData
+                      ? `${userEnergyData.averageDailyKwh.toFixed(1)} kWh daily avg • ${userEnergyData.deviceCount} devices`
+                      : 'General energy tips available'}
+                </Text>
               </View>
             </View>
-            <TouchableOpacity
-              onPress={() => bottomSheetRef.current?.close()}
-              style={styles.closeButton}
-            >
-              <Ionicons name="close" size={24} color="#64748b" />
-            </TouchableOpacity>
+            <View style={styles.headerRight}>
+              <TouchableOpacity
+                onPress={loadUserEnergyData}
+                style={styles.refreshButton}
+                disabled={isLoadingData}
+              >
+                <Ionicons name="refresh" size={20} color={isLoadingData ? '#ccc' : '#49B02D'} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => bottomSheetRef.current?.close()}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#64748b" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Quick Action Capsules */}
@@ -569,6 +661,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: 40,
     height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f0f9ff',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  refreshButton: {
+    padding: 8,
     borderRadius: 20,
     backgroundColor: '#f0f9ff',
   },
