@@ -115,6 +115,8 @@ const HomeScreen = () => {
     trendPercentage: 0,
   });
   const [weeklyTrend, setWeeklyTrend] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
+  const [monthlyTrend, setMonthlyTrend] = useState<number[]>([0, 0, 0, 0]);
+  const [yearlyTrend, setYearlyTrend] = useState<number[]>([0, 0, 0, 0, 0, 0]);
   const [categoryBreakdown, setCategoryBreakdown] = useState<{ [key: string]: number }>({});
 
   // Animation values for circular progress
@@ -189,8 +191,16 @@ const HomeScreen = () => {
         setUsageStats(stats);
 
         // Load weekly trend for charts
-        const trend = await DailyUsageService.getWeeklyTrend(user.uid);
-        setWeeklyTrend(trend);
+        const weekTrend = await DailyUsageService.getWeeklyTrend(user.uid);
+        setWeeklyTrend(weekTrend);
+
+        // Load monthly trend (last 4 weeks)
+        const monthTrend = await DailyUsageService.getMonthlyTrend(user.uid);
+        setMonthlyTrend(monthTrend.length > 0 ? monthTrend : [0, 0, 0, 0]);
+
+        // Load yearly trend (last 6 months)
+        const yearTrend = await DailyUsageService.getYearlyTrend(user.uid);
+        setYearlyTrend(yearTrend.length > 0 ? yearTrend : [0, 0, 0, 0, 0, 0]);
 
         // Load category breakdown
         const categories = await DailyUsageService.getCategoryBreakdown(user.uid, 7);
@@ -203,7 +213,7 @@ const HomeScreen = () => {
           currentUsage: stats.today,
           monthlyBill: stats.monthlyTotal * 0.1, // Assuming 0.1 LKR per kWh
           efficiency: Math.min(100, Math.max(0, 100 - (stats.trendPercentage || 0))),
-          predictions: trend,
+          predictions: weekTrend,
           categories: {
             Lighting: categories['Lighting'] || 0,
             Appliances: categories['Appliances'] || 0,
@@ -1079,7 +1089,7 @@ const HomeScreen = () => {
         <View style={styles.headerStats}>
           <View style={styles.statItem}>
             <Ionicons name="flash" size={20} color="#86efac" />
-            <Text style={styles.statValue}>{energyData.efficiency}%</Text>
+            <Text style={styles.statValue}>{energyData.efficiency.toFixed(2)}%</Text>
             <Text style={styles.statLabel}>Efficiency</Text>
           </View>
           <View style={styles.statItem}>
@@ -1546,8 +1556,12 @@ const HomeScreen = () => {
                       ? weeklyTrend
                       : [0, 0, 0, 0, 0, 0, 0]
                     : selectedPeriod === 'Month'
-                      ? [45, 52, 48, 55]
-                      : [320, 280, 350, 290, 380, 320],
+                      ? monthlyTrend.length > 0
+                        ? monthlyTrend
+                        : [0, 0, 0, 0]
+                      : yearlyTrend.length > 0
+                        ? yearlyTrend
+                        : [0, 0, 0, 0, 0, 0],
                 color: (opacity = 1) => '#49B02D',
                 strokeWidth: 3,
               },
