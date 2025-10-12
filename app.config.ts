@@ -39,6 +39,7 @@ const config: ExpoConfig = {
   },
   ios: { supportsTablet: true },
   android: {
+    package: "com.wattwise.app",
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#ffffff',
@@ -55,6 +56,11 @@ const config: ExpoConfig = {
     EXPO_PUBLIC_FIREBASE_APP_ID: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
     EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
     EXPO_PUBLIC_GEMINI_API_KEY: process.env.EXPO_PUBLIC_GEMINI_API_KEY,
+    
+    
+    eas: {
+      projectId: '38f1235e-b966-494b-a640-313b217e952f',
+    },
   },
 };
 
