@@ -1007,9 +1007,6 @@ const HomeScreen = () => {
   const renderHeader = () => (
     <Animatable.View animation="fadeInDown" delay={200} style={styles.header}>
       <LinearGradient
-
-
-
         colors={['#60ca43ff', '#5dc341ff', '#49B02D']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -1063,7 +1060,7 @@ const HomeScreen = () => {
         <View style={styles.headerStats}>
           <View style={styles.statItem}>
             <Ionicons name="flash" size={20} color="#86efac" />
-            <Text style={styles.statValue}>{energyData.efficiency}%</Text>
+            <Text style={styles.statValue}>{energyData.efficiency.toFixed(2)}%</Text>
             <Text style={styles.statLabel}>Efficiency</Text>
           </View>
           <View style={styles.statItem}>

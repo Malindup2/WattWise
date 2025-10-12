@@ -103,95 +103,97 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ visible, leaderboar
               </TouchableOpacity>
             </View>
 
-          {/* Podium (Top 3) */}
-          {leaderboard.length >= 3 && (
-            <View style={styles.podium}>
-              {/* Second Place */}
-              <View style={styles.podiumPosition}>
-                <View style={[styles.podiumRank, { backgroundColor: getRankColor(2) }]}>
-                  <Text style={styles.podiumRankText}>2</Text>
-                </View>
-                <Text style={styles.podiumName}>{leaderboard[1].name}</Text>
-                <Text style={styles.podiumScore}>{leaderboard[1].ecoPoints}</Text>
-                <View style={styles.podiumBar2} />
-              </View>
-
-              {/* First Place */}
-              <View style={styles.podiumPosition}>
-                <Text style={styles.crownIcon}>👑</Text>
-                <View style={[styles.podiumRank, { backgroundColor: getRankColor(1) }]}>
-                  <Text style={styles.podiumRankText}>1</Text>
-                </View>
-                <Text style={styles.podiumName}>{leaderboard[0].name}</Text>
-                <Text style={styles.podiumScore}>{leaderboard[0].ecoPoints}</Text>
-                <View style={styles.podiumBar1} />
-              </View>
-
-              {/* Third Place */}
-              <View style={styles.podiumPosition}>
-                <View style={[styles.podiumRank, { backgroundColor: getRankColor(3) }]}>
-                  <Text style={styles.podiumRankText}>3</Text>
-                </View>
-                <Text style={styles.podiumName}>{leaderboard[2].name}</Text>
-                <Text style={styles.podiumScore}>{leaderboard[2].ecoPoints}</Text>
-                <View style={styles.podiumBar3} />
-              </View>
-            </View>
-          )}
-
-          {/* Full Leaderboard */}
-          <ScrollView style={styles.leaderboardList} showsVerticalScrollIndicator={false}>
-            <Text style={styles.listTitle}>All Rankings</Text>
-            {leaderboard.map(entry => (
-              <View key={entry.userId} style={styles.leaderboardItem}>
-                <View style={styles.rankSection}>
-                  <Text style={styles.rankIcon}>{getRankIcon(entry.rank)}</Text>
-                  <View style={[styles.rankBadge, { backgroundColor: getRankColor(entry.rank) }]}>
-                    <Text style={styles.rankText}>#{entry.rank}</Text>
+            {/* Podium (Top 3) */}
+            {leaderboard.length >= 3 && (
+              <View style={styles.podium}>
+                {/* Second Place */}
+                <View style={styles.podiumPosition}>
+                  <View style={[styles.podiumRank, { backgroundColor: getRankColor(2) }]}>
+                    <Text style={styles.podiumRankText}>2</Text>
                   </View>
+                  <Text style={styles.podiumName}>{leaderboard[1].name}</Text>
+                  <Text style={styles.podiumScore}>{leaderboard[1].ecoPoints}</Text>
+                  <View style={styles.podiumBar2} />
                 </View>
 
-                <View style={styles.userSection}>
-                  <Text style={styles.userName}>{entry.name}</Text>
-                  <Text style={styles.userActivity}>{formatLastActivity(entry.lastActivity)}</Text>
+                {/* First Place */}
+                <View style={styles.podiumPosition}>
+                  <Text style={styles.crownIcon}>👑</Text>
+                  <View style={[styles.podiumRank, { backgroundColor: getRankColor(1) }]}>
+                    <Text style={styles.podiumRankText}>1</Text>
+                  </View>
+                  <Text style={styles.podiumName}>{leaderboard[0].name}</Text>
+                  <Text style={styles.podiumScore}>{leaderboard[0].ecoPoints}</Text>
+                  <View style={styles.podiumBar1} />
                 </View>
 
-                <View style={styles.scoreSection}>
-                  <Text style={styles.userScore}>{entry.ecoPoints}</Text>
-                  <Text style={styles.scoreLabel}>points</Text>
+                {/* Third Place */}
+                <View style={styles.podiumPosition}>
+                  <View style={[styles.podiumRank, { backgroundColor: getRankColor(3) }]}>
+                    <Text style={styles.podiumRankText}>3</Text>
+                  </View>
+                  <Text style={styles.podiumName}>{leaderboard[2].name}</Text>
+                  <Text style={styles.podiumScore}>{leaderboard[2].ecoPoints}</Text>
+                  <View style={styles.podiumBar3} />
                 </View>
-
-                <View style={styles.badgesSection}>
-                  {entry.badges.slice(0, 3).map((badge, index) => (
-                    <Text key={index} style={styles.badgeIcon}>
-                      {badge.icon}
-                    </Text>
-                  ))}
-                  {entry.badges.length > 3 && (
-                    <Text style={styles.moreBadges}>+{entry.badges.length - 3}</Text>
-                  )}
-                </View>
-              </View>
-            ))}
-
-            {/* Empty State */}
-            {leaderboard.length === 0 && (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyIcon}>🏆</Text>
-                <Text style={styles.emptyTitle}>No rankings yet</Text>
-                <Text style={styles.emptyText}>
-                  Be the first to complete a quiz and claim the top spot!
-                </Text>
               </View>
             )}
-          </ScrollView>
 
-          {/* Footer */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Complete more quizzes to climb the rankings! 🌱</Text>
+            {/* Full Leaderboard */}
+            <ScrollView style={styles.leaderboardList} showsVerticalScrollIndicator={false}>
+              <Text style={styles.listTitle}>All Rankings</Text>
+              {leaderboard.map(entry => (
+                <View key={entry.userId} style={styles.leaderboardItem}>
+                  <View style={styles.rankSection}>
+                    <Text style={styles.rankIcon}>{getRankIcon(entry.rank)}</Text>
+                    <View style={[styles.rankBadge, { backgroundColor: getRankColor(entry.rank) }]}>
+                      <Text style={styles.rankText}>#{entry.rank}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.userSection}>
+                    <Text style={styles.userName}>{entry.name}</Text>
+                    <Text style={styles.userActivity}>
+                      {formatLastActivity(entry.lastActivity)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.scoreSection}>
+                    <Text style={styles.userScore}>{entry.ecoPoints}</Text>
+                    <Text style={styles.scoreLabel}>points</Text>
+                  </View>
+
+                  <View style={styles.badgesSection}>
+                    {entry.badges.slice(0, 3).map((badge, index) => (
+                      <Text key={index} style={styles.badgeIcon}>
+                        {badge.icon}
+                      </Text>
+                    ))}
+                    {entry.badges.length > 3 && (
+                      <Text style={styles.moreBadges}>+{entry.badges.length - 3}</Text>
+                    )}
+                  </View>
+                </View>
+              ))}
+
+              {/* Empty State */}
+              {leaderboard.length === 0 && (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyIcon}>🏆</Text>
+                  <Text style={styles.emptyTitle}>No rankings yet</Text>
+                  <Text style={styles.emptyText}>
+                    Be the first to complete a quiz and claim the top spot!
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+
+            {/* Footer */}
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>Complete more quizzes to climb the rankings! 🌱</Text>
+            </View>
           </View>
         </View>
-      </View>
       </SafeAreaView>
     </Modal>
   );

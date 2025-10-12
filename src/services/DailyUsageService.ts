@@ -334,10 +334,10 @@ export class DailyUsageService {
         date.setMonth(date.getMonth() - i);
         const year = date.getFullYear();
         const month = date.getMonth();
-        
+
         const startDate = new Date(year, month, 1);
         const endDate = new Date(year, month + 1, 0);
-        
+
         months.push({
           start: startDate.toISOString().split('T')[0],
           end: endDate.toISOString().split('T')[0],
