@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
+  SafeAreaView,
+  StatusBar,
 } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import type { LeaderboardEntry } from '../../types/quiz';
@@ -86,18 +88,20 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ visible, leaderboar
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerContent}>
-              <Text style={styles.title}>🏆 Leaderboard</Text>
-              <Text style={styles.subtitle}>Top Energy Savers</Text>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+        <View style={styles.overlay}>
+          <View style={styles.modal}>
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.headerContent}>
+                <Text style={styles.title}>🏆 Leaderboard</Text>
+                <Text style={styles.subtitle}>Top Energy Savers</Text>
+              </View>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
-          </View>
 
           {/* Podium (Top 3) */}
           {leaderboard.length >= 3 && (
@@ -188,11 +192,16 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ visible, leaderboar
           </View>
         </View>
       </View>
+      </SafeAreaView>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -202,7 +211,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: height * 0.85,
+    flex: 1,
   },
   header: {
     flexDirection: 'row',

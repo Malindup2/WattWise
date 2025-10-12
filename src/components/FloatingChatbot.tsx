@@ -40,11 +40,7 @@ const FloatingChatbot = () => {
 
   const predefinedCapsules = [
     'What was my energy usage yesterday?',
-    'How does my usage compare to last week?',
-    'What can I do to reduce my bills?',
-    'Which day did I use the most energy?',
     'Give me personalized energy tips',
-    'How much am I spending on electricity?',
   ];
 
   // Initialize with welcome message and load user data
