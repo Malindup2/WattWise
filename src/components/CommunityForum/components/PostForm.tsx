@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics'; // Add haptic feedback
 import { Colors } from '../../../constants/Colors';
 import { styles } from '../../../../styles/CommunityForum.styles';
 import { usePostForm } from '../hooks/usePostForm';
@@ -25,12 +26,23 @@ export const PostForm: React.FC<PostFormProps> = ({
   const { mediaUri, pickImage, clearMedia } = useMediaPicker();
 
   const handleSubmit = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const success =
       isEditing && editingPostId ? await updatePost(editingPostId) : await submitPost();
 
     if (success) {
       onSubmit();
     }
+  };
+
+  const handleCancel = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onCancel();
+  };
+
+  const handlePickImage = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    pickImage();
   };
 
   const isDisabled =
@@ -59,7 +71,7 @@ export const PostForm: React.FC<PostFormProps> = ({
 
       {!isEditing && (
         <View style={styles.mediaRow}>
-          <TouchableOpacity style={styles.secondaryBtn} onPress={pickImage}>
+          <TouchableOpacity style={styles.secondaryBtn} onPress={handlePickImage}>
             <Ionicons name="image-outline" size={18} color={Colors.textPrimary} />
             <Text style={[styles.secondaryBtnText, { marginLeft: 6 }]}>Add Photo</Text>
           </TouchableOpacity>
@@ -68,7 +80,7 @@ export const PostForm: React.FC<PostFormProps> = ({
       )}
 
       <View style={styles.modalActions}>
-        <TouchableOpacity style={styles.secondaryBtn} onPress={onCancel}>
+        <TouchableOpacity style={styles.secondaryBtn} onPress={handleCancel}>
           <Text style={styles.secondaryBtnText}>Cancel</Text>
         </TouchableOpacity>
 

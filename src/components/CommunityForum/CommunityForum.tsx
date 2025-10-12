@@ -13,6 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { auth } from '../../../config/firebase';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles } from '../../../styles/CommunityForum.styles';
@@ -25,6 +26,22 @@ import { ForumPost, SortKey } from './types';
 import { UI_MESSAGES, ACCESSIBILITY_LABELS, HIT_SLOP } from './constants';
 import { PostCard, PostForm, PostMenu, CommentsModal } from './components';
 
+const getUserDisplayName = async (uid: string): Promise<string> => {
+  try {
+    // For now, use a simple approach - you can enhance this later
+    const currentUser = auth.currentUser;
+    if (currentUser && currentUser.uid === uid) {
+      return currentUser.displayName || currentUser.email?.split('@')[0] || 'User';
+    }
+    
+    // If it's not the current user, return a generic name for now
+    return 'User';
+  } catch (error) {
+    console.error('Error getting user display name:', error);
+    return 'User';
+  }
+};
+
 const CommunityForum: React.FC = () => {
   // State management
   const [showNewPostModal, setShowNewPostModal] = useState(false);
@@ -33,6 +50,7 @@ const CommunityForum: React.FC = () => {
   const [sortKey, setSortKey] = useState<SortKey>('date');
   const [postMenuFor, setPostMenuFor] = useState<ForumPost | null>(null);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
+  const [userVotes, setUserVotes] = useState<Record<string, 1 | -1>>({});
 
   // Custom hooks
   const { posts, loading } = useForumPosts();
@@ -47,36 +65,64 @@ const CommunityForum: React.FC = () => {
       Alert.alert('Login Required', UI_MESSAGES.LOGIN_REQUIRED);
       return;
     }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     resetForm();
     clearMedia();
     setShowNewPostModal(true);
   };
 
   const handleEditPost = (post: ForumPost) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setEditingPostId(post.id);
     setShowNewPostModal(true);
     setPostMenuFor(null);
   };
 
-  const handleVote = async (post: ForumPost, value: 1 | -1) => {
-    if (!currentUser) return;
-    try {
-      await vote(post.id, currentUser.uid, value);
-      if (post.uid && post.uid !== currentUser.uid) {
-        await createNotification(
-          value === 1 ? 'upvote' : 'downvote',
-          post.uid,
-          currentUser.uid,
-          post.id
-        );
-      }
-    } catch (error) {
-      console.error('Error voting:', error);
+const handleVote = async (post: ForumPost, value: 1 | -1) => {
+  if (!currentUser) return;
+
+  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+  try {
+    setUserVotes(prev => ({
+      ...prev,
+      [post.id]: value,
+    }));
+
+    await vote(post.id, currentUser.uid, value);
+    if (post.uid && post.uid !== currentUser.uid) {
+      // Get the user's display name properly
+      const currentUserName = await getUserDisplayName(currentUser.uid);
+      const postTitle = post.title || 'Your post';
+      
+      console.log('🔔 Creating notification with:', {
+        userName: currentUserName,
+        postTitle: postTitle
+      });
+      
+      await createNotification(
+        value === 1 ? 'upvote' : 'downvote',
+        post.uid,
+        currentUser.uid,
+        currentUserName,
+        post.id,
+        postTitle
+      );
     }
-  };
+  } catch (error) {
+    setUserVotes(prev => {
+      const newVotes = { ...prev };
+      delete newVotes[post.id];
+      return newVotes;
+    });
+    console.error('Error voting:', error);
+  }
+};
 
   const handleDeletePost = async (post: ForumPost) => {
     if (!currentUser || post.uid !== currentUser.uid) return;
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert('Delete post', UI_MESSAGES.DELETE_POST_CONFIRM, [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -84,6 +130,7 @@ const CommunityForum: React.FC = () => {
         style: 'destructive',
         onPress: async () => {
           try {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
             await deletePost(post.id);
           } catch (error) {
             console.error('Error deleting post:', error);
@@ -96,6 +143,7 @@ const CommunityForum: React.FC = () => {
 
   const handleDeleteComment = async (commentId: string) => {
     try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       await deleteComment(commentId);
     } catch (error) {
       console.error('Error deleting comment:', error);
@@ -104,6 +152,7 @@ const CommunityForum: React.FC = () => {
   };
 
   const handleModalClose = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowNewPostModal(false);
     setEditingPostId(null);
     resetForm();
@@ -111,11 +160,18 @@ const CommunityForum: React.FC = () => {
   };
 
   const handleCommentsClose = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setActivePost(null);
   };
 
   const handleMenuClose = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setPostMenuFor(null);
+  };
+
+  const handleSortChange = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSortKey((prev: SortKey) => (prev === 'date' ? 'popularity' : 'date'));
   };
 
   // Filtered and sorted posts
@@ -146,15 +202,39 @@ const CommunityForum: React.FC = () => {
       onVote={handleVote}
       onShowComments={setActivePost}
       onShowMenu={setPostMenuFor}
+      userVotes={userVotes} // Pass the user votes state
     />
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
 
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Community Forum</Text>
+        <View>
+          <Text
+            style={[
+              styles.headerTitle,
+              {
+                marginBottom: 0,
+                marginTop: 20,
+              },
+            ]}
+          >
+            WattSpace 🍃
+          </Text>
+          <Text
+            style={[
+              styles.postMeta,
+              {
+                marginBottom: 0,
+              },
+            ]}
+          >
+            Connect with other WattWise users.
+          </Text>
+        </View>
+
         <TouchableOpacity
           style={styles.addButton}
           onPress={handleCreatePost}
@@ -181,10 +261,7 @@ const CommunityForum: React.FC = () => {
               style={styles.searchInput}
             />
           </View>
-          <TouchableOpacity
-            style={styles.filterChip}
-            onPress={() => setSortKey((prev: SortKey) => (prev === 'date' ? 'popularity' : 'date'))}
-          >
+          <TouchableOpacity style={styles.filterChip} onPress={handleSortChange}>
             <Ionicons name="funnel-outline" size={16} color={Colors.primary} />
             <Text style={styles.filterChipText}>{sortKey === 'date' ? 'Date' : 'Popularity'}</Text>
           </TouchableOpacity>
@@ -200,7 +277,7 @@ const CommunityForum: React.FC = () => {
         <FlatList
           data={filteredPosts}
           keyExtractor={(item: ForumPost) => item.id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: 0 }]}
           renderItem={renderPost}
           ListEmptyComponent={
             <View style={styles.emptyWrap}>
@@ -209,6 +286,7 @@ const CommunityForum: React.FC = () => {
             </View>
           }
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         />
       )}
 
@@ -244,7 +322,7 @@ const CommunityForum: React.FC = () => {
         onClose={handleCommentsClose}
         onDeleteComment={handleDeleteComment}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 

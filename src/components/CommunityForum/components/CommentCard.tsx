@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics'; // Add haptic feedback
 import { Colors } from '../../../constants/Colors';
 import { styles } from '../../../../styles/CommunityForum.styles';
 import { ForumComment } from '../types';
@@ -21,11 +22,13 @@ export const CommentCard: React.FC<CommentCardProps> = ({ comment, currentUserId
   const dateText = comment.createdAt?.toDate ? comment.createdAt.toDate().toLocaleString() : '';
 
   const handleEdit = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsEditing(true);
     updateContent(comment.content);
   };
 
   const handleSave = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const success = await updateComment(comment.id);
     if (success) {
       setIsEditing(false);
@@ -33,16 +36,18 @@ export const CommentCard: React.FC<CommentCardProps> = ({ comment, currentUserId
   };
 
   const handleCancel = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setIsEditing(false);
   };
 
   const handleDelete = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     onDelete(comment.id);
   };
 
   if (isEditing) {
     return (
-      <View style={styles.commentCard}>
+      <View style={[styles.commentCard, isOwner && styles.ownCommentCard]}>
         <TextInput
           style={[styles.input, { marginBottom: 8 }]}
           value={formData.content}
@@ -68,9 +73,12 @@ export const CommentCard: React.FC<CommentCardProps> = ({ comment, currentUserId
   }
 
   return (
-    <View style={styles.commentCard}>
+    <View style={[styles.commentCard, isOwner && styles.ownCommentCard]}>
       <View style={styles.commentHeader}>
-        <Text style={styles.commentAuthor}>{comment.author}</Text>
+        <Text style={styles.commentAuthor}>
+          {comment.author}
+          {isOwner && ' (You)'}
+        </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <Text style={styles.commentDate}>{dateText}</Text>
           {isOwner && (
