@@ -997,6 +997,9 @@ const HomeScreen = () => {
   const renderHeader = () => (
     <Animatable.View animation="fadeInDown" delay={200} style={styles.header}>
       <LinearGradient
+
+
+
         colors={['#60ca43ff', '#5dc341ff', '#49B02D']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
