@@ -123,7 +123,7 @@ const QuizzesScreen: React.FC = () => {
 
       {/* Green Header */}
       <View style={styles.greenHeader}>
-        <Text style={styles.headerTitle}>WattWise Quiz ⚡</Text>
+        <Text style={styles.headerTitle}>WattWise Quiz </Text>
         <Text style={styles.headerSubtitle}>Test your energy knowledge and earn eco points!</Text>
       </View>
 

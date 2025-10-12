@@ -324,6 +324,41 @@ export class DailyUsageService {
   }
 
   /**
+   * Get yearly usage trend data for charts (last 6 months)
+   */
+  static async getYearlyTrend(userId: string): Promise<number[]> {
+    try {
+      const months = [];
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date();
+        date.setMonth(date.getMonth() - i);
+        const year = date.getFullYear();
+        const month = date.getMonth();
+
+        const startDate = new Date(year, month, 1);
+        const endDate = new Date(year, month + 1, 0);
+
+        months.push({
+          start: startDate.toISOString().split('T')[0],
+          end: endDate.toISOString().split('T')[0],
+        });
+      }
+
+      const monthlyTotals = [];
+      for (const month of months) {
+        const monthData = await this.getUsageRange(userId, month.start, month.end);
+        const monthTotal = monthData.reduce((sum, day) => sum + day.totalDailyUsage, 0);
+        monthlyTotals.push(monthTotal);
+      }
+
+      return monthlyTotals;
+    } catch (error) {
+      console.error('Error getting yearly trend:', error);
+      return [0, 0, 0, 0, 0, 0];
+    }
+  }
+
+  /**
    * Delete a specific usage entry
    */
   static async deleteUsageEntry(
