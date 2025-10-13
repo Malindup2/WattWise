@@ -95,6 +95,7 @@ const HomeScreen = () => {
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
 
   // Device management state
   const [showDeviceModal, setShowDeviceModal] = useState(false);
@@ -427,6 +428,26 @@ const HomeScreen = () => {
       setAlertType('error');
       setAlertTitle('Delete Failed');
       setAlertMessage('Failed to delete layout. Please try again.');
+      setAlertVisible(true);
+    }
+  };
+
+  // Confirm logout
+  const confirmLogout = async () => {
+    try {
+      setLogoutConfirmVisible(false);
+      await AuthService.signOut();
+
+      // Reset navigation to Login screen
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' as never }],
+      });
+    } catch (error) {
+      console.error('Error signing out:', error);
+      setAlertType('error');
+      setAlertTitle('Logout Failed');
+      setAlertMessage('Failed to sign out. Please try again.');
       setAlertVisible(true);
     }
   };
@@ -987,7 +1008,7 @@ const HomeScreen = () => {
   const renderHeader = () => (
     <Animatable.View animation="fadeInDown" delay={200} style={styles.header}>
       <LinearGradient
-        colors={['#0e9b6e', '#05986c', '#2da375']}
+        colors={['#60ca43ff', '#5dc341ff', '#49B02D']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.headerGradient}
@@ -1235,7 +1256,7 @@ const HomeScreen = () => {
                 style={styles.sidebarLogoutButton}
                 onPress={() => {
                   toggleSidebar(() => {
-                    AuthService.signOut();
+                    setLogoutConfirmVisible(true);
                   });
                 }}
               >
@@ -2211,6 +2232,46 @@ const HomeScreen = () => {
                 onPress={confirmDeleteLayout}
               >
                 <Text style={styles.deleteButtonText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Logout Confirmation Modal */}
+      <Modal
+        visible={logoutConfirmVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setLogoutConfirmVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.deleteModalContainer}>
+            <View style={styles.deleteModalHeader}>
+              <View style={[styles.deleteIconContainer, { backgroundColor: '#f50b0bff' }]}>
+                <Ionicons name="log-out-outline" size={24} color="#FFFFFF" />
+              </View>
+              <Text style={styles.deleteModalTitle}>Logout</Text>
+            </View>
+
+            <Text style={styles.deleteModalMessage}>
+              Are you sure you want to log out? You will need to sign in again to access your
+              account.
+            </Text>
+
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity
+                style={[styles.deleteModalButton, styles.cancelButton]}
+                onPress={() => setLogoutConfirmVisible(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.deleteModalButton, styles.confirmDeleteButton]}
+                onPress={confirmLogout}
+              >
+                <Text style={styles.logoutButtonText}>Logout</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -3328,6 +3389,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   deleteButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  logoutButtonText: {
     color: '#ffffff',
     fontWeight: '600',
     fontSize: 16,
