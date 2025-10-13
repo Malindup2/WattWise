@@ -115,6 +115,7 @@ export class DailyUsageService {
         dailyData.updatedAt = new Date();
 
         await setDoc(dailySummaryRef, dailyData);
+        console.log('✅ Updated existing daily summary. Total usage now:', dailyData.totalDailyUsage, 'kWh');
       } else {
         // Create new daily summary
         const newDailySummary: DailyUsageSummary = {
@@ -134,9 +135,10 @@ export class DailyUsageService {
         };
 
         await setDoc(dailySummaryRef, newDailySummary);
+        console.log('✅ Created new daily summary. Total usage:', newDailySummary.totalDailyUsage, 'kWh');
       }
 
-      console.log('✅ Usage entry added successfully');
+      console.log('✅ Usage entry added successfully for document:', `${userId}_${date}`);
     } catch (error) {
       console.error('Error adding usage entry:', error);
       throw error;
@@ -148,13 +150,20 @@ export class DailyUsageService {
    */
   static async getDailyUsage(userId: string, date: string): Promise<DailyUsageSummary | null> {
     try {
-      const dailySummaryRef = doc(db, 'daily_usage', `${userId}_${date}`);
+      const documentId = `${userId}_${date}`;
+      const dailySummaryRef = doc(db, 'daily_usage', documentId);
+      console.log('🔍 Looking for daily usage document:', documentId);
+      
       const dailyDoc = await getDoc(dailySummaryRef);
 
       if (dailyDoc.exists()) {
-        return dailyDoc.data() as DailyUsageSummary;
+        const data = dailyDoc.data() as DailyUsageSummary;
+        console.log('✅ Found daily usage data:', data.totalDailyUsage, 'kWh with', data.rooms?.length || 0, 'rooms');
+        return data;
+      } else {
+        console.log('❌ No daily usage document found for:', documentId);
+        return null;
       }
-      return null;
     } catch (error) {
       console.error('Error getting daily usage:', error);
       throw error;
@@ -200,6 +209,9 @@ export class DailyUsageService {
     try {
       const today = new Date().toISOString().split('T')[0];
       const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      
+      console.log('📊 Getting usage stats for user:', userId);
+      console.log('📅 Today:', today, '| Yesterday:', yesterday);
 
       // Get today's and yesterday's usage directly
       const [todayUsage, yesterdayUsage] = await Promise.all([
@@ -209,6 +221,8 @@ export class DailyUsageService {
 
       const todayTotal = todayUsage?.totalDailyUsage || 0;
       const yesterdayTotal = yesterdayUsage?.totalDailyUsage || 0;
+      
+      console.log('📊 Today total:', todayTotal, '| Yesterday total:', yesterdayTotal);
 
       // For initial version, use simple calculations
       let weeklyAverage = todayTotal; // Fallback to today's usage
@@ -430,13 +444,13 @@ export class DailyUsageService {
       try {
         usageData = await this.getUsageRange(userId, startDate, endDate);
       } catch (error) {
-        console.warn('Could not get category breakdown data, returning default values');
+        console.warn('Could not get category breakdown data, returning zero values');
         return {
-          Lighting: 20,
-          Appliances: 40,
-          Electronics: 25,
-          HVAC: 10,
-          Other: 5,
+          Lighting: 0,
+          Appliances: 0,
+          Electronics: 0,
+          HVAC: 0,
+          Other: 0,
         };
       }
 
@@ -495,13 +509,13 @@ export class DailyUsageService {
           categories[key] = Math.round((categories[key] / total) * 100);
         });
       } else {
-        // Return default percentages if no data
+        // Return zero percentages if no data
         return {
-          Lighting: 20,
-          Appliances: 40,
-          Electronics: 25,
-          HVAC: 10,
-          Other: 5,
+          Lighting: 0,
+          Appliances: 0,
+          Electronics: 0,
+          HVAC: 0,
+          Other: 0,
         };
       }
 
@@ -509,11 +523,11 @@ export class DailyUsageService {
     } catch (error) {
       console.error('Error getting category breakdown:', error);
       return {
-        Lighting: 20,
-        Appliances: 40,
-        Electronics: 25,
-        HVAC: 10,
-        Other: 5,
+        Lighting: 0,
+        Appliances: 0,
+        Electronics: 0,
+        HVAC: 0,
+        Other: 0,
       };
     }
   }

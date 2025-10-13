@@ -148,6 +148,7 @@ const HomeScreen = () => {
     currentUsage: 0,
     monthlyBill: 0,
     efficiency: 0,
+    co2Saved: 0,
     predictions: [0, 0, 0, 0, 0, 0, 0],
     categories: {
       Lighting: 0,
@@ -160,6 +161,7 @@ const HomeScreen = () => {
 
   const [refreshing, setRefreshing] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('Week');
+  const [hasUsageData, setHasUsageData] = useState(false);
 
   // Function to animate circular progress
   const animateProgress = (targetPercentage: number) => {
@@ -186,6 +188,8 @@ const HomeScreen = () => {
     try {
       const user = AuthService.getCurrentUser();
       if (user) {
+        console.log('🏠 HomeScreen loading data for user ID:', user.uid);
+        
         // Load real usage statistics
         const stats = await DailyUsageService.getUsageStats(user.uid);
         setUsageStats(stats);
@@ -206,36 +210,64 @@ const HomeScreen = () => {
         const categories = await DailyUsageService.getCategoryBreakdown(user.uid, 7);
         setCategoryBreakdown(categories);
 
-        // Update energy data with real values
+        // Check if user has any actual usage data
+        const userHasUsageData = stats.today > 0 || stats.yesterday > 0 || stats.weeklyAverage > 0 || stats.monthlyTotal > 0;
+        setHasUsageData(userHasUsageData);
+        
+        // Calculate efficiency only if there's usage data
+        let calculatedEfficiency = 0;
+        if (userHasUsageData && stats.weeklyAverage > 0) {
+          calculatedEfficiency = Math.max(
+            0,
+            Math.min(100, ((stats.weeklyAverage - stats.today) / stats.weeklyAverage) * 100)
+          );
+        }
+
+        // Check if categories have real data (not all zeros)
+        const categoriesHaveData = Object.values(categories).some(value => value > 0);
+
+        // Calculate CO2 saved based on actual usage (if data exists)
+        // CO2 emission factor: ~1.2 lbs CO2 per kWh (average for Sri Lanka)
+        // If user reduced usage compared to average, they saved CO2
+        const co2SavedLbs = userHasUsageData && stats.weeklyAverage > 0
+          ? Math.max(0, (stats.weeklyAverage - stats.today) * 1.2 * 30) // Monthly CO2 savings in lbs
+          : 0;
+
+        // Update energy data with real values only if data exists
         setEnergyData(prev => ({
           ...prev,
-          totalConsumption: stats.monthlyTotal,
-          currentUsage: stats.today,
-          monthlyBill: stats.monthlyTotal * 0.1, // Assuming 0.1 LKR per kWh
-          efficiency: Math.min(100, Math.max(0, 100 - (stats.trendPercentage || 0))),
+          totalConsumption: userHasUsageData ? stats.monthlyTotal : 0,
+          currentUsage: userHasUsageData ? stats.today : 0,
+          monthlyBill: userHasUsageData ? stats.monthlyTotal * 0.1 : 0, // Assuming 0.1 LKR per kWh
+          efficiency: calculatedEfficiency,
+          co2Saved: co2SavedLbs,
           predictions: weekTrend,
-          categories: {
+          categories: categoriesHaveData ? {
             Lighting: categories['Lighting'] || 0,
             Appliances: categories['Appliances'] || 0,
             Electronics: categories['Electronics'] || 0,
             HVAC: categories['HVAC'] || 0,
             Other: categories['Other'] || 0,
+          } : {
+            Lighting: 0,
+            Appliances: 0,
+            Electronics: 0,
+            HVAC: 0,
+            Other: 0,
           },
         }));
 
-        // Calculate efficiency percentage and trigger animation
-        const efficiencyPercentage =
-          stats.weeklyAverage > 0
-            ? Math.max(
-                0,
-                Math.min(100, ((stats.weeklyAverage - stats.today) / stats.weeklyAverage) * 100)
-              )
-            : 75;
-
-        // Trigger circular progress animation with real data
-        setTimeout(() => {
-          animateProgress(Math.round(efficiencyPercentage));
-        }, 500); // Small delay to ensure UI is ready
+        // Trigger circular progress animation only if there's usage data
+        if (userHasUsageData) {
+          setTimeout(() => {
+            animateProgress(Math.round(calculatedEfficiency));
+          }, 500);
+        } else {
+          // No animation for new users without data
+          setTimeout(() => {
+            animateProgress(0);
+          }, 500);
+        }
       }
     } catch (error) {
       console.error('Error loading energy data:', error);
@@ -1089,7 +1121,9 @@ const HomeScreen = () => {
         <View style={styles.headerStats}>
           <View style={styles.statItem}>
             <Ionicons name="flash" size={20} color="#86efac" />
-            <Text style={styles.statValue}>{energyData.efficiency.toFixed(2)}%</Text>
+            <Text style={styles.statValue}>
+              {hasUsageData ? `${energyData.efficiency.toFixed(2)}%` : 'No Data'}
+            </Text>
             <Text style={styles.statLabel}>Efficiency</Text>
           </View>
           <View style={styles.statItem}>
@@ -1288,12 +1322,16 @@ const HomeScreen = () => {
           <View style={[styles.metricIcon, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
             <Ionicons name="speedometer-outline" size={24} color="#3b82f6" />
           </View>
-          <AnimatedCounter
-            value={usageStats.today}
-            style={styles.metricValue}
-            suffix=" kWh"
-            decimals={2}
-          />
+          {hasUsageData ? (
+            <AnimatedCounter
+              value={usageStats.today}
+              style={styles.metricValue}
+              suffix=" kWh"
+              decimals={2}
+            />
+          ) : (
+            <Text style={styles.metricValue}>No Data</Text>
+          )}
           <Text style={styles.metricLabel}>Today's Usage</Text>
           <View style={styles.metricChange}>
             <Ionicons
@@ -1337,12 +1375,16 @@ const HomeScreen = () => {
           <View style={[styles.metricIcon, { backgroundColor: 'rgba(168, 85, 247, 0.1)' }]}>
             <Ionicons name="calendar-outline" size={24} color="#a855f7" />
           </View>
-          <AnimatedCounter
-            value={usageStats.monthlyTotal}
-            style={styles.metricValue}
-            suffix=" kWh"
-            decimals={1}
-          />
+          {hasUsageData ? (
+            <AnimatedCounter
+              value={usageStats.monthlyTotal}
+              style={styles.metricValue}
+              suffix=" kWh"
+              decimals={1}
+            />
+          ) : (
+            <Text style={styles.metricValue}>No Data</Text>
+          )}
           <Text style={styles.metricLabel}>Monthly Total</Text>
           <View style={styles.metricChange}>
             <Ionicons name="trending-down" size={12} color="#22c55e" />
@@ -1354,12 +1396,16 @@ const HomeScreen = () => {
           <View style={[styles.metricIcon, { backgroundColor: 'rgba(249, 115, 22, 0.1)' }]}>
             <Ionicons name="card-outline" size={24} color="#f97316" />
           </View>
-          <AnimatedCounter
-            value={usageStats.monthlyTotal * 0.1}
-            style={styles.metricValue}
-            prefix="LKR"
-            decimals={2}
-          />
+          {hasUsageData ? (
+            <AnimatedCounter
+              value={usageStats.monthlyTotal * 0.1}
+              style={styles.metricValue}
+              prefix="LKR"
+              decimals={2}
+            />
+          ) : (
+            <Text style={styles.metricValue}>No Data</Text>
+          )}
           <Text style={styles.metricLabel}>Est. Bill</Text>
           <View style={styles.metricChange}>
             <Ionicons name="calendar-outline" size={12} color="#22c55e" />
@@ -1371,11 +1417,26 @@ const HomeScreen = () => {
           <View style={[styles.metricIcon, { backgroundColor: 'rgba(34, 197, 94, 0.1)' }]}>
             <Ionicons name="leaf-outline" size={24} color="#22c55e" />
           </View>
-          <AnimatedCounter value={892} style={styles.metricValue} suffix=" lbs" />
+          {hasUsageData ? (
+            <AnimatedCounter 
+              value={energyData.co2Saved} 
+              style={styles.metricValue} 
+              suffix=" lbs" 
+              decimals={1}
+            />
+          ) : (
+            <Text style={styles.metricValue}>No Data</Text>
+          )}
           <Text style={styles.metricLabel}>CO₂ Saved</Text>
           <View style={styles.metricChange}>
-            <Ionicons name="trending-up" size={12} color="#22c55e" />
-            <Text style={[styles.changeText, { color: '#22c55e' }]}>+24.1%</Text>
+            {hasUsageData ? (
+              <>
+                <Ionicons name="trending-up" size={12} color="#22c55e" />
+                <Text style={[styles.changeText, { color: '#22c55e' }]}>This month</Text>
+              </>
+            ) : (
+              <Text style={[styles.changeText, { color: '#94a3b8' }]}>No Data</Text>
+            )}
           </View>
         </View>
       </View>
@@ -1458,9 +1519,14 @@ const HomeScreen = () => {
               {/* Center Circle with Lightning Icon and Percentage */}
               <View style={styles.progressCenter}>
                 <Ionicons name="flash" size={24} color={Colors.textPrimary} />
-                <Text style={styles.progressPercentage}>{displayPercentage}%</Text>
+                <Text style={styles.progressPercentage}>
+                  {hasUsageData ? `${displayPercentage}%` : 'N/A'}
+                </Text>
                 <Text style={styles.progressLabel}>
-                  {isHighConsume ? 'High Usage' : 'Efficient'}
+                  {hasUsageData 
+                    ? (isHighConsume ? 'High Usage' : 'Efficient')
+                    : 'No Data'
+                  }
                 </Text>
               </View>
             </View>
@@ -1478,7 +1544,10 @@ const HomeScreen = () => {
                 </View>
               </View>
               <Text style={styles.progressSummary}>
-                {displayPercentage}% electricity {isHighConsume ? 'above average' : 'saved'}
+                {hasUsageData 
+                  ? `${displayPercentage}% electricity ${isHighConsume ? 'above average' : 'saved'}`
+                  : 'Add usage data to see insights'
+                }
               </Text>
             </View>
           </View>
@@ -1487,19 +1556,25 @@ const HomeScreen = () => {
           <View style={styles.todayStatsRow}>
             <View style={styles.todayStat}>
               <Ionicons name="flash" size={20} color={Colors.primary} />
-              <Text style={styles.todayStatValue}>{usageStats.today.toFixed(2)} kWh</Text>
+              <Text style={styles.todayStatValue}>
+                {hasUsageData ? `${usageStats.today.toFixed(2)} kWh` : 'No Data'}
+              </Text>
               <Text style={styles.todayStatLabel}>Today</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.todayStat}>
               <Ionicons name="calendar-outline" size={20} color={Colors.gray} />
-              <Text style={styles.todayStatValue}>{usageStats.yesterday.toFixed(2)} kWh</Text>
+              <Text style={styles.todayStatValue}>
+                {hasUsageData ? `${usageStats.yesterday.toFixed(2)} kWh` : 'No Data'}
+              </Text>
               <Text style={styles.todayStatLabel}>Yesterday</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.todayStat}>
               <Ionicons name="analytics-outline" size={20} color={Colors.primaryLight} />
-              <Text style={styles.todayStatValue}>{usageStats.weeklyAverage.toFixed(2)} kWh</Text>
+              <Text style={styles.todayStatValue}>
+                {hasUsageData ? `${usageStats.weeklyAverage.toFixed(2)} kWh` : 'No Data'}
+              </Text>
               <Text style={styles.todayStatLabel}>Weekly Avg</Text>
             </View>
           </View>
@@ -1592,25 +1667,24 @@ const HomeScreen = () => {
 
       <Text style={[styles.sectionTitle, { marginTop: 32 }]}>Energy Insights</Text>
       <View style={styles.chartCard}>
-        <BarChart
-          data={{
-            labels: ['', '', '', '', ''], // Empty labels since we have custom legend
-            datasets: [
-              {
-                data:
-                  Object.values(energyData.categories).length > 0
-                    ? Object.values(energyData.categories)
-                    : [20, 30, 25, 15, 10],
-                colors: [
-                  () => '#ef4444', // Bright Red
-                  () => '#f97316', // Bright Orange
-                  () => '#3b82f6', // Bright Blue
-                  () => '#a855f7', // Purple
-                  () => '#06b6d4', // Teal
-                ],
-              },
-            ],
-          }}
+        {/* Check if there's actual category data */}
+        {Object.values(energyData.categories).some(value => value > 0) ? (
+          <BarChart
+            data={{
+              labels: ['', '', '', '', ''], // Empty labels since we have custom legend
+              datasets: [
+                {
+                  data: Object.values(energyData.categories),
+                  colors: [
+                    () => '#ef4444', // Bright Red
+                    () => '#f97316', // Bright Orange
+                    () => '#3b82f6', // Bright Blue
+                    () => '#a855f7', // Purple
+                    () => '#06b6d4', // Teal
+                  ],
+                },
+              ],
+            }}
           width={chartWidth}
           height={240}
           yAxisLabel=""
@@ -1636,26 +1710,38 @@ const HomeScreen = () => {
             },
             barRadius: 8,
           }}
-          style={styles.chart}
-          showBarTops={false}
-          fromZero={true}
-          withCustomBarColorFromData={true}
-          flatColor={true}
-          segments={4}
-        />
+            style={styles.chart}
+            showBarTops={false}
+            fromZero={true}
+            withCustomBarColorFromData={true}
+            flatColor={true}
+            segments={4}
+          />
+        ) : (
+          /* No data state */
+          <View style={styles.noDataContainer}>
+            <Ionicons name="bar-chart-outline" size={48} color="#e2e8f0" />
+            <Text style={styles.noDataTitle}>No Energy Data Yet</Text>
+            <Text style={styles.noDataText}>
+              Start adding your daily energy usage to see insights here
+            </Text>
+          </View>
+        )}
 
-        {/* Custom Legend inside chart container */}
-        <View style={styles.legendContainer}>
-          {Object.keys(energyData.categories).map((category, index) => {
-            const colors = ['#ef4444', '#f97316', '#3b82f6', '#a855f7', '#06b6d4'];
-            return (
-              <View key={category} style={styles.legendItem}>
-                <View style={[styles.legendColorBox, { backgroundColor: colors[index] }]} />
-                <Text style={styles.legendText}>{category}</Text>
-              </View>
-            );
-          })}
-        </View>
+        {/* Custom Legend - only show if there's data */}
+        {Object.values(energyData.categories).some(value => value > 0) && (
+          <View style={styles.legendContainer}>
+            {Object.keys(energyData.categories).map((category, index) => {
+              const colors = ['#ef4444', '#f97316', '#3b82f6', '#a855f7', '#06b6d4'];
+              return (
+                <View key={category} style={styles.legendItem}>
+                  <View style={[styles.legendColorBox, { backgroundColor: colors[index] }]} />
+                  <Text style={styles.legendText}>{category}</Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
       </View>
     </Animatable.View>
   );
@@ -2810,6 +2896,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748b',
     fontWeight: '500',
+  },
+  noDataContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 20,
+  },
+  noDataTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#64748b',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  noDataText: {
+    fontSize: 14,
+    color: '#9ca3af',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   layoutSection: {
     marginHorizontal: 20,

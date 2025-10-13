@@ -17,6 +17,8 @@ import axios from 'axios';
 import { EnergyDataService } from '../services/EnergyDataService';
 import { EnergyData } from '../services/EnergyPredictionService';
 import { auth } from '../../config/firebase';
+import { AuthService } from '../services/firebase';
+import { FirestoreService } from '../services/firebase';
 
 const { width, height } = Dimensions.get('window');
 
@@ -26,6 +28,7 @@ const FloatingChatbot = () => {
   const [inputText, setInputText] = useState('');
   const [userEnergyData, setUserEnergyData] = useState<EnergyData | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [userName, setUserName] = useState<string>('');
 
   // BottomSheet ref
   const bottomSheetRef = useRef<BottomSheet>(null);
@@ -38,30 +41,70 @@ const FloatingChatbot = () => {
 
   const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 
-  const predefinedCapsules = [
-    'What was my energy usage yesterday?',
-    'Give me personalized energy tips',
-  ];
+  const getPredefinedCapsules = () => {
+    if (userEnergyData && userEnergyData.last7Days.some(day => day > 0)) {
+      // User has real data - show personalized questions
+      return [
+        'What was my energy usage yesterday?',
+        'Give me personalized energy tips',
+      ];
+    } else {
+      // New user without data - show general questions
+      return [
+        'How do I start tracking my energy usage?',
+        'Give me general energy saving tips',
+      ];
+    }
+  };
 
   // Initialize with welcome message and load user data
   useEffect(() => {
     loadUserEnergyData();
-    if (messages.length === 0) {
+  }, []);
+
+  // Set welcome message after data is loaded
+  useEffect(() => {
+    if (messages.length === 0 && !isLoadingData) {
+      const hasRealData = userEnergyData && userEnergyData.last7Days.some(day => day > 0);
+      
+      // Create personalized greeting using user's name (never show object ID)
+      const greeting = userName ? `Hi ${userName}!` : 'Hi there!';
+      
+      const welcomeText = hasRealData
+        ? `${greeting} I'm your personalized energy assistant. I can analyze your actual energy usage data, provide tailored insights, and help you save money. Ask me about your consumption patterns!`
+        : `${greeting} I'm WattWise AI, your energy assistant. I'm ready to help you with energy-saving tips! Start logging your daily usage to get personalized insights based on your actual consumption patterns.`;
+
       const welcomeMessage: IMessage = {
         _id: 'welcome',
-        text: "Hi! I'm your personalized energy assistant. I can analyze your actual energy usage data, provide tailored insights, and help you save money. Ask me about your consumption patterns!",
+        text: welcomeText,
         createdAt: new Date(),
         user: { _id: 2, name: 'WattWise AI', avatar: '⚡' },
       };
       setMessages([welcomeMessage]);
     }
-  }, []);
+  }, [isLoadingData, userEnergyData, userName, messages.length]);
 
-  // Load user's actual energy data
+  // Load user's actual energy data and name
   const loadUserEnergyData = async () => {
     try {
       setIsLoadingData(true);
       console.log('🤖 Loading user energy data for chatbot...');
+      
+      // Load user's name
+      const currentUser = AuthService.getCurrentUser();
+      if (currentUser) {
+        try {
+          const userDoc = await FirestoreService.getUserDocument(currentUser.uid);
+          const displayName = userDoc?.username || currentUser.displayName || currentUser.email?.split('@')[0] || '';
+          setUserName(displayName);
+          console.log('👤 User name loaded for chatbot:', displayName);
+        } catch (error) {
+          console.log('⚠️ Could not load user profile for chatbot');
+          setUserName('');
+        }
+      }
+      
+      // Load energy data
       const energyData = await EnergyDataService.getUserEnergyData();
       if (energyData) {
         setUserEnergyData(energyData);
@@ -95,12 +138,16 @@ const FloatingChatbot = () => {
       // Build context with user's actual energy data
       let userDataContext = '';
       if (userEnergyData) {
-        const yesterday = userEnergyData.last7Days[userEnergyData.last7Days.length - 1];
-        const weekAvg =
-          userEnergyData.last7Days.reduce((a, b) => a + b, 0) / userEnergyData.last7Days.length;
-        const monthlyEstimate = userEnergyData.averageDailyKwh * 30 * 25; // 25 LKR per kWh
+        // Check if user has any real usage data (not all zeros)
+        const hasRealData = userEnergyData.last7Days.some(day => day > 0) || userEnergyData.averageDailyKwh > 0;
+        
+        if (hasRealData) {
+          const yesterday = userEnergyData.last7Days[userEnergyData.last7Days.length - 1];
+          const weekAvg =
+            userEnergyData.last7Days.reduce((a, b) => a + b, 0) / userEnergyData.last7Days.length;
+          const monthlyEstimate = userEnergyData.averageDailyKwh * 30 * 25; // 25 LKR per kWh
 
-        userDataContext = `
+          userDataContext = `
 REAL USER ENERGY DATA CONTEXT:
 - Current average daily usage: ${userEnergyData.averageDailyKwh.toFixed(1)} kWh
 - Yesterday's usage: ${yesterday.toFixed(1)} kWh
@@ -111,30 +158,43 @@ REAL USER ENERGY DATA CONTEXT:
 - Estimated monthly cost: LKR ${monthlyEstimate.toFixed(0)}
 - User ID: ${userEnergyData.userId}
 
-Use this REAL data to provide specific, personalized responses. Reference actual numbers and patterns.
+IMPORTANT: This user HAS REAL USAGE DATA. Use the actual numbers above to provide specific, personalized responses.
 `;
+        } else {
+          userDataContext = `
+USER DATA STATUS: User profile exists but NO REAL USAGE DATA has been recorded yet.
+- All usage values are 0 or empty
+- User has not started logging their energy usage
+- This is a new user or someone who hasn't added usage data
+
+CRITICAL: DO NOT provide fake numbers or make up usage data. Be honest that no usage data is available.
+`;
+        }
       } else {
         userDataContext = `
-USER DATA: Not available yet (still loading or no data found).
-Provide general energy advice but mention that specific insights would be available once data is loaded.
+USER DATA STATUS: No user energy profile found or still loading.
+- User data is not available
+- User may need to set up their profile first
+
+CRITICAL: DO NOT provide fake numbers or make up usage data. Be honest that no data is available.
 `;
       }
 
       const enhancedPrompt = `${userDataContext}
 
-You are WattWise AI, a smart energy assistant with access to the user's real energy consumption data. 
-Provide helpful, specific responses based on their actual usage patterns. 
+You are WattWise AI, a smart energy assistant. Provide helpful responses based on the user's data availability.
 
 User Question: "${text}"
 
-Guidelines:
-- Use the actual data provided above to give personalized insights
-- Reference specific numbers from their usage (yesterday's consumption, weekly averages, etc.)
-- Compare their patterns (higher/lower days, trends)
-- Provide actionable advice based on their device count and spending
-- Be conversational but informative
+CRITICAL GUIDELINES:
+- IF USER HAS REAL DATA: Use the actual numbers provided above for personalized insights
+- IF USER HAS NO DATA: Be completely honest and say you cannot find their usage data
+- NEVER make up fake numbers or provide example data as if it's theirs
+- When asked about "yesterday's usage" or specific consumption, check if real data exists
+- If no real data: "I can't find your usage data yet. Please log your daily energy usage first to get personalized insights."
+- If data exists: Reference the actual numbers from their usage patterns
+- Be conversational but always truthful about data availability
 - Keep responses under 100 words unless they ask for detailed analysis
-- If asking about "yesterday" or "last week", use the actual data provided
 
 Response:`;
 
@@ -357,7 +417,7 @@ Response:`;
             <View style={styles.capsulesContainer}>
               <Text style={styles.capsulesTitle}>Quick Actions</Text>
               <View style={styles.capsulesRow}>
-                {predefinedCapsules.map((capsule, index) => (
+                {getPredefinedCapsules().map((capsule: string, index: number) => (
                   <TouchableOpacity
                     key={index}
                     style={styles.capsule}
