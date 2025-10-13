@@ -37,33 +37,65 @@ export const CommentCard: React.FC<CommentCardProps> = ({
   const isOwner = currentUserId === comment.uid;
   const dateText = comment.createdAt?.toDate ? comment.createdAt.toDate().toLocaleString() : '';
 
-  // Swipe gesture animation
-  const swipeAnim = useRef(new Animated.Value(0)).current;
-  const swipeThreshold = 60;
+  // Smooth swipe animation
+  const translateX = useRef(new Animated.Value(0)).current;
+  const swipeThreshold = 40;
+  const isSwiping = useRef(false);
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        return Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+        // Only capture horizontal swipes that start from the left
+        return Math.abs(gestureState.dx) > Math.abs(gestureState.dy * 2);
+      },
+      onPanResponderGrant: () => {
+        isSwiping.current = true;
       },
       onPanResponderMove: (_, gestureState) => {
         if (gestureState.dx > 0) { // Right swipe only
-          swipeAnim.setValue(Math.min(gestureState.dx, swipeThreshold));
+          // Smooth damping effect - slows down as it approaches threshold
+          const dampedX = gestureState.dx * (1 - Math.min(gestureState.dx / 200, 0.3));
+          translateX.setValue(Math.min(dampedX, swipeThreshold));
         }
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dx > swipeThreshold * 0.7) {
-          // Successful swipe - trigger mention without popup
-          onSwipeToComment?.(comment.author);
-        }
+        isSwiping.current = false;
         
-        // Reset animation
-        Animated.spring(swipeAnim, {
+        if (gestureState.dx > swipeThreshold * 0.4) {
+          // Successful swipe - smooth animation to threshold and back
+          Animated.sequence([
+            Animated.timing(translateX, {
+              toValue: swipeThreshold,
+              duration: 150,
+              useNativeDriver: true,
+            }),
+            Animated.timing(translateX, {
+              toValue: 0,
+              duration: 300,
+              useNativeDriver: true,
+            })
+          ]).start(() => {
+            onSwipeToComment?.(comment.author);
+          });
+        } else {
+          // Return to original position with spring animation
+          Animated.spring(translateX, {
+            toValue: 0,
+            useNativeDriver: true,
+            tension: 50,
+            friction: 10,
+          }).start();
+        }
+      },
+      onPanResponderTerminate: () => {
+        isSwiping.current = false;
+        // Return to original position if gesture is interrupted
+        Animated.spring(translateX, {
           toValue: 0,
           useNativeDriver: true,
           tension: 50,
-          friction: 7,
+          friction: 10,
         }).start();
       },
     })
@@ -103,21 +135,16 @@ export const CommentCard: React.FC<CommentCardProps> = ({
     setShowReplyOptions(false);
   };
 
-  const handleMention = () => {
-    onReply?.(comment.author);
-    setShowReplyOptions(false);
-  };
+  // Smooth background fade based on swipe progress
+  const bgOpacity = translateX.interpolate({
+    inputRange: [0, swipeThreshold],
+    outputRange: [0, 0.08],
+    extrapolate: 'clamp',
+  });
 
-  const swipeStyle = {
-    transform: [
-      {
-        translateX: swipeAnim.interpolate({
-          inputRange: [0, swipeThreshold],
-          outputRange: [0, swipeThreshold],
-          extrapolate: 'clamp',
-        }),
-      },
-    ],
+  // Smooth translate animation
+  const cardStyle = {
+    transform: [{ translateX }],
   };
 
   if (isEditing) {
@@ -149,11 +176,30 @@ export const CommentCard: React.FC<CommentCardProps> = ({
   }
 
   return (
-    <View>
-      {/* Comment Card */}
+    <View style={{ position: 'relative' }}>
+      {/* Subtle swipe background */}
+      <Animated.View 
+        style={[
+          styles.commentCard,
+          {
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            backgroundColor: Colors.primary,
+            opacity: bgOpacity,
+          }
+        ]}
+      />
+
+      {/* Main Comment Card */}
       <Animated.View
         {...panResponder.panHandlers}
-        style={[styles.commentCard, isOwner && styles.ownCommentCard, { backgroundColor: '#fff' }]}
+        style={[
+          styles.commentCard, 
+          isOwner && styles.ownCommentCard, 
+          { backgroundColor: '#fff' },
+          cardStyle
+        ]}
       >
         <View style={styles.commentHeader}>
           <Text style={styles.commentAuthor}>
@@ -163,7 +209,7 @@ export const CommentCard: React.FC<CommentCardProps> = ({
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Text style={styles.commentDate}>{dateText}</Text>
 
-            {/* Options menu for owner - REMOVED REPLY BUTTON FROM HERE */}
+            {/* Options menu for owner */}
             {isOwner && (
               <TouchableOpacity 
                 onPress={() => setShowReplyOptions(!showReplyOptions)} 
@@ -177,25 +223,27 @@ export const CommentCard: React.FC<CommentCardProps> = ({
 
         <Text style={styles.commentBody}>{comment.content}</Text>
 
-        {/* Reply/Mention options - KEEPING ONLY BOTTOM LEFT OPTIONS */}
-        <View style={{ flexDirection: 'row', marginTop: 8, gap: 12 }}>
+        {/* Reply button */}
+        <View style={{ flexDirection: 'row', marginTop: 8 }}>
           <TouchableOpacity 
             onPress={handleReply}
-            style={{ flexDirection: 'row', alignItems: 'center' }}
+            style={{ 
+              flexDirection: 'row', 
+              alignItems: 'center',
+              paddingVertical: 4,
+              paddingHorizontal: 8,
+              borderRadius: 6,
+              backgroundColor: 'transparent',
+            }}
           >
             <Ionicons name="arrow-undo" size={14} color={Colors.primary} />
-            <Text style={{ color: Colors.primary, fontSize: 12, marginLeft: 4 }}>
+            <Text style={{ 
+              color: Colors.primary, 
+              fontSize: 12, 
+              marginLeft: 4,
+              fontWeight: '500'
+            }}>
               Reply
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            onPress={handleMention}
-            style={{ flexDirection: 'row', alignItems: 'center' }}
-          >
-            <Ionicons name="at" size={14} color={Colors.primary} />
-            <Text style={{ color: Colors.primary, fontSize: 12, marginLeft: 4 }}>
-              Mention
             </Text>
           </TouchableOpacity>
         </View>
@@ -218,11 +266,17 @@ export const CommentCard: React.FC<CommentCardProps> = ({
             borderWidth: 1,
             borderColor: Colors.border,
           }}>
-            <TouchableOpacity onPress={handleEdit} style={styles.menuItem}>
+            <TouchableOpacity 
+              onPress={handleEdit} 
+              style={[styles.menuItem, { paddingVertical: 8 }]}
+            >
               <Ionicons name="create-outline" size={16} color={Colors.textPrimary} />
               <Text style={styles.menuItemText}>Edit</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleDelete} style={styles.menuItem}>
+            <TouchableOpacity 
+              onPress={handleDelete} 
+              style={[styles.menuItem, { paddingVertical: 8 }]}
+            >
               <Ionicons name="trash-outline" size={16} color="#DC2626" />
               <Text style={[styles.menuItemText, { color: '#DC2626' }]}>Delete</Text>
             </TouchableOpacity>
