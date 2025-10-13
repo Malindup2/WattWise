@@ -36,6 +36,9 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
   onDeleteComment,
 }) => {
   const { comments, loading } = useForumComments(post?.id || null);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [parentCommentId, setParentCommentId] = useState<string | null>(null);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   const { summary, generating, error, generateSummary, hasSummary, commentCount } =
     useCommentSummarization({
@@ -43,8 +46,6 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
       comments,
       autoGenerate: true,
     });
-
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   // Handle keyboard visibility
   React.useEffect(() => {
@@ -76,6 +77,27 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
     } else if (error) {
       Alert.alert('Error', SUMMARIZATION_MESSAGES.SUMMARY_ERROR);
     }
+  };
+
+  const handleReply = (username: string, commentId?: string) => {
+    setReplyingTo(username);
+    setParentCommentId(commentId ? commentId : null);
+  };
+
+  const handleSwipeToComment = (username: string) => {
+    // Simply set the reply without any popup or haptic feedback
+    setReplyingTo(username);
+    setParentCommentId(null);
+  };
+
+  const handleCancelReply = () => {
+    setReplyingTo(null);
+    setParentCommentId(null);
+  };
+
+  const handleCommentSubmit = () => {
+    setReplyingTo(null);
+    setParentCommentId(null);
   };
 
   const shouldShowManualTrigger = !hasSummary && !generating && comments.length >= 3;
@@ -135,7 +157,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
                       extraScrollHeight={Platform.OS === 'ios' ? 0 : 20}
                       enableOnAndroid={true}
                     >
-                      {/* Discussion Summary Section - Now Scrollable */}
+                      {/* Discussion Summary Section */}
                       {(hasSummary || generating || shouldShowManualTrigger) && (
                         <View style={styles.summaryContainer}>
                           <View style={styles.summaryHeader}>
@@ -194,6 +216,8 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
                           comment={comment}
                           currentUserId={currentUser?.uid}
                           onDelete={onDeleteComment}
+                          onReply={handleReply}
+                          onSwipeToComment={handleSwipeToComment}
                         />
                       ))}
                       
@@ -215,7 +239,10 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
                   <CommentComposer 
                     postId={post.id} 
                     currentUser={currentUser} 
-                    onSubmit={() => {}}
+                    replyingTo={replyingTo}
+                    parentCommentId={parentCommentId}
+                    onCancelReply={handleCancelReply}
+                    onSubmit={handleCommentSubmit}
                   />
                 </View>
               </View>
