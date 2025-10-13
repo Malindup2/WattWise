@@ -88,3 +88,22 @@ export interface SummaryResponse {
   summary: string;
   truncated: boolean;
 }
+
+// Add to your existing types
+export interface CommentFormData {
+  content: string;
+  parentCommentId?: string; // Remove null, only allow string or undefined
+  mentionedUser?: string; // Remove null, only allow string or undefined
+}
+
+export interface UserMention {
+  userId: string;
+  username: string;
+  position: number;
+  length: number;
+}
+
+// Add swipe gesture types
+export interface SwipeGestureProps {
+  onSwipeToComment?: (username: string) => void;
+}
