@@ -74,16 +74,16 @@ export class EnergyDataService {
         console.log('📊 Usage data loaded:', usageData.length, 'records');
       } catch (indexError: any) {
         console.warn(
-          '📊 Firestore index not available, using mock data:',
+          '📊 Firestore index not available, no usage data available:',
           indexError?.message || indexError
         );
-        // Continue with empty array to use mock data
+        // Continue with empty array - no mock data for real app
       }
 
       if (usageData.length === 0) {
-        console.log('📊 No usage data found, generating mock data');
-        // Return mock data if no real data exists
-        return this.getMockEnergyData(user.uid);
+        console.log('📊 No usage data found, returning null instead of mock data');
+        // Return null if no real data exists - this is for a real app, no mock data
+        return null;
       }
 
       // Calculate averages and extract recent data
