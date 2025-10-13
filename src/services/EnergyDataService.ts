@@ -9,6 +9,7 @@ import {
   getDoc,
   addDoc,
 } from 'firebase/firestore';
+import { DailyUsageService, DailyUsageSummary } from './DailyUsageService';
 import { db, auth } from '../../config/firebase';
 import { EnergyData } from './EnergyPredictionService';
 
@@ -41,127 +42,54 @@ export class EnergyDataService {
         throw new Error('User not authenticated');
       }
 
-      console.log('👤 User profile loading for:', user.uid);
+      console.log('� EnergyDataService loading data for user:', user.uid);
 
-      // Get user profile
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      const userProfile = (userDoc.data() as UserProfile) || {};
-      console.log('👤 User profile loaded:', userProfile);
+      // Use DailyUsageService which works with the correct 'daily_usage' collection
+      const usageStats = await DailyUsageService.getUsageStats(user.uid);
+      const weeklyTrend = await DailyUsageService.getWeeklyTrend(user.uid);
+      const monthlyTrend = await DailyUsageService.getMonthlyTrend(user.uid);
+      const categoryBreakdown = await DailyUsageService.getCategoryBreakdown(user.uid, 7);
 
-      // Try to get usage data, but handle index errors gracefully
-      let usageData: DailyUsage[] = [];
+      console.log('📊 DailyUsageService results:', {
+        todayUsage: usageStats.today,
+        monthlyTotal: usageStats.monthlyTotal,
+        weeklyAverage: usageStats.weeklyAverage,
+        weeklyTrendLength: weeklyTrend.length,
+        categoriesHaveData: Object.values(categoryBreakdown).some(v => v > 0)
+      });
 
-      try {
-        // Get last 30 days of usage data
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      // Check if user has any real data
+      const hasRealData = usageStats.today > 0 || 
+                         usageStats.yesterday > 0 || 
+                         usageStats.weeklyAverage > 0 || 
+                         usageStats.monthlyTotal > 0 ||
+                         weeklyTrend.some(day => day > 0) ||
+                         Object.values(categoryBreakdown).some(value => value > 0);
 
-        const usageQuery = query(
-          collection(db, 'dailyUsage'),
-          where('userId', '==', user.uid),
-          where('createdAt', '>=', thirtyDaysAgo),
-          orderBy('createdAt', 'desc'),
-          limit(30)
-        );
-
-        const usageSnapshot = await getDocs(usageQuery);
-        usageData = usageSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate() || new Date(),
-        })) as DailyUsage[];
-
-        console.log('📊 Usage data loaded:', usageData.length, 'records');
-      } catch (indexError: any) {
-        console.warn(
-          '📊 Firestore index not available, no usage data available:',
-          indexError?.message || indexError
-        );
-        // Continue with empty array - no mock data for real app
-      }
-
-      if (usageData.length === 0) {
-        console.log('📊 No usage data found, returning null instead of mock data');
-        // Return null if no real data exists - this is for a real app, no mock data
+      if (!hasRealData) {
+        console.log('📊 No real usage data found in EnergyDataService, returning null');
         return null;
       }
 
-      // Calculate averages and extract recent data
-      const totalKwh = usageData.reduce((sum, day) => sum + day.totalKwh, 0);
-      const averageDailyKwh = totalKwh / usageData.length;
+      console.log('✅ Real usage data found in EnergyDataService, building response');
 
-      // Get last 7 days (most recent first, so reverse for chronological order)
-      const last7Days = usageData
-        .slice(0, 7)
-        .reverse()
-        .map(day => day.totalKwh);
-
-      // Get all 30 days data
-      const last30Days = usageData.reverse().map(day => day.totalKwh);
-
-      // Count devices from most recent day
-      const recentDay = usageData[usageData.length - 1];
-      const deviceCount = recentDay?.devices
-        ? Object.keys(recentDay.devices).length
-        : userProfile.deviceCount || 5;
-
+      // Return data in the format expected by EnergyData interface
       return {
         userId: user.uid,
-        averageDailyKwh,
-        last7Days,
-        last30Days,
-        deviceCount,
-        monthlyBudget: userProfile.monthlyBudget,
+        averageDailyKwh: usageStats.weeklyAverage,
+        last7Days: weeklyTrend,
+        last30Days: monthlyTrend,
+        deviceCount: 0, // Calculate from real device data if needed
+        monthlyBudget: usageStats.monthlyTotal * 0.1 // Use as budget estimate
       };
     } catch (error) {
-      console.error('Error fetching energy data:', error);
-      // Return mock data on error
-      const user = auth.currentUser;
-      return user ? this.getMockEnergyData(user.uid) : null;
+      console.error('❌ Error fetching energy data:', error);
+      // Return null instead of mock data - this is a real app
+      return null;
     }
   }
 
-  static getMockEnergyData(userId: string): EnergyData {
-    console.log('🎲 Generating mock energy data for user:', userId);
 
-    // Generate realistic mock data based on typical household patterns
-    const baseUsage = 8.5;
-    const variance = 1.5;
-
-    // Generate last 7 days with some weekend vs weekday variation
-    const last7Days = Array.from({ length: 7 }, (_, index) => {
-      const isWeekend = index === 0 || index === 6; // Assuming index 0 and 6 are weekend
-      const weekendMultiplier = isWeekend ? 1.2 : 1.0; // Higher usage on weekends
-      return (baseUsage + (Math.random() - 0.5) * variance) * weekendMultiplier;
-    });
-
-    // Generate last 30 days with more variation
-    const last30Days = Array.from({ length: 30 }, (_, index) => {
-      const dayOfWeek = index % 7;
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-      const weekendMultiplier = isWeekend ? 1.2 : 1.0;
-      const monthlyTrend = 1 + Math.sin((index / 30) * Math.PI) * 0.1; // Slight monthly variation
-
-      return (baseUsage + (Math.random() - 0.5) * variance) * weekendMultiplier * monthlyTrend;
-    });
-
-    const mockData = {
-      userId,
-      averageDailyKwh: baseUsage,
-      last7Days,
-      last30Days,
-      deviceCount: 12,
-      monthlyBudget: 6000, // 6000 LKR
-    };
-
-    console.log('🎲 Generated mock data:', {
-      ...mockData,
-      last7Days: mockData.last7Days.map(v => v.toFixed(1)),
-      avgLast30Days: (mockData.last30Days.reduce((a, b) => a + b, 0) / 30).toFixed(1),
-    });
-
-    return mockData;
-  }
 
   static async saveDailyUsage(
     dailyUsage: Omit<DailyUsage, 'id' | 'userId' | 'createdAt'>

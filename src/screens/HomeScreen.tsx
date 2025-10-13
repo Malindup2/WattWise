@@ -188,6 +188,8 @@ const HomeScreen = () => {
     try {
       const user = AuthService.getCurrentUser();
       if (user) {
+        console.log('🏠 HomeScreen loading data for user ID:', user.uid);
+        
         // Load real usage statistics
         const stats = await DailyUsageService.getUsageStats(user.uid);
         setUsageStats(stats);
