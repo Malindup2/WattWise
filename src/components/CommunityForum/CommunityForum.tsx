@@ -298,7 +298,7 @@ const handleVote = async (post: ForumPost, value: 1 | -1) => {
         >
           <PostForm
             isEditing={!!editingPostId}
-            editingPostId={editingPostId}
+            editingPost={editingPostId ? posts?.find((p: ForumPost) => p.id === editingPostId) : null}
             onSubmit={handleModalClose}
             onCancel={handleModalClose}
           />

@@ -267,6 +267,22 @@ export const markNotificationAsRead = async (notificationId: string): Promise<vo
   });
 };
 
+export const getPostById = async (postId: string): Promise<ForumPost | null> => {
+  try {
+    const postDoc = await getDoc(doc(db, COLLECTIONS.FORUM_POSTS, postId));
+    if (postDoc.exists()) {
+      return {
+        id: postDoc.id,
+        ...(postDoc.data() as Omit<ForumPost, 'id'>),
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting post:', error);
+    return null;
+  }
+};
+
 // Get unread notifications count
 export const getUnreadNotificationsCount = async (userId: string): Promise<number> => {
   const q = query(
