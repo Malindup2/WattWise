@@ -1,34 +1,35 @@
 import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics'; // Add haptic feedback
+import * as Haptics from 'expo-haptics';
 import { Colors } from '../../../constants/Colors';
 import { styles } from '../../../../styles/CommunityForum.styles';
 import { usePostForm } from '../hooks/usePostForm';
 import { useMediaPicker } from '../hooks/useMediaPicker';
+import { ForumPost } from '../types'; // Import ForumPost type
 
 interface PostFormProps {
   isEditing?: boolean;
-  editingPostId?: string | null;
+  editingPost?: ForumPost | null; // Change from editingPostId to editingPost
   onSubmit: () => void;
   onCancel: () => void;
 }
 
 export const PostForm: React.FC<PostFormProps> = ({
   isEditing = false,
-  editingPostId,
+  editingPost,
   onSubmit,
   onCancel,
 }) => {
   const { formData, submitting, uploadingMedia, updateField, submitPost, updatePost } =
-    usePostForm();
+    usePostForm({ isEditing, editingPost }); // Pass editingPost to hook
 
   const { mediaUri, pickImage, clearMedia } = useMediaPicker();
 
   const handleSubmit = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const success =
-      isEditing && editingPostId ? await updatePost(editingPostId) : await submitPost();
+      isEditing && editingPost ? await updatePost(editingPost.id) : await submitPost();
 
     if (success) {
       onSubmit();
