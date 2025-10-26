@@ -19,6 +19,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
 import * as Animatable from 'react-native-animatable';
 import AnimatedCounter from '../components/AnimatedCounter';
 import DailyUsageInput from '../components/DailyUsageInput';
@@ -80,6 +81,7 @@ const HomeScreen = () => {
 
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null); // Firestore user data
+  const [profileImage, setProfileImage] = useState<string | null>(null); // Base64 profile image
   const [userLayout, setUserLayout] = useState<ExtendedLayout | null>(null);
   const [loadingLayout, setLoadingLayout] = useState(false);
   const [showLayoutModal, setShowLayoutModal] = useState(false);
@@ -785,10 +787,186 @@ const HomeScreen = () => {
       if (currentUser) {
         const userDoc = await FirestoreService.getUserDocument(currentUser.uid);
         setUserProfile(userDoc);
+        // Load profile image from Firestore
+        if (userDoc?.profileImage) {
+          setProfileImage(userDoc.profileImage);
+        }
         console.log('👤 User profile loaded:', userDoc);
       }
     } catch (error) {
       console.error('❌ Error loading user profile:', error);
+    }
+  };
+
+  const pickImage = async () => {
+    try {
+      // Request permissions - handle iOS vs Android differences
+      let permissionStatus;
+      if (Platform.OS === 'ios') {
+        // On iOS, request camera permissions as well since media library access might require it
+        const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
+        const mediaPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        permissionStatus = {
+          status: cameraPermission.status === 'granted' && mediaPermission.status === 'granted' ? 'granted' : 'denied'
+        };
+      } else {
+        // Android and other platforms
+        permissionStatus = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      }
+
+      if (permissionStatus.status !== 'granted') {
+        setAlertType('warning');
+        setAlertTitle('Permission Required');
+        setAlertMessage('Camera roll permissions are needed to select a profile image. Please enable permissions in your device settings.');
+        setAlertVisible(true);
+        return;
+      }
+
+      // Launch image picker with iOS-specific options
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        base64: true,
+        // iOS specific options
+        ...(Platform.OS === 'ios' && {
+          allowsMultipleSelection: false,
+          selectionLimit: 1,
+          // Ensure we get proper format for iOS
+          exif: false,
+        }),
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        let base64 = asset.base64;
+
+        // Handle iOS-specific image processing
+        if (Platform.OS === 'ios' && base64) {
+          // iOS sometimes returns base64 without proper data URL prefix
+          // Ensure we have the correct format for Firebase
+          if (!base64.startsWith('data:image')) {
+            // Determine MIME type from file extension or default to jpeg
+            const uri = asset.uri || '';
+            let mimeType = 'image/jpeg';
+
+            if (uri.includes('.png')) {
+              mimeType = 'image/png';
+            } else if (uri.includes('.gif')) {
+              mimeType = 'image/gif';
+            } else if (uri.includes('.heic') || uri.includes('.heif')) {
+              mimeType = 'image/jpeg'; // Convert HEIC to JPEG for compatibility
+            }
+
+            base64 = `data:${mimeType};base64,${base64}`;
+          }
+
+          // iOS sometimes has issues with very large images, add size check
+          const base64Size = base64.length * 0.75; // Approximate binary size
+          if (base64Size > 3 * 1024 * 1024) { // 3MB limit for iOS
+            setAlertType('warning');
+            setAlertTitle('Image Too Large');
+            setAlertMessage('Please select a smaller image (under 3MB) for iOS devices.');
+            setAlertVisible(true);
+            return;
+          }
+        }
+
+        if (base64) {
+          // Show loading state
+          setAlertType('info');
+          setAlertTitle('Uploading...');
+          setAlertMessage('Please wait while we upload your profile image.');
+          setAlertVisible(true);
+
+          // Upload to Firebase
+          await uploadProfileImage(base64);
+        } else {
+          setAlertType('error');
+          setAlertTitle('Image Processing Failed');
+          setAlertMessage('Unable to process the selected image. Please try a different image or check your device storage.');
+          setAlertVisible(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      setAlertType('error');
+      setAlertTitle('Image Selection Failed');
+      setAlertMessage('Unable to access image picker. Please check your permissions and try again.');
+      setAlertVisible(true);
+    }
+  };
+
+  const uploadProfileImage = async (base64Image: string) => {
+    try {
+      const currentUser = AuthService.getCurrentUser();
+      if (!currentUser) {
+        setAlertType('warning');
+        setAlertTitle('Login Required');
+        setAlertMessage('Please log in to update your profile image.');
+        setAlertVisible(true);
+        return;
+      }
+
+      // Validate base64 image data
+      if (!base64Image || !base64Image.includes('base64,')) {
+        throw new Error('Invalid image data format');
+      }
+
+      // Check image size (base64 is ~33% larger than binary)
+      const base64Size = base64Image.length * 0.75; // Approximate binary size
+      if (base64Size > 5 * 1024 * 1024) { // 5MB limit
+        setAlertType('warning');
+        setAlertTitle('Image Too Large');
+        setAlertMessage('Please select a smaller image (under 5MB).');
+        setAlertVisible(true);
+        return;
+      }
+
+      // Update Firestore with base64 image (already formatted in pickImage)
+      await FirestoreService.updateUserDocumentByUid(currentUser.uid, {
+        profileImage: base64Image,
+        updatedAt: new Date(),
+      });
+
+      // Update local state
+      setProfileImage(base64Image);
+
+      // Refresh user profile
+      await loadUserProfile();
+
+      // Hide loading alert and show success
+      setAlertVisible(false);
+      setTimeout(() => {
+        setAlertType('success');
+        setAlertTitle('Profile Updated!');
+        setAlertMessage('Your profile image has been updated successfully.');
+        setAlertVisible(true);
+      }, 500);
+
+    } catch (error) {
+      console.error('Error uploading profile image:', error);
+
+      // Hide loading alert and show error
+      setAlertVisible(false);
+      setTimeout(() => {
+        let errorMessage = 'Unable to upload image. Please check your connection and try again.';
+
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        if (errorMsg.includes('Invalid image data')) {
+          errorMessage = 'The selected image format is not supported. Please try a different image.';
+        } else if (errorMsg.includes('permission') || errorMsg.includes('auth')) {
+          errorMessage = 'Authentication error. Please log out and log back in.';
+        } else if (errorMsg.includes('network') || errorMsg.includes('timeout')) {
+          errorMessage = 'Network error. Please check your internet connection.';
+        }
+
+        setAlertType('error');
+        setAlertTitle('Upload Failed');
+        setAlertMessage(errorMessage);
+        setAlertVisible(true);
+      }, 500);
     }
   };
 
@@ -1095,8 +1273,10 @@ const HomeScreen = () => {
               )}
             </TouchableOpacity>
             <View style={styles.profileContainer}>
-              <TouchableOpacity style={styles.profileButton}>
-                {user?.photoURL ? (
+              <TouchableOpacity style={styles.profileButton} onPress={() => toggleSidebar()}>
+                {profileImage ? (
+                  <Image source={{ uri: profileImage }} style={styles.profileImage} />
+                ) : user?.photoURL ? (
                   <Image source={{ uri: user.photoURL }} style={styles.profileImage} />
                 ) : (
                   <View style={styles.profilePlaceholder}>
@@ -1170,11 +1350,13 @@ const HomeScreen = () => {
                 style={styles.profileImageContainer}
                 onPress={() => {
                   toggleSidebar(() => {
-                    setTimeout(() => setShowProfileModal(true), 100);
+                    pickImage();
                   });
                 }}
               >
-                {user?.photoURL ? (
+                {profileImage ? (
+                  <Image source={{ uri: profileImage }} style={styles.sidebarProfileImage} />
+                ) : user?.photoURL ? (
                   <Image source={{ uri: user.photoURL }} style={styles.sidebarProfileImage} />
                 ) : (
                   <View style={styles.sidebarProfilePlaceholder}>
@@ -1251,6 +1433,21 @@ const HomeScreen = () => {
                 style={styles.sidebarMenuItem}
                 onPress={() => {
                   toggleSidebar(() => {
+                    pickImage();
+                  });
+                }}
+              >
+                <View style={styles.menuItemIcon}>
+                  <Ionicons name="camera-outline" size={22} color={Colors.primary} />
+                </View>
+                <Text style={styles.sidebarMenuText}>Update Profile Picture</Text>
+                <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.sidebarMenuItem}
+                onPress={() => {
+                  toggleSidebar(() => {
                     setTimeout(() => setShowChangePasswordModal(true), 100);
                   });
                 }}
@@ -1318,9 +1515,14 @@ const HomeScreen = () => {
     <Animatable.View animation="fadeInUp" delay={400} style={styles.metricsContainer}>
       <Text style={styles.sectionTitle}>Energy Overview</Text>
       <View style={styles.metricsGrid}>
-        <View style={[styles.metricCard, { backgroundColor: '#f0f9ff' }]}>
-          <View style={[styles.metricIcon, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
-            <Ionicons name="speedometer-outline" size={24} color="#3b82f6" />
+        <LinearGradient
+          colors={['#3b82f6', '#1d4ed8']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.metricCard}
+        >
+          <View style={styles.metricIcon}>
+            <Ionicons name="speedometer-outline" size={24} color="#ffffff" />
           </View>
           {hasUsageData ? (
             <AnimatedCounter
@@ -1369,11 +1571,16 @@ const HomeScreen = () => {
                 : `${usageStats.trendPercentage.toFixed(1)}%`}
             </Text>
           </View>
-        </View>
+        </LinearGradient>
 
-        <View style={[styles.metricCard, { backgroundColor: '#f3e8ff' }]}>
-          <View style={[styles.metricIcon, { backgroundColor: 'rgba(168, 85, 247, 0.1)' }]}>
-            <Ionicons name="calendar-outline" size={24} color="#a855f7" />
+        <LinearGradient
+          colors={['#0e7490', '#0c4a6e']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.metricCard}
+        >
+          <View style={styles.metricIcon}>
+            <Ionicons name="calendar-outline" size={24} color="#ffffff" />
           </View>
           {hasUsageData ? (
             <AnimatedCounter
@@ -1390,32 +1597,42 @@ const HomeScreen = () => {
             <Ionicons name="trending-down" size={12} color="#22c55e" />
             <Text style={[styles.changeText, { color: '#22c55e' }]}>This month</Text>
           </View>
-        </View>
+        </LinearGradient>
 
-        <View style={[styles.metricCard, { backgroundColor: '#fff7ed' }]}>
-          <View style={[styles.metricIcon, { backgroundColor: 'rgba(249, 115, 22, 0.1)' }]}>
-            <Ionicons name="card-outline" size={24} color="#f97316" />
+        <LinearGradient
+          colors={['#f59e0b', '#d97706']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.metricCard}
+        >
+          <View style={styles.metricIcon}>
+            <Ionicons name="card-outline" size={24} color="#ffffff" />
           </View>
           {hasUsageData ? (
             <AnimatedCounter
               value={usageStats.monthlyTotal * 0.1}
               style={styles.metricValue}
-              prefix="LKR"
+              prefix="LKR "
               decimals={2}
             />
           ) : (
             <Text style={styles.metricValue}>No Data</Text>
           )}
-          <Text style={styles.metricLabel}>Est. Bill</Text>
+          <Text style={styles.metricLabel}>Estimated Bill</Text>
           <View style={styles.metricChange}>
             <Ionicons name="calendar-outline" size={12} color="#22c55e" />
             <Text style={[styles.changeText, { color: '#22c55e' }]}>This month</Text>
           </View>
-        </View>
+        </LinearGradient>
 
-        <View style={[styles.metricCard, { backgroundColor: '#f0fdf4' }]}>
-          <View style={[styles.metricIcon, { backgroundColor: 'rgba(34, 197, 94, 0.1)' }]}>
-            <Ionicons name="leaf-outline" size={24} color="#22c55e" />
+        <LinearGradient
+          colors={['#059669', '#047857']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.metricCard}
+        >
+          <View style={styles.metricIcon}>
+            <Ionicons name="leaf-outline" size={24} color="#ffffff" />
           </View>
           {hasUsageData ? (
             <AnimatedCounter 
@@ -1438,7 +1655,7 @@ const HomeScreen = () => {
               <Text style={[styles.changeText, { color: '#94a3b8' }]}>No Data</Text>
             )}
           </View>
-        </View>
+        </LinearGradient>
       </View>
     </Animatable.View>
   );
@@ -2651,8 +2868,8 @@ const styles = StyleSheet.create({
   },
   headerGradient: {
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 32,
+    paddingTop: 45,
+    paddingBottom: 24,
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
   },
@@ -2769,55 +2986,64 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   metricsContainer: {
-    marginBottom: 32,
+    marginBottom: 10,
   },
   metricsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: 20,
-    gap: 16,
+    gap: 8,
   },
   metricCard: {
     width: (width - 56) / 2,
-    padding: 20,
-    borderRadius: 20,
+    padding: 12,
+    borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 3,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 5,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   metricIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   metricValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1e293b',
-    marginBottom: 4,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 2,
   },
   metricLabel: {
-    fontSize: 14,
-    color: '#64748b',
-    marginBottom: 8,
+    fontSize: 12,
+    color: '#ffffff',
+    fontWeight: '600',
+    marginBottom: 4,
+    opacity: 0.9,
   },
   metricChange: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   changeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     marginLeft: 4,
+    color: '#ffffff',
+    opacity: 0.8,
   },
   bottomSpacer: {
     height: 100,
@@ -3565,7 +3791,7 @@ const styles = StyleSheet.create({
   // Daily Usage Section Styles
   dailyUsageSection: {
     marginHorizontal: 20,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   dailyUsageHeader: {
     flexDirection: 'row',
