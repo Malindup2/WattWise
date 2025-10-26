@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   TextInput,
   ScrollView,
+  Animated,
 } from 'react-native';
 import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { GiftedChat, IMessage, Bubble, Send } from 'react-native-gifted-chat';
@@ -19,8 +20,163 @@ import { EnergyData } from '../services/EnergyPredictionService';
 import { auth } from '../../config/firebase';
 import { AuthService } from '../services/firebase';
 import { FirestoreService } from '../services/firebase';
+import * as Animatable from 'react-native-animatable';
 
 const { width, height } = Dimensions.get('window');
+
+// Thinking Animation Component (ChatGPT-style)
+const ThinkingAnimation = () => {
+  const [animationKey, setAnimationKey] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setAnimationKey(prev => prev + 1);
+    }, 1500); // Restart animation every 1.5 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <View style={styles.thinkingContainer}>
+      <View style={styles.thinkingBubble}>
+        <View style={styles.thinkingTextContainer}>
+          <Animatable.Text
+            key={`t-${animationKey}`}
+            animation={{
+              0: { color: '#64748b' },
+              1: { color: '#49B02D' }
+            }}
+            duration={300}
+            delay={0}
+            style={styles.thinkingChar}
+          >
+            T
+          </Animatable.Text>
+          <Animatable.Text
+            key={`h-${animationKey}`}
+            animation={{
+              0: { color: '#64748b' },
+              1: { color: '#49B02D' }
+            }}
+            duration={300}
+            delay={100}
+            style={styles.thinkingChar}
+          >
+            h
+          </Animatable.Text>
+          <Animatable.Text
+            key={`i-${animationKey}`}
+            animation={{
+              0: { color: '#64748b' },
+              1: { color: '#49B02D' }
+            }}
+            duration={300}
+            delay={200}
+            style={styles.thinkingChar}
+          >
+            i
+          </Animatable.Text>
+          <Animatable.Text
+            key={`n-${animationKey}`}
+            animation={{
+              0: { color: '#64748b' },
+              1: { color: '#49B02D' }
+            }}
+            duration={300}
+            delay={300}
+            style={styles.thinkingChar}
+          >
+            n
+          </Animatable.Text>
+          <Animatable.Text
+            key={`k-${animationKey}`}
+            animation={{
+              0: { color: '#64748b' },
+              1: { color: '#49B02D' }
+            }}
+            duration={300}
+            delay={400}
+            style={styles.thinkingChar}
+          >
+            k
+          </Animatable.Text>
+          <Animatable.Text
+            key={`i2-${animationKey}`}
+            animation={{
+              0: { color: '#64748b' },
+              1: { color: '#49B02D' }
+            }}
+            duration={300}
+            delay={500}
+            style={styles.thinkingChar}
+          >
+            i
+          </Animatable.Text>
+          <Animatable.Text
+            key={`n2-${animationKey}`}
+            animation={{
+              0: { color: '#64748b' },
+              1: { color: '#49B02D' }
+            }}
+            duration={300}
+            delay={600}
+            style={styles.thinkingChar}
+          >
+            n
+          </Animatable.Text>
+          <Animatable.Text
+            key={`g-${animationKey}`}
+            animation={{
+              0: { color: '#64748b' },
+              1: { color: '#49B02D' }
+            }}
+            duration={300}
+            delay={700}
+            style={styles.thinkingChar}
+          >
+            g
+          </Animatable.Text>
+          <Animatable.Text
+            key={`dot1-${animationKey}`}
+            animation={{
+              0: { color: '#64748b' },
+              1: { color: '#49B02D' }
+            }}
+            duration={200}
+            delay={800}
+            style={styles.thinkingDot}
+          >
+            .
+          </Animatable.Text>
+          <Animatable.Text
+            key={`dot2-${animationKey}`}
+            animation={{
+              0: { color: '#64748b' },
+              1: { color: '#49B02D' }
+            }}
+            duration={200}
+            delay={900}
+            style={styles.thinkingDot}
+          >
+            .
+          </Animatable.Text>
+          <Animatable.Text
+            key={`dot3-${animationKey}`}
+            animation={{
+              0: { color: '#64748b' },
+              1: { color: '#49B02D' }
+            }}
+            duration={200}
+            delay={1000}
+            style={styles.thinkingDot}
+          >
+            .
+          </Animatable.Text>
+        </View>
+      </View>
+    </View>
+  );
+};
 
 const FloatingChatbot = () => {
   const [messages, setMessages] = useState<IMessage[]>([]);
@@ -466,6 +622,9 @@ Response:`;
             </ScrollView>
           </View>
 
+          {/* Thinking Animation */}
+          {isLoading && <ThinkingAnimation />}
+
           {/* Custom Input Field */}
           <View style={styles.customInputContainer}>
             <TextInput
@@ -729,6 +888,43 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 20,
     backgroundColor: '#f0f9ff',
+  },
+  thinkingContainer: {
+    paddingVertical: 4,
+    paddingHorizontal: 16,
+    alignItems: 'flex-start',
+  },
+  thinkingBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
+    maxWidth: '70%',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  thinkingTextContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  thinkingChar: {
+    fontSize: 14,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  thinkingDot: {
+    fontSize: 14,
+    color: '#64748b',
+    fontWeight: '600',
+    marginLeft: 1,
   },
 });
 

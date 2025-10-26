@@ -21,7 +21,6 @@ import {
   EnergyData,
 } from '../services/EnergyPredictionService';
 import { EnergyDataService } from '../services/EnergyDataService';
-import { TestDataSeeder } from '../services/TestDataSeeder';
 
 const { width } = Dimensions.get('window');
 
@@ -69,34 +68,6 @@ const PredictiveModelScreen: React.FC = () => {
     setRefreshing(true);
     await loadData();
     setRefreshing(false);
-  };
-
-  const handleSeedTestData = async () => {
-    try {
-      setLoading(true);
-      await TestDataSeeder.seedAllTestData();
-      await loadData(); // Reload with new data
-    } catch (error) {
-      console.error('Error seeding test data:', error);
-      setError('Failed to seed test data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleTestApiKey = async () => {
-    try {
-      console.log('🧪 Testing Gemini API key...');
-      const isValid = await EnergyPredictionService.testApiKey();
-      if (isValid) {
-        alert('✅ Gemini API key is working!');
-      } else {
-        alert('❌ Gemini API key test failed. Check console for details.');
-      }
-    } catch (error) {
-      console.error('Error testing API key:', error);
-      alert('❌ Error testing API key');
-    }
   };
 
   const updateChartData = () => {
@@ -314,23 +285,6 @@ const PredictiveModelScreen: React.FC = () => {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Know Your Future Usage ⚡</Text>
         <View style={styles.headerActions}>
-          {__DEV__ && (
-            <>
-              <TouchableOpacity
-                onPress={handleTestApiKey}
-                style={[styles.seedButton, { marginRight: 8 }]}
-              >
-                <Text style={styles.seedButtonText}>Test API</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleSeedTestData}
-                disabled={loading}
-                style={styles.seedButton}
-              >
-                <Text style={styles.seedButtonText}>Seed Data</Text>
-              </TouchableOpacity>
-            </>
-          )}
           <TouchableOpacity onPress={handleRefresh} disabled={refreshing}>
             <Ionicons
               name="refresh-outline"
@@ -450,17 +404,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-  },
-  seedButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  seedButtonText: {
-    color: Colors.white,
-    fontSize: 12,
-    fontWeight: '600',
   },
   scrollView: {
     flex: 1,
