@@ -19,7 +19,7 @@ import LeaderboardModal from '../components/quiz/LeaderboardModal';
 import AnimatedCounter from '../components/AnimatedCounter';
 import { AlertModal } from '../components/AlertModal';
 
-const QuizzesScreen: React.FC = () => {
+  const QuizzesScreen: React.FC = () => {
   const [userStats, setUserStats] = useState<UserQuizStats | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -27,6 +27,47 @@ const QuizzesScreen: React.FC = () => {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showBadgeAlert, setShowBadgeAlert] = useState(false);
   const [newBadge, setNewBadge] = useState<Badge | null>(null);
+
+  const getBadgeStyle = (badgeType: string) => {
+    const baseStyle = {
+      backgroundColor: Colors.primary,
+    };
+
+    switch (badgeType) {
+      case 'quiz_master':
+        return {
+          ...baseStyle,
+          backgroundColor: '#FFD700', // Gold
+        };
+      case 'speed_demon':
+        return {
+          ...baseStyle,
+          backgroundColor: '#FF6B35', // Orange
+        };
+      case 'knowledge_seeker':
+        return {
+          ...baseStyle,
+          backgroundColor: '#4A90E2', // Blue
+        };
+      case 'streak_warrior':
+        return {
+          ...baseStyle,
+          backgroundColor: '#E74C3C', // Red
+        };
+      case 'energy_expert':
+        return {
+          ...baseStyle,
+          backgroundColor: '#9B59B6', // Purple
+        };
+      case 'eco_champion':
+        return {
+          ...baseStyle,
+          backgroundColor: '#27AE60', // Green
+        };
+      default:
+        return baseStyle;
+    }
+  };
 
   useEffect(() => {
     loadUserData();
@@ -168,40 +209,42 @@ const QuizzesScreen: React.FC = () => {
                 style={styles.badgesScrollView}
                 contentContainerStyle={styles.badgesScrollContent}
               >
-                {userStats.badges.map(badge => (
+                {userStats.badges.map((badge, index) => (
                   <View key={badge.id} style={styles.badgeItem}>
-                    <View style={styles.badgeCircle}>
-                      <Text style={styles.badgeEmoji}>
+                    <View style={[styles.badgeContainer, getBadgeStyle(badge.type)]}>
+                      <View style={styles.badgeIcon}>
+                        <Text style={styles.badgeIconText}>
+                          {badge.type === 'quiz_master'
+                            ? '🏆'
+                            : badge.type === 'speed_demon'
+                              ? '⚡'
+                              : badge.type === 'knowledge_seeker'
+                                ? '🧠'
+                                : badge.type === 'streak_warrior'
+                                  ? '🔥'
+                                  : badge.type === 'energy_expert'
+                                    ? '💡'
+                                    : badge.type === 'eco_champion'
+                                      ? '🌱'
+                                      : '⭐'}
+                        </Text>
+                      </View>
+                      <Text style={styles.badgeLabel}>
                         {badge.type === 'quiz_master'
-                          ? '🎯'
+                          ? 'Master'
                           : badge.type === 'speed_demon'
-                            ? '⚡'
+                            ? 'Speed'
                             : badge.type === 'knowledge_seeker'
-                              ? '🧠'
+                              ? 'Brain'
                               : badge.type === 'streak_warrior'
-                                ? '🔥'
+                                ? 'Streak'
                                 : badge.type === 'energy_expert'
-                                  ? '💡'
+                                  ? 'Expert'
                                   : badge.type === 'eco_champion'
-                                    ? '🌱'
-                                    : '🏆'}
+                                    ? 'Eco'
+                                    : 'Pro'}
                       </Text>
                     </View>
-                    <Text style={styles.badgeName}>
-                      {badge.type === 'quiz_master'
-                        ? 'Quiz Master'
-                        : badge.type === 'speed_demon'
-                          ? 'Speed Pro'
-                          : badge.type === 'knowledge_seeker'
-                            ? 'Brain Box'
-                            : badge.type === 'streak_warrior'
-                              ? 'Fire Streak'
-                              : badge.type === 'energy_expert'
-                                ? 'Eco Pro'
-                                : badge.type === 'eco_champion'
-                                  ? 'Green Hero'
-                                  : 'Champion'}
-                    </Text>
                     {(badge.count || 1) > 1 && (
                       <View style={styles.badgeCountContainer}>
                         <Text style={styles.badgeCountText}>{badge.count}</Text>
@@ -222,7 +265,7 @@ const QuizzesScreen: React.FC = () => {
         {/* Start Quiz Button */}
         <TouchableOpacity style={styles.startQuizButton} onPress={startQuiz}>
           <View style={styles.startQuizContent}>
-            <Text style={styles.thunderIcon}>⚡</Text>
+            <Text style={styles.thunderIcon}></Text>
             <Text style={styles.startQuizText}>Start New Quiz</Text>
           </View>
         </TouchableOpacity>
@@ -230,34 +273,70 @@ const QuizzesScreen: React.FC = () => {
         {/* Leaderboard Preview */}
         <View style={styles.leaderboardCard}>
           <View style={styles.leaderboardHeader}>
-            <Text style={styles.leaderboardTitle}>🏆 Leaderboard</Text>
-            <TouchableOpacity onPress={() => setShowLeaderboard(true)}>
+            <View style={styles.leaderboardTitleContainer}>
+              <Text style={styles.leaderboardTitle}> Leaderboard</Text>
+              <Text style={styles.leaderboardSubtitle}>Top energy champions</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.viewAllButton}
+              onPress={() => setShowLeaderboard(true)}
+            >
               <Text style={styles.viewAllText}>View All</Text>
             </TouchableOpacity>
           </View>
 
-          {leaderboard.slice(0, 3).map(entry => (
-            <View key={entry.userId} style={styles.leaderboardItem}>
+          {leaderboard.slice(0, 3).map((entry, index) => (
+            <View key={entry.userId} style={[
+              styles.leaderboardItem,
+              index === 0 && styles.topRankItem,
+              index < leaderboard.slice(0, 3).length - 1 && styles.leaderboardItemBorder
+            ]}>
               <View style={styles.rankContainer}>
-                <Text style={styles.rankMedal}>
-                  {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : '🥉'}
-                </Text>
-                <Text style={styles.rankNumber}>#{entry.rank}</Text>
+                <View style={[
+                  styles.rankBadge,
+                  entry.rank === 1 && styles.goldRank,
+                  entry.rank === 2 && styles.silverRank,
+                  entry.rank === 3 && styles.bronzeRank,
+                ]}>
+                  <Text style={styles.rankNumberText}>
+                    {entry.rank}
+                  </Text>
+                </View>
+                {entry.rank <= 3 && (
+                  <Text style={styles.rankMedal}>
+                    {entry.rank === 1 ? '👑' : entry.rank === 2 ? '🥈' : '🥉'}
+                  </Text>
+                )}
               </View>
+
               <View style={styles.userInfo}>
                 <Text style={styles.userName}>{entry.name}</Text>
-                <Text style={styles.userScore}>{entry.ecoPoints} points</Text>
+                <View style={styles.userStats}>
+                  <Text style={styles.userScore}>{entry.ecoPoints.toLocaleString()} pts</Text>
+                </View>
               </View>
+
               {entry.badges.length > 0 && (
                 <View style={styles.userBadgeContainer}>
-                  <Text style={styles.userBadge}>{entry.badges[0].icon}</Text>
+                  <View style={styles.userBadge}>
+                    <Text style={styles.userBadgeText}>{entry.badges[0].icon}</Text>
+                  </View>
                   {entry.badges.length > 1 && (
-                    <Text style={styles.badgeCount}>+{entry.badges.length - 1}</Text>
+                    <View style={styles.badgeOverflow}>
+                      <Text style={styles.badgeOverflowText}>+{entry.badges.length - 1}</Text>
+                    </View>
                   )}
                 </View>
               )}
             </View>
           ))}
+
+          {leaderboard.length === 0 && (
+            <View style={styles.emptyLeaderboard}>
+              <Text style={styles.emptyLeaderboardText}>No rankings yet</Text>
+              <Text style={styles.emptyLeaderboardSubtext}>Complete quizzes to appear here!</Text>
+            </View>
+          )}
         </View>
 
         {/* How it Works */}
@@ -372,10 +451,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: 16,
     shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
   statsRow: {
     flexDirection: 'row',
@@ -424,23 +503,44 @@ const styles = StyleSheet.create({
     marginRight: 16,
     position: 'relative',
   },
-  badgeCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: Colors.white,
-    borderWidth: 3,
-    borderColor: Colors.primary,
+  badgeContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    padding: 8,
   },
-  badgeEmoji: {
-    fontSize: 24,
+  badgeIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  badgeIconText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  badgeLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.white,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   badgeCountContainer: {
     position: 'absolute',
@@ -454,6 +554,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: Colors.white,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   badgeCountText: {
     fontSize: 12,
@@ -495,10 +600,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
-  badgeIcon: {
-    fontSize: 18,
-    textAlign: 'center',
-  },
   badgeName: {
     fontSize: 10,
     fontWeight: '600',
@@ -538,65 +639,142 @@ const styles = StyleSheet.create({
     marginTop: 8,
     padding: 20,
     backgroundColor: Colors.white,
-    borderRadius: 16,
+    borderRadius: 20,
     shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 12,
+    elevation: 6,
   },
   leaderboardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
+  },
+  leaderboardTitleContainer: {
+    flex: 1,
   },
   leaderboardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: Colors.textPrimary,
+  },
+  leaderboardSubtitle: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  viewAllButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: Colors.backgroundSecondary,
+    borderRadius: 20,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   viewAllText: {
     fontSize: 14,
     color: Colors.primary,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   leaderboardItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 4,
+  },
+  topRankItem: {
+    backgroundColor: 'rgba(73, 176, 45, 0.05)',
+    borderRadius: 12,
+    marginHorizontal: -4,
+    paddingHorizontal: 16,
+    marginVertical: 4,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  leaderboardItemBorder: {
     borderBottomWidth: 1,
     borderBottomColor: Colors.borderLight,
   },
   rankContainer: {
     alignItems: 'center',
-    marginRight: 12,
-    minWidth: 60,
+    marginRight: 16,
+    minWidth: 50,
+  },
+  rankBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.borderLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  goldRank: {
+    backgroundColor: '#FFD700',
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  silverRank: {
+    backgroundColor: '#C0C0C0',
+    shadowColor: '#C0C0C0',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  bronzeRank: {
+    backgroundColor: '#CD7F32',
+    shadowColor: '#CD7F32',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  rankNumberText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.white,
   },
   rankMedal: {
-    fontSize: 24,
-    marginBottom: 2,
-  },
-  rankNumber: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  rankText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.white,
+    fontSize: 16,
   },
   userInfo: {
     flex: 1,
   },
   userName: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     color: Colors.textPrimary,
-    marginBottom: 2,
+    marginBottom: 4,
+  },
+  userStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   userScore: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.primary,
+  },
+  scoreDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.borderLight,
+    marginHorizontal: 8,
+  },
+  userQuizzes: {
     fontSize: 12,
     color: Colors.textSecondary,
   },
@@ -604,7 +782,58 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   userBadge: {
-    fontSize: 20,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.successLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 2,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  userBadgeText: {
+    fontSize: 14,
+  },
+  badgeOverflow: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: Colors.primary,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: Colors.white,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  badgeOverflowText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.white,
+  },
+  emptyLeaderboard: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  emptyLeaderboardText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.textSecondary,
+    marginBottom: 4,
+  },
+  emptyLeaderboardSubtext: {
+    fontSize: 14,
+    color: Colors.textSecondary,
   },
   badgeCount: {
     fontSize: 8,
@@ -619,10 +848,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: 16,
     shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 6,
   },
   howItWorksTitle: {
     fontSize: 18,
