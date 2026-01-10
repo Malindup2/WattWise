@@ -509,4 +509,29 @@ modalContainer: {
     fontWeight: '600',
   },
 
+  // Add these styles to your existing CommunityForum.styles.ts
+swipeHint: {
+  position: 'absolute',
+  left: 0,
+  top: 0,
+  bottom: 0,
+  justifyContent: 'center',
+  paddingLeft: 16,
+  zIndex: 1,
+},
+replyOptions: {
+  flexDirection: 'row',
+  marginTop: 8,
+  gap: 12,
+},
+mentionBadge: {
+  backgroundColor: '#f0f9ff',
+  borderWidth: 1,
+  borderColor: '#e0f2fe',
+  borderRadius: 6,
+  paddingHorizontal: 8,
+  paddingVertical: 4,
+  marginBottom: 8,
+},
+
 });

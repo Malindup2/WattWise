@@ -1,11 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { auth } from '../../../../config/firebase';
 import { createPost, updatePost, uploadMedia } from '../services';
-import { PostFormData } from '../types';
+import { PostFormData, ForumPost } from '../types';
 import { UI_MESSAGES } from '../constants';
 
-export const usePostForm = () => {
+interface UsePostFormProps {
+  isEditing?: boolean;
+  editingPost?: ForumPost | null; // Add editingPost prop
+}
+
+export const usePostForm = ({ isEditing = false, editingPost }: UsePostFormProps = {}) => {
   const [formData, setFormData] = useState<PostFormData>({
     title: '',
     content: '',
@@ -13,6 +18,17 @@ export const usePostForm = () => {
   });
   const [submitting, setSubmitting] = useState(false);
   const [uploadingMedia, setUploadingMedia] = useState(false);
+
+  // Load post data when editing
+  useEffect(() => {
+    if (isEditing && editingPost) {
+      setFormData({
+        title: editingPost.title || '',
+        content: editingPost.content || '',
+        mediaUri: editingPost.mediaUrl || null,
+      });
+    }
+  }, [isEditing, editingPost]);
 
   const updateField = (field: keyof PostFormData, value: string | null) => {
     setFormData(prev => ({ ...prev, [field]: value }));
